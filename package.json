@@ -1,0 +1,23 @@
+{
+  "name": "tagtech-clinicas",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d",
+    "db:migrate": "pnpm --filter @tagtech/db migrate",
+    "db:seed": "pnpm --filter @tagtech/db seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.11.11",
+    "typescript": "^5.9.3"
+  }
+}

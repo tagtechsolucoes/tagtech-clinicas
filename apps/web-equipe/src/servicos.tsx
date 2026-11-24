@@ -1,0 +1,296 @@
+import { useState } from 'react';
+import { centsToInput, parseBRL } from '@tagtech/domain';
+import { api, type Service } from './api';
+import { mensagem, usePainel } from './contexto';
+import { dinheiro, duracao } from './formato';
+import { CORES } from './profissionais';
+import {
+  Avatar,
+  Botao,
+  Cabecalho,
+  Campo,
+  Entrada,
+  Gaveta,
+  Icone,
+  Interruptor,
+  Seletor,
+  Texto,
+  Vazio,
+} from './ui';
+
+const DURACOES = [15, 20, 30, 40, 45, 60, 75, 90, 120, 150, 180, 240];
+
+export function ServicosTela() {
+  const { services, professionals } = usePainel();
+  const [aberto, setAberto] = useState<Service | 'novo' | null>(null);
+  const categorias = [...new Set(services.map((s) => s.category || 'Sem categoria'))];
+  const nomePro = (id: string) => professionals.find((p) => p.id === id);
+
+  return (
+    <>
+      <Cabecalho
+        titulo="Serviços"
+        descricao="O que a clínica oferece, quanto tempo leva e quem faz. A duração define o tamanho do horário na agenda."
+        acoes={
+          <Botao variante="principal" onClick={() => setAberto('novo')}>
+            <Icone nome="mais" className="h-4 w-4" /> Novo serviço
+          </Botao>
+        }
+      />
+      {services.length === 0 ? (
+        <Vazio
+          titulo="Nenhum serviço ainda"
+          texto="Comece pela consulta ou avaliação, que é o que o paciente novo mais procura."
+        />
+      ) : (
+        <div className="space-y-8">
+          {categorias.map((cat) => (
+            <section key={cat}>
+              <h2 className="mb-3 text-xl font-medium">{cat}</h2>
+              <ul className="divide-y divide-linha overflow-hidden rounded-2xl bg-folha ring-1 ring-linha">
+                {services
+                  .filter((s) => (s.category || 'Sem categoria') === cat)
+                  .map((s) => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => setAberto(s)}
+                        className={`flex w-full items-center gap-4 px-5 py-4 text-left hover:bg-porcelana ${s.active ? '' : 'opacity-55'}`}
+                      >
+                        <span
+                          className="h-9 w-1.5 shrink-0 rounded-full"
+                          style={{ background: s.color }}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold">
+                            {s.name}
+                            {!s.active ? (
+                              <span className="ml-2 text-xs font-medium text-nevoa">inativo</span>
+                            ) : null}
+                          </span>
+                          <span className="block text-sm text-nevoa">
+                            {duracao(s.durationMinutes)}
+                            {s.onlineBooking ? '' : ' · só pela recepção'}
+                          </span>
+                        </span>
+                        <span className="hidden -space-x-2 sm:flex">
+                          {(s.professionalIds.length ? s.professionalIds : [])
+                            .slice(0, 4)
+                            .map((id) => {
+                              const p = nomePro(id);
+                              return p ? (
+                                <Avatar
+                                  key={id}
+                                  nome={p.name}
+                                  cor={p.color}
+                                  foto={p.photoUrl}
+                                  tamanho="h-7 w-7 text-[0.6rem] ring-2 ring-folha"
+                                />
+                              ) : null;
+                            })}
+                          {s.professionalIds.length === 0 ? (
+                            <span className="text-xs text-bruma">Todos</span>
+                          ) : null}
+                        </span>
+                        <span className="w-28 text-right font-semibold tabular-nums">
+                          {dinheiro(s.priceCents)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+      <Gaveta
+        aberta={aberto !== null}
+        aoFechar={() => setAberto(null)}
+        titulo={aberto === 'novo' ? 'Novo serviço' : (aberto?.name ?? '')}
+      >
+        {aberto ? (
+          <Formulario
+            key={aberto === 'novo' ? 'novo' : aberto.id}
+            s={aberto === 'novo' ? null : aberto}
+            aoFechar={() => setAberto(null)}
+          />
+        ) : null}
+      </Gaveta>
+    </>
+  );
+}
+
+function Formulario({ s, aoFechar }: { s: Service | null; aoFechar: () => void }) {
+  const { professionals, services, recarregar, avisar } = usePainel();
+  const [dados, setDados] = useState({
+    name: s?.name ?? '',
+    category: s?.category ?? '',
+    description: s?.description ?? '',
+    durationMinutes: s?.durationMinutes ?? 30,
+    preco: s?.priceCents != null ? centsToInput(s.priceCents) : '',
+    color: s?.color ?? CORES[0]!,
+    onlineBooking: s?.onlineBooking ?? true,
+    active: s?.active ?? true,
+    professionalIds: s?.professionalIds ?? [],
+  });
+  const precoCents = dados.preco.trim() === '' ? null : parseBRL(dados.preco);
+  const categorias = [...new Set(services.map((x) => x.category).filter(Boolean))];
+
+  async function salvar() {
+    const { preco: _p, ...resto } = dados;
+    const corpo = { ...resto, priceCents: precoCents };
+    try {
+      if (s) await api.updateService(s.id, corpo);
+      else await api.createService(corpo);
+      await recarregar();
+      avisar('Serviço salvo');
+      aoFechar();
+    } catch (e) {
+      avisar(mensagem(e), 'erro');
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <Campo rotulo="Nome">
+        <Entrada
+          value={dados.name}
+          onChange={(e) => setDados({ ...dados, name: e.target.value })}
+          placeholder="Ex.: Limpeza e profilaxia"
+        />
+      </Campo>
+      <div className="grid grid-cols-2 gap-3">
+        <Campo rotulo="Duração">
+          <Seletor
+            value={dados.durationMinutes}
+            onChange={(e) => setDados({ ...dados, durationMinutes: Number(e.target.value) })}
+          >
+            {[...new Set([...DURACOES, dados.durationMinutes])]
+              .sort((a, b) => a - b)
+              .map((d) => (
+                <option key={d} value={d}>
+                  {duracao(d)}
+                </option>
+              ))}
+          </Seletor>
+        </Campo>
+        <Campo
+          rotulo="Preço"
+          ajuda={
+            dados.preco.trim() === ''
+              ? 'Vazio: “sob avaliação” no site.'
+              : precoCents === null
+                ? 'Valor inválido.'
+                : undefined
+          }
+        >
+          <Entrada
+            inputMode="decimal"
+            value={dados.preco}
+            onChange={(e) => setDados({ ...dados, preco: e.target.value })}
+            placeholder="R$ 0,00"
+          />
+        </Campo>
+      </div>
+      <Campo rotulo="Categoria">
+        <Entrada
+          list="categorias"
+          value={dados.category}
+          onChange={(e) => setDados({ ...dados, category: e.target.value })}
+          placeholder="Ex.: Prevenção, Estética"
+        />
+        <datalist id="categorias">
+          {categorias.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </Campo>
+      <Campo rotulo="Descrição para o site">
+        <Texto
+          rows={2}
+          maxLength={500}
+          value={dados.description}
+          onChange={(e) => setDados({ ...dados, description: e.target.value })}
+        />
+      </Campo>
+      <div>
+        <span className="mb-2 block text-[0.82rem] font-semibold text-nevoa">Quem faz</span>
+        <div className="space-y-1.5">
+          {professionals
+            .filter((p) => p.active)
+            .map((p) => {
+              const marcado = dados.professionalIds.includes(p.id);
+              return (
+                <label
+                  key={p.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-porcelana"
+                >
+                  <input
+                    type="checkbox"
+                    checked={marcado}
+                    onChange={() =>
+                      setDados({
+                        ...dados,
+                        professionalIds: marcado
+                          ? dados.professionalIds.filter((x) => x !== p.id)
+                          : [...dados.professionalIds, p.id],
+                      })
+                    }
+                    className="h-4 w-4 accent-petroleo"
+                  />
+                  <Avatar
+                    nome={p.name}
+                    cor={p.color}
+                    foto={p.photoUrl}
+                    tamanho="h-7 w-7 text-[0.6rem]"
+                  />
+                  {p.name}
+                </label>
+              );
+            })}
+        </div>
+        <p className="mt-1.5 text-[0.8rem] text-bruma">
+          Sem ninguém marcado, qualquer profissional pode fazer.
+        </p>
+      </div>
+      <div>
+        <span className="mb-2 block text-[0.82rem] font-semibold text-nevoa">Cor na agenda</span>
+        <div className="flex flex-wrap gap-2">
+          {CORES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={`Cor ${c}`}
+              aria-pressed={dados.color === c}
+              onClick={() => setDados({ ...dados, color: c })}
+              className={`h-9 w-9 rounded-full ring-offset-2 ${dados.color === c ? 'ring-2 ring-tinta' : ''}`}
+              style={{ background: c }}
+            />
+          ))}
+        </div>
+      </div>
+      <Interruptor
+        ligado={dados.onlineBooking}
+        aoMudar={(v) => setDados({ ...dados, onlineBooking: v })}
+        rotulo="Agendável pelo site"
+      />
+      {s ? (
+        <Interruptor
+          ligado={dados.active}
+          aoMudar={(v) => setDados({ ...dados, active: v })}
+          rotulo="Ativo"
+        />
+      ) : null}
+      <Botao
+        variante="principal"
+        tamanho="grande"
+        className="w-full"
+        disabled={!dados.name.trim() || (dados.preco.trim() !== '' && precoCents === null)}
+        onClick={salvar}
+      >
+        Salvar
+      </Botao>
+    </div>
+  );
+}

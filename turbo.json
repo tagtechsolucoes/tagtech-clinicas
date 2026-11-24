@@ -1,0 +1,8 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "typecheck": { "dependsOn": ["^typecheck"] },
+    "test": { "dependsOn": ["^typecheck"], "env": ["DATABASE_URL", "DATABASE_OWNER_URL"] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}

@@ -1,0 +1,96 @@
+# Produção num servidor só (Lightsail). Uso: ver deploy/README.md.
+name: tagtech
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tagtech
+      POSTGRES_PASSWORD: ${OWNER_DB_PASSWORD:?defina OWNER_DB_PASSWORD no .env}
+      POSTGRES_DB: tagtech
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?defina APP_DB_PASSWORD no .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tagtech -d tagtech']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Sem porta publicada: o banco só é visto pelos outros contêineres.
+
+  migrate:
+    build: { context: .., dockerfile: deploy/Dockerfile, target: migrate }
+    environment:
+      DATABASE_OWNER_URL: postgres://tagtech:${OWNER_DB_PASSWORD}@postgres:5432/tagtech
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: 'no'
+
+  api:
+    build: { context: .., dockerfile: deploy/Dockerfile, target: api }
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://tagtech_app:${APP_DB_PASSWORD}@postgres:5432/tagtech
+      TEAM_APP_URL: https://${EQUIPE_HOST}
+      # Link de acompanhamento do pedido que vai na mensagem do WhatsApp.
+      SITE_URL: https://${SITE_HOST}
+      # Só a rede interna do Docker (onde está o Caddy) pode informar o IP de quem chamou.
+      TRUST_PROXY: loopback,uniquelocal
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      APP_VERSION: ${APP_VERSION:-}
+    volumes:
+      - media:/data/media
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web-cliente:
+    build: { context: .., dockerfile: deploy/Dockerfile, target: web-cliente }
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:3000
+    depends_on:
+      api: { condition: service_healthy }
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: caddy
+      args:
+        SITE_HOST: ${SITE_HOST}
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      SITE_HOST: ${SITE_HOST:?defina SITE_HOST no .env}
+      EQUIPE_HOST: ${EQUIPE_HOST:?defina EQUIPE_HOST no .env}
+      ACME_EMAIL: ${ACME_EMAIL:?defina ACME_EMAIL no .env}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web-cliente
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:
+  caddy_config:

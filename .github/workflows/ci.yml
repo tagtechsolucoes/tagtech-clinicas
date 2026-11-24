@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tagtech
+          POSTGRES_PASSWORD: tagtech
+          POSTGRES_DB: tagtech_clinicas
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tagtech -d tagtech_clinicas"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://tagtech_app:tagtech_app@localhost:5432/tagtech_clinicas
+      DATABASE_OWNER_URL: postgres://tagtech:tagtech@localhost:5432/tagtech_clinicas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Criar o usuário do banco da aplicação
+        run: psql "$DATABASE_OWNER_URL" -v ON_ERROR_STOP=1 -f docker/postgres/init.sql
+      - run: pnpm db:migrate
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Build do app do cliente
+        run: pnpm --filter @tagtech/web-cliente build
+      - name: Build do app da equipe
+        run: pnpm --filter @tagtech/web-equipe build
+
+  docker:
+    # Confere que as imagens de produção constroem e que o Caddyfile é válido.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir as imagens de produção
+        run: |
+          cp deploy/.env.example deploy/.env
+          sed -i 's/^OWNER_DB_PASSWORD=$/OWNER_DB_PASSWORD=ci/; s/^APP_DB_PASSWORD=$/APP_DB_PASSWORD=ci/' deploy/.env
+          docker compose -f deploy/compose.yaml config --quiet
+          docker compose -f deploy/compose.yaml build

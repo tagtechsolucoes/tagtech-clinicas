@@ -1,0 +1,35 @@
+{
+  "name": "@tagtech/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.4.2",
+    "@nestjs/core": "^12.4.2",
+    "@nestjs/platform-fastify": "^12.4.2",
+    "@node-rs/argon2": "^2.2.2",
+    "@tagtech/db": "workspace:*",
+    "@tagtech/domain": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.8",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sharp": "^0.35.5",
+    "socket.io": "^4.8.4",
+    "tsx": "^4.20.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^12.4.2",
+    "@types/node": "^22.0.0",
+    "socket.io-client": "^4.8.4",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

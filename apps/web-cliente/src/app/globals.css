@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/oswald';
+
+/*
+  Site de agendamento da clínica. Porcelana, tinta e a letra de texto são do produto.
+  "marca", "destaque" e a fonte de título são de cada clínica (ver lib/tema.ts).
+*/
+@theme {
+  --color-porcelana: #f3f5f6;
+  --color-folha: #ffffff;
+  --color-tinta: #0f2028;
+  --color-nevoa: #56676f;
+  --color-bruma: #8a9aa1;
+  --color-linha: #dce3e6;
+  --color-alerta: #b8303a;
+  --color-alerta-fundo: #fbe8e9;
+  --color-ok: #2a7f52;
+  --color-ok-fundo: #e2f2e9;
+
+  --color-marca: #1d4e5f;
+  --color-marca-fundo: #123542;
+  --color-sobre-marca: #ffffff;
+  --color-destaque: #e9a23b;
+  --color-destaque-forte: #d18e2a;
+  --color-sobre-destaque: #0f2028;
+  --color-destaque-na-marca: #e9a23b;
+
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-tinta);
+  background: var(--color-porcelana);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2.5px solid var(--color-marca);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  .sobre-marca :focus-visible {
+    outline-color: var(--color-destaque-na-marca);
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+}
+
+@keyframes entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.entra {
+  animation: entra 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

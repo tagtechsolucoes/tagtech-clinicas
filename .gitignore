@@ -1,0 +1,14 @@
+node_modules
+dist
+.turbo
+.env
+.env.local
+coverage
+*.log
+.DS_Store
+.next
+next-env.d.ts
+.data
+*.tsbuildinfo
+deploy/.env
+deploy/backups
