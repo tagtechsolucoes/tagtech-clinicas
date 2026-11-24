@@ -19,7 +19,9 @@ import { and, asc, eq } from 'drizzle-orm';
 import { AttemptLimiter } from '../common/attempt-limiter';
 import { DbService } from '../db/db.module';
 import { availability, type ProfessionalSlots } from '../agenda/availability';
-import { hashToken, mapBookingError } from '../agenda/agenda.service';
+import { mapBookingError } from '../agenda/agenda.service';
+import { hashToken } from '../common/token';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { clinicView } from '../clinic/clinic.service';
 import { loadProfessionals, loadServices } from '../clinic/clinic.service';
 import { findOrCreatePatient } from '../patients/patients.service';
@@ -50,7 +52,10 @@ export class PublicService {
     message: 'Muitos agendamentos seguidos. Tente de novo mais tarde ou fale com a clínica.',
   });
 
-  constructor(@Inject(DbService) private readonly dbService: DbService) {}
+  constructor(
+    @Inject(DbService) private readonly dbService: DbService,
+    @Inject(WhatsAppService) private readonly whatsapp: WhatsAppService,
+  ) {}
 
   private async clinic<T>(
     slug: string,
@@ -248,9 +253,10 @@ export class PublicService {
         toStatus: 'scheduled',
         actorKind: 'patient',
       });
-      return { token, view: await this.manageView(tx, row!.id) };
+      return { token, tenantId: tenant.id, id: row!.id, view: await this.manageView(tx, row!.id) };
     });
     this.bookingLimiter.recordFailure(ip, slug);
+    this.whatsapp.appointmentEvent(result.tenantId, result.id, 'booked', result.token);
     return { token: result.token, appointment: result.view };
   }
 

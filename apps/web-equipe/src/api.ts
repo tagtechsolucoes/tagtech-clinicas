@@ -188,6 +188,23 @@ export interface Invite {
   token?: string;
 }
 
+export interface WhatsAppSettings {
+  configured: boolean;
+  enabled: boolean;
+  phoneNumberId: string;
+  displayPhone: string;
+  templateName: string;
+  templateLang: string;
+  reminderHours: number;
+}
+
+export interface SentMessage {
+  event: 'booked' | 'reminder' | 'rescheduled' | 'cancelled';
+  status: 'sending' | 'sent' | 'failed';
+  error: string | null;
+  at: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -411,6 +428,22 @@ export const api = {
       '/patients/import',
       { rows },
     ),
+
+  // WhatsApp
+  whatsapp: () => request<WhatsAppSettings>('/whatsapp'),
+  saveWhatsapp: (data: {
+    phoneNumberId: string;
+    accessToken?: string;
+    templateName: string;
+    templateLang: string;
+    reminderHours: number;
+    enabled: boolean;
+  }) => send<WhatsAppSettings>('PUT', '/whatsapp', data),
+  toggleWhatsapp: (enabled: boolean) => send<WhatsAppSettings>('PATCH', '/whatsapp', { enabled }),
+  removeWhatsapp: () => send<WhatsAppSettings>('DELETE', '/whatsapp'),
+  testWhatsapp: (phone: string) => send<{ sent: true }>('POST', '/whatsapp/test', { phone }),
+  messages: (appointmentId: string) =>
+    request<SentMessage[]>(`/appointments/${appointmentId}/messages`),
 
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),

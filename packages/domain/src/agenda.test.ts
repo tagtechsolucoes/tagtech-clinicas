@@ -102,3 +102,22 @@ describe('cadastro', () => {
     expect(canManage('reception', 'professional')).toBe(false);
   });
 });
+
+describe('mensagens', async () => {
+  const { whenText, messageSentence } = await import('./mensagens');
+  const now = new Date('2026-11-24T15:00:00Z'); // terça, 12:00 em Recife
+  it('diz hoje, amanhã ou o dia da semana', () => {
+    expect(whenText(new Date('2026-11-24T19:30:00Z'), 'America/Recife', now)).toBe(
+      'hoje, às 16:30',
+    );
+    expect(whenText(new Date('2026-11-25T12:00:00Z'), 'America/Recife', now)).toBe(
+      'amanhã, às 09:00',
+    );
+    expect(whenText(new Date('2026-11-27T12:00:00Z'), 'America/Recife', now)).toBe(
+      'sexta, 27/11, às 09:00',
+    );
+    expect(messageSentence('reminder', 'amanhã, às 09:00')).toBe(
+      'é amanhã, às 09:00. Podemos contar com você?',
+    );
+  });
+});

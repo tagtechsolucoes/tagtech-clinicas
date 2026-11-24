@@ -266,3 +266,31 @@ export const waitlist = pgTable('waitlist', {
   bookedAppointmentId: uuid('booked_appointment_id'),
   createdAt: createdAt(),
 });
+
+// ---------------------------------------------------------------- WhatsApp
+
+export const clinicWhatsapp = pgTable('clinic_whatsapp', {
+  tenantId: uuid('tenant_id').primaryKey(),
+  phoneNumberId: text('phone_number_id').notNull(),
+  accessToken: text('access_token').notNull(),
+  templateName: text('template_name').notNull().default('consulta_aviso'),
+  templateLang: text('template_lang').notNull().default('pt_BR'),
+  displayPhone: text('display_phone').notNull().default(''),
+  reminderHours: integer('reminder_hours').notNull().default(24),
+  enabled: boolean('enabled').notNull().default(true),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+export const appointmentMessages = pgTable('appointment_messages', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  appointmentId: uuid('appointment_id').notNull(),
+  event: text('event', { enum: ['booked', 'reminder', 'rescheduled', 'cancelled'] }).notNull(),
+  forStartsAt: ts('for_starts_at').notNull(),
+  status: text('status', { enum: ['sending', 'sent', 'failed'] })
+    .notNull()
+    .default('sending'),
+  providerMessageId: text('provider_message_id'),
+  error: text('error'),
+  createdAt: createdAt(),
+});
