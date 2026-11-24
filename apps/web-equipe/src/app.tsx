@@ -21,6 +21,7 @@ import { EquipeTela } from './equipe';
 import { EsperaTela } from './espera';
 import { setFuso } from './formato';
 import { PacientesTela } from './pacientes';
+import { PacienteTela } from './paciente/paciente';
 import { ProfissionaisTela } from './profissionais';
 import { ServicosTela } from './servicos';
 import { Avatar, Icone, Recado } from './ui';
@@ -48,9 +49,13 @@ const SECOES: Array<{ id: Secao; nome: string; icone: string; gerencia?: boolean
 const ESCOLHA = 'tt:clinica';
 
 function lerSecao(): Secao {
-  const h = location.hash.replace(/^#/, '') as Secao;
-  return SECOES.some((s) => s.id === h) ? h : 'agenda';
+  const h = location.hash.replace(/^#/, '');
+  if (/^paciente\/[0-9a-f-]{36}$/.test(h)) return 'pacientes';
+  return SECOES.some((s) => s.id === h) ? (h as Secao) : 'agenda';
 }
+
+/** Paciente aberto em página própria (#paciente/<id>). */
+const lerPaciente = () => /^#paciente\/([0-9a-f-]{36})$/.exec(location.hash)?.[1] ?? null;
 
 export function App() {
   const [estado, setEstado] = useState<Estado>({ fase: 'carregando' });
@@ -153,6 +158,7 @@ function Casca({
   aoSair: () => void;
 }) {
   const [secao, setSecao] = useState<Secao>(lerSecao);
+  const [pacienteId, setPacienteId] = useState<string | null>(lerPaciente);
   const [dados, setDados] = useState<{
     clinic: Clinic;
     professionals: Professional[];
@@ -181,7 +187,10 @@ function Casca({
 
   useEffect(() => {
     void recarregar();
-    const aoMudar = () => setSecao(lerSecao());
+    const aoMudar = () => {
+      setSecao(lerSecao());
+      setPacienteId(lerPaciente());
+    };
     window.addEventListener('hashchange', aoMudar);
     return () => window.removeEventListener('hashchange', aoMudar);
   }, [recarregar]);
@@ -304,7 +313,10 @@ function Casca({
           {atual === 'agenda' ? <Agenda /> : null}
           {atual !== 'agenda' ? (
             <div className="mx-auto w-full max-w-6xl px-5 py-8 lg:px-10 lg:py-10">
-              {atual === 'pacientes' ? <PacientesTela /> : null}
+              {atual === 'pacientes' && pacienteId ? (
+                <PacienteTela key={pacienteId} id={pacienteId} />
+              ) : null}
+              {atual === 'pacientes' && !pacienteId ? <PacientesTela /> : null}
               {atual === 'espera' ? <EsperaTela /> : null}
               {atual === 'profissionais' ? <ProfissionaisTela /> : null}
               {atual === 'servicos' ? <ServicosTela /> : null}

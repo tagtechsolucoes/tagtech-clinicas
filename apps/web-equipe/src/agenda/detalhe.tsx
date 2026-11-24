@@ -81,7 +81,7 @@ export function Detalhe({
 }
 
 function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) => void }) {
-  const { clinic, professionals, avisar } = usePainel();
+  const { clinic, professionals, avisar, vinculo } = usePainel();
   const [ficha, setFicha] = useState<Patient | null>(null);
   const [historico, setHistorico] = useState<HistoryEvent[]>([]);
   const [mensagens, setMensagens] = useState<SentMessage[]>([]);
@@ -161,6 +161,14 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
           <Item rotulo="Idade" valor={idade(a.patient.birthDate) ?? ''} />
         ) : null}
       </dl>
+
+      <a
+        href={`#paciente/${a.patient.id}`}
+        className="flex items-center justify-between rounded-2xl px-1 text-sm font-semibold text-petroleo hover:underline"
+      >
+        {vinculo.role === 'reception' ? 'Abrir ficha do paciente' : 'Abrir prontuário e fotos'}
+        <Icone nome="direita" className="h-4 w-4" />
+      </a>
 
       {ficha && (ficha.allergies || ficha.medications) ? (
         <section className="rounded-2xl bg-ambar-fundo p-4 text-ambar-tinta">

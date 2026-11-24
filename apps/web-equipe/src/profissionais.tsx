@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { fromMinutes, toMinutes, WEEKDAYS_PT, WEEKDAYS_SHORT } from '@tagtech/domain';
+import {
+  fromMinutes,
+  RECORD_KINDS,
+  RECORD_TEMPLATES,
+  toMinutes,
+  WEEKDAYS_PT,
+  WEEKDAYS_SHORT,
+  type RecordKind,
+} from '@tagtech/domain';
 import { api, type Professional, type WorkHours } from './api';
 import { mensagem, usePainel } from './contexto';
 import {
@@ -11,6 +19,7 @@ import {
   Gaveta,
   Icone,
   Interruptor,
+  Seletor,
   Texto,
   Vazio,
 } from './ui';
@@ -142,6 +151,7 @@ function Formulario({ pro, aoFechar }: { pro: Professional | null; aoFechar: () 
     color: pro?.color ?? CORES[0]!,
     onlineBooking: pro?.onlineBooking ?? true,
     active: pro?.active ?? true,
+    recordKind: pro?.recordKind ?? ('geral' as RecordKind),
   });
   const [horas, setHoras] = useState<WorkHours[]>(
     pro?.hours ??
@@ -230,6 +240,18 @@ function Formulario({ pro, aoFechar }: { pro: Professional | null; aoFechar: () 
             />
           </Campo>
         </div>
+        <Campo rotulo="Modelo de prontuário" ajuda="Os campos que aparecem ao escrever a evolução.">
+          <Seletor
+            value={dados.recordKind}
+            onChange={(e) => setDados({ ...dados, recordKind: e.target.value as RecordKind })}
+          >
+            {RECORD_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {RECORD_TEMPLATES[k].label}
+              </option>
+            ))}
+          </Seletor>
+        </Campo>
         <Campo rotulo="Apresentação no site">
           <Texto
             rows={3}

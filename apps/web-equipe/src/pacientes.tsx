@@ -90,7 +90,7 @@ export function PacientesTela() {
                 <tr
                   key={p.id}
                   className="cursor-pointer hover:bg-porcelana"
-                  onClick={() => setAberto(p.id)}
+                  onClick={() => (location.hash = `paciente/${p.id}`)}
                 >
                   <td className="px-5 py-3">
                     <span className="flex items-center gap-3">
@@ -140,7 +140,7 @@ const VAZIO: Partial<Patient> = {
   notes: '',
 };
 
-function Ficha({
+export function Ficha({
   id,
   aoFechar,
   aoSalvar,

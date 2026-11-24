@@ -18,6 +18,8 @@ import { PatientsController } from './patients/patients.controller';
 import { PatientsService } from './patients/patients.service';
 import { PublicController } from './public/public.controller';
 import { PublicService } from './public/public.service';
+import { RecordsController } from './records/records.controller';
+import { RecordsService } from './records/records.service';
 import { WhatsAppController } from './whatsapp/whatsapp.controller';
 import { WHATSAPP_HTTP, WhatsAppService } from './whatsapp/whatsapp.service';
 import { TeamService } from './team/team.service';
@@ -35,6 +37,7 @@ import { TeamService } from './team/team.service';
     AgendaController,
     PublicController,
     WhatsAppController,
+    RecordsController,
     MediaController,
   ],
   providers: [
@@ -50,6 +53,7 @@ import { TeamService } from './team/team.service';
     AgendaService,
     PublicService,
     WhatsAppService,
+    RecordsService,
     { provide: WHATSAPP_HTTP, useValue: (...a: Parameters<typeof fetch>) => fetch(...a) },
     { provide: MEDIA_DIR, useFactory: defaultMediaDir },
     {

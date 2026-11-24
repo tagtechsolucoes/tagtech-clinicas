@@ -15,7 +15,7 @@ import {
   type TenantTx,
 } from '@tagtech/db';
 import { addDays, canTransition, localClock, toMinutes, zonedToUtc } from '@tagtech/domain';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { AttemptLimiter } from '../common/attempt-limiter';
 import { DbService } from '../db/db.module';
 import { availability, type ProfessionalSlots } from '../agenda/availability';
@@ -26,8 +26,16 @@ import { clinicView } from '../clinic/clinic.service';
 import { loadProfessionals, loadServices } from '../clinic/clinic.service';
 import { findOrCreatePatient } from '../patients/patients.service';
 
-const { appointments, appointmentEvents, patients, professionals, services, tenants, units } =
-  schema;
+const {
+  appointments,
+  appointmentEvents,
+  galleryItems,
+  patients,
+  professionals,
+  services,
+  tenants,
+  units,
+} = schema;
 
 export interface PublicBooking {
   serviceId: string;
@@ -81,9 +89,21 @@ export class PublicService {
       const svc = (await loadServices(tx)).filter((s) => s.active && s.onlineBooking);
       const proIds = new Set(pros.map((p) => p.id));
       const { booking, ...view } = clinicView(tenant);
+      // Só pares publicados com autorização de imagem ativa (revogar apaga o item).
+      const gallery = await tx
+        .select()
+        .from(galleryItems)
+        .orderBy(asc(galleryItems.position), desc(galleryItems.createdAt));
       return {
         ...view,
         booking: { enabled: booking.enabled, horizonDays: booking.horizonDays },
+        gallery: gallery.map((g) => ({
+          id: g.id,
+          title: g.title,
+          serviceId: g.serviceId,
+          beforeUrl: g.beforeUrl,
+          afterUrl: g.afterUrl,
+        })),
         units: unitRows.map((u) => ({
           id: u.id,
           name: u.name,

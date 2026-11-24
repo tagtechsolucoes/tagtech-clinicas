@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { formatPhoneBR, whatsappLink } from '@tagtech/domain';
 import { Agendar, Foto } from '@/components/agendar';
+import { Galeria } from '@/components/galeria';
 import type { PublicClinic } from '@/lib/api';
 import { estiloDoTema, iconesDaCasa, imagem, temaSeguro } from '@/lib/tema';
 
@@ -185,6 +186,18 @@ export default async function Page({ params }: Props) {
           </section>
         </aside>
       </main>
+
+      {c.gallery.length ? (
+        <section className="mx-auto max-w-6xl px-5 pb-20 sm:px-8">
+          <h2 className="text-[2rem] font-medium">Resultados</h2>
+          <p className="mt-2 max-w-xl text-nevoa">
+            Arraste para comparar. Fotos publicadas com autorização dos pacientes.
+          </p>
+          <div className="mt-6">
+            <Galeria itens={c.gallery} />
+          </div>
+        </section>
+      ) : null}
 
       <footer className="border-t border-linha py-8 text-center text-sm text-bruma">
         Agendamento online por TagTech Clínicas

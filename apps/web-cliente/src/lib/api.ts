@@ -12,6 +12,13 @@ export interface PublicClinic {
   coverUrl: string | null;
   theme: BrandTheme;
   booking: { enabled: boolean; horizonDays: number };
+  gallery: Array<{
+    id: string;
+    title: string;
+    serviceId: string | null;
+    beforeUrl: string;
+    afterUrl: string;
+  }>;
   units: Array<{ id: string; name: string; address: string; phone: string; timezone: string }>;
   professionals: Array<{
     id: string;
