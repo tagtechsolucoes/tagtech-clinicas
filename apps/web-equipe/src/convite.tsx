@@ -49,7 +49,7 @@ export function Convite({
       {info ? (
         <>
           <p className="text-sm font-semibold text-petroleo">Convite</p>
-          <h2 className="mt-1 text-[2.1rem] leading-tight font-medium">{info.clinicName}</h2>
+          <h2 className="mt-1 text-[2.1rem] leading-tight font-semibold">{info.clinicName}</h2>
           <p className="mt-2 text-nevoa">
             {info.name}, você foi convidado para entrar na equipe como{' '}
             <strong className="text-tinta">{ROLE_LABELS[info.role].toLowerCase()}</strong>.
@@ -115,7 +115,7 @@ export function Convite({
         </>
       ) : erro ? (
         <>
-          <h2 className="text-[2rem] font-medium">Convite indisponível</h2>
+          <h2 className="text-[2rem] font-semibold">Convite indisponível</h2>
           <p className="mt-2 text-nevoa">{erro}</p>
         </>
       ) : (

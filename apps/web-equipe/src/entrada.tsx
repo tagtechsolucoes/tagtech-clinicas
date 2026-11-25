@@ -18,7 +18,7 @@ export function Moldura({ children }: { children: ReactNode }) {
           TagTech Clínicas
         </p>
         <div className="relative z-10 max-w-md">
-          <h1 className="text-[3.1rem] leading-[1.02] font-medium">
+          <h1 className="text-[3.1rem] leading-[1.02] font-bold">
             A agenda cheia, sem a recepção correndo atrás.
           </h1>
           <p className="mt-5 text-lg text-white/70">
@@ -126,7 +126,7 @@ export function Entrada({
 
   return (
     <Moldura>
-      <h2 className="text-[2.1rem] leading-tight font-medium">{titulo}</h2>
+      <h2 className="text-[2.1rem] leading-tight font-semibold">{titulo}</h2>
       {sub ? <p className="mt-2 text-nevoa">{sub}</p> : null}
       <form onSubmit={enviar} className="mt-8 space-y-4">
         {modo.tipo === 'cadastro' ? (

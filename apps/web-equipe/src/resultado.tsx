@@ -68,7 +68,7 @@ export function ResultadoTela() {
   return (
     <>
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-[2.2rem] leading-none font-medium">Resultado</h1>
+        <h1 className="text-[2.2rem] leading-none font-bold">Resultado</h1>
         <div className="flex items-center gap-1 rounded-xl bg-folha p-1 ring-1 ring-linha">
           <button
             type="button"

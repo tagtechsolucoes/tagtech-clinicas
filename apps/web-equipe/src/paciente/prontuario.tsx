@@ -201,7 +201,7 @@ function Editor({
   return (
     <section className="rounded-3xl bg-folha p-5 ring-1 ring-linha xl:sticky xl:top-6">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-xl font-medium">{adendoDe ? 'Adendo' : 'Nova evolução'}</h2>
+        <h2 className="text-xl font-semibold">{adendoDe ? 'Adendo' : 'Nova evolução'}</h2>
         {adendoDe ? (
           <button
             type="button"

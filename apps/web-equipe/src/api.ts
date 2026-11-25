@@ -467,6 +467,7 @@ export interface Pix {
 
 export interface FinanceSummary {
   month: string;
+  daily: Array<{ date: string; receivedCents: number; paidCents: number }>;
   receivedCents: number;
   toReceiveCents: number;
   overdueCents: number;

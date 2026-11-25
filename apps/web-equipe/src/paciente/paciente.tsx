@@ -67,7 +67,7 @@ export function PacienteTela({ id }: { id: string }) {
       <header className="mb-6 flex flex-wrap items-center gap-5">
         <Avatar nome={p.name} cor="#56676f" tamanho="h-16 w-16 text-xl" />
         <div className="min-w-0 flex-1">
-          <h1 className="text-[2.2rem] leading-none font-medium">{p.name}</h1>
+          <h1 className="text-[2.2rem] leading-none font-bold">{p.name}</h1>
           <p className="mt-2 text-nevoa">
             {[
               idade(p.birthDate),

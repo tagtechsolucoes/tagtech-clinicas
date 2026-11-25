@@ -388,8 +388,21 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
       for (const e of contas.filter((x) => x.status !== 'cancelled'))
         porCategoria[e.category || 'Sem categoria'] =
           (porCategoria[e.category || 'Sem categoria'] ?? 0) + e.amountCents;
+      // Dia a dia do mês, para o gráfico de receitas x despesas.
+      const dias = new Map<string, { receivedCents: number; paidCents: number }>();
+      for (let d = 1; d <= Number(to.slice(8)); d++)
+        dias.set(`${month}-${String(d).padStart(2, '0')}`, { receivedCents: 0, paidCents: 0 });
+      for (const c of recebidos)
+        dias.get(localClock(c.paidAt!, timezone).ymd)!.receivedCents += c.amountCents;
+      for (const e of contas.filter((x) => x.status === 'paid')) {
+        const dia =
+          dias.get(e.paidAt ? localClock(e.paidAt, timezone).ymd : e.dueDate) ??
+          dias.get(e.dueDate);
+        if (dia) dia.paidCents += e.amountCents;
+      }
       return {
         month,
+        daily: [...dias.entries()].map(([date, v]) => ({ date, ...v })),
         receivedCents: recebido,
         toReceiveCents: aReceber!.s,
         overdueCents: vencido!.s,
