@@ -68,6 +68,12 @@ const searchSchema = z.object({
   q: z.string().max(120).default(''),
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
+const overviewSchema = z.object({
+  q: z.string().max(120).default(''),
+  filter: z.enum(['all', 'recall', 'birthdays', 'new', 'site']).default('all'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).max(100_000).default(0),
+});
 // Na importação, linha com telefone ou CPF ruim não derruba o lote: o campo fica vazio.
 const importRow = z
   .object({
@@ -95,6 +101,11 @@ const importSchema = z.object({ rows: z.array(importRow).min(1).max(5000) });
 @UseGuards(TenantGuard)
 export class PatientsController {
   constructor(@Inject(PatientsService) private readonly service: PatientsService) {}
+
+  @Get('overview')
+  overview(@CurrentTenant() ctx: TenantContext, @Query() query: unknown) {
+    return this.service.overview(ctx, validate(overviewSchema, query));
+  }
 
   @Get()
   search(@CurrentTenant() ctx: TenantContext, @Query() query: unknown) {
