@@ -59,14 +59,14 @@ _current ip_ → _update ip_.
 ### 4. Token do GitHub (o repositório é privado)
 
 github.com → _Settings → Developer settings → Fine-grained tokens → Generate_: só o
-repositório `tagtech-food`, permissão **Contents: Read-only**, validade curta. O script usa
+repositório `tagtech-clinicas`, permissão **Contents: Read-only**, validade curta. O script usa
 para clonar e não salva.
 
 ### 5. Instalar e subir
 
 ```bash
 ssh -i chave.key ubuntu@IP
-curl -fsSL https://raw.githubusercontent.com/tagtechsolucoes/tagtech-food/main/deploy/bootstrap-vps.sh -o bootstrap.sh
+curl -fsSL https://raw.githubusercontent.com/tagtechsolucoes/tagtech-clinicas/main/deploy/bootstrap-vps.sh -o bootstrap.sh
 # (repositório privado: se o curl der 404, copie o arquivo pelo scp ou cole o conteúdo)
 bash bootstrap.sh
 exit                      # entre de novo para o Docker valer

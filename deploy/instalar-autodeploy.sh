@@ -2,11 +2,11 @@
 # Roda UMA vez na máquina (o gcp-autodeploy.sh chama pelo Cloud Shell). Liga o deploy
 # automático: chave de leitura só deste repositório, código como clone do git e um timer.
 set -euo pipefail
-REPO=git@github.com:tagtechsolucoes/tagtech-food.git
+REPO=git@github.com:tagtechsolucoes/tagtech-clinicas.git
 CHAVE=$HOME/.ssh/tagtech_deploy
 
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
-[ -f "$CHAVE" ] || ssh-keygen -q -t ed25519 -N '' -C "deploy tagtech-food $(hostname)" -f "$CHAVE"
+[ -f "$CHAVE" ] || ssh-keygen -q -t ed25519 -N '' -C "deploy tagtech-clinicas $(hostname)" -f "$CHAVE"
 cat > ~/.ssh/config <<CFG
 Host github.com
   IdentityFile $CHAVE
@@ -20,7 +20,7 @@ sort -u -o ~/.ssh/known_hosts ~/.ssh/known_hosts
 
 echo
 echo "=================================================================="
-echo "No GitHub: tagtech-food -> Settings -> Deploy keys -> Add deploy key"
+echo "No GitHub: tagtech-clinicas -> Settings -> Deploy keys -> Add deploy key"
 echo "Título: servidor de produção. NÃO marque 'Allow write access'. Cole:"
 echo
 cat "$CHAVE.pub"

@@ -38,7 +38,7 @@ ssh ubuntu@IP_DO_SERVIDOR
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker ubuntu && exit   # entre de novo para valer
 sudo mkdir -p /opt/tagtech && sudo chown ubuntu /opt/tagtech
-git clone https://github.com/tagtechsolucoes/tagtech-food.git /opt/tagtech
+git clone https://github.com/tagtechsolucoes/tagtech-clinicas.git /opt/tagtech
 cd /opt/tagtech/deploy
 cp .env.example .env && nano .env       # preencha endereços, senhas, Resend, Sentry
 ./deploy.sh
