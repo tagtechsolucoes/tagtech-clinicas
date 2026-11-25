@@ -100,6 +100,7 @@ export interface ServiceInput {
   category?: string | undefined;
   durationMinutes: number;
   priceCents?: number | null | undefined;
+  returnDays?: number | null | undefined;
   color?: string | undefined;
   onlineBooking?: boolean | undefined;
   active?: boolean | undefined;
@@ -574,6 +575,7 @@ export async function loadServices(tx: TenantTx, ids?: string[]) {
     category: s.category,
     durationMinutes: s.durationMinutes,
     priceCents: s.priceCents,
+    returnDays: s.returnDays,
     color: s.color,
     onlineBooking: s.onlineBooking,
     active: s.active,

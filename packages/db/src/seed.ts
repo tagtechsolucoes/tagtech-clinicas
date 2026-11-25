@@ -369,6 +369,14 @@ async function main() {
         createdAt: em(hoje, '08:40'),
       },
     ]);
+    // Retorno: limpeza a cada 6 meses, manutenção do aparelho todo mês.
+    await db.update(services).set({ returnDays: 180 }).where(eq(services.id, limpeza.id));
+    await db.update(services).set({ returnDays: 30 }).where(eq(services.id, manutencao.id));
+    await db
+      .update(tenants)
+      .set({ reactivationDays: 180, googleReviewUrl: 'https://g.page/r/clinica-aurora/review' })
+      .where(eq(tenants.id, tenantId));
+
     await db.insert(toothChart).values([
       { tenantId, patientId: p(0), tooth: 26, state: 'restored', note: 'Oclusal, resina A2' },
       { tenantId, patientId: p(0), tooth: 27, state: 'caries', note: 'Mesial' },

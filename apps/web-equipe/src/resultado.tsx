@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api, type Results } from './api';
+import { api, type Results, type Review } from './api';
 import { mensagem, usePainel } from './contexto';
-import { dinheiro, hoje } from './formato';
+import { dataCurta, dinheiro, hoje } from './formato';
 import { Icone } from './ui';
 
 const somarMes = (mes: string, n: number) => {
@@ -29,6 +29,12 @@ const PARTES = [
     nome: 'Horário vago preenchido',
     cor: '#e9a23b',
     ajuda: 'Desmarcações que a lista de espera ocupou.',
+  },
+  {
+    k: 'recalls',
+    nome: 'Paciente que voltou',
+    cor: '#b9d98c',
+    ajuda: 'Quem marcou até 30 dias depois do lembrete de retorno ou de reativação.',
   },
   {
     k: 'plans',
@@ -141,7 +147,7 @@ export function ResultadoTela() {
                   ) : null;
                 })}
               </div>
-              <dl className="mt-6 grid gap-6 sm:grid-cols-3">
+              <dl className="mt-6 grid grid-cols-2 gap-6 lg:grid-cols-4">
                 {PARTES.map((p) => (
                   <div key={p.k}>
                     <dt className="flex items-center gap-2 text-sm text-white/75">
@@ -155,9 +161,11 @@ export function ResultadoTela() {
                       {r.parts[p.k].count}{' '}
                       {p.k === 'plans'
                         ? `de ${r.parts.plans.sent} enviados`
-                        : r.parts[p.k].count === 1
-                          ? 'consulta'
-                          : 'consultas'}
+                        : p.k === 'recalls'
+                          ? `de ${r.parts.recalls.sent} lembretes`
+                          : r.parts[p.k].count === 1
+                            ? 'consulta'
+                            : 'consultas'}
                     </dd>
                   </div>
                 ))}
@@ -187,10 +195,18 @@ export function ResultadoTela() {
               bom={null}
             />
             <Indicador
-              rotulo="Avisos no WhatsApp"
-              valor={String(r.whatsappSent)}
-              detalhe="confirmações e lembretes enviados"
-              bom={null}
+              rotulo="Avaliação dos pacientes"
+              valor={
+                r.reviews.average === null
+                  ? '—'
+                  : `${r.reviews.average.toFixed(1).replace('.', ',')} ★`
+              }
+              detalhe={
+                r.reviews.answered
+                  ? `${r.reviews.toGoogle} levados ao Google · ${r.reviews.low} notas baixas`
+                  : `${r.whatsappSent} mensagens no WhatsApp no mês`
+              }
+              bom={r.reviews.average === null ? null : r.reviews.average >= 4.5}
             />
             <Indicador
               rotulo="Sinais pagos no Pix"
@@ -210,7 +226,9 @@ export function ResultadoTela() {
                   <strong className="text-tinta">{p.nome}:</strong> {p.ajuda}{' '}
                   {p.k === 'plans'
                     ? 'Conta as parcelas não canceladas dos orçamentos enviados por link e aprovados no mês.'
-                    : 'Conta o preço do serviço das consultas não canceladas.'}
+                    : p.k === 'recalls'
+                      ? 'Conta o preço do serviço das consultas não canceladas; não entra de novo em "agendado pelo site".'
+                      : 'Conta o preço do serviço das consultas não canceladas.'}
                 </li>
               ))}
               <li>
@@ -218,9 +236,53 @@ export function ResultadoTela() {
               </li>
             </ul>
           </details>
+          <Avaliacoes />
         </>
       )}
     </>
+  );
+}
+
+/** Notas que os pacientes deram. As baixas ficam no topo para a clínica resolver. */
+function Avaliacoes() {
+  const [lista, setLista] = useState<Review[] | null>(null);
+  useEffect(() => {
+    api
+      .reviews()
+      .then(setLista)
+      .catch(() => setLista([]));
+  }, []);
+  if (!lista?.length) return null;
+  return (
+    <section className="mt-10">
+      <h2 className="font-display text-2xl">O que os pacientes disseram</h2>
+      <p className="mt-1 text-sm text-nevoa">
+        Nota 4 ou 5 recebe o link do Google. Nota até 3 fica só aqui, para a clínica responder.
+      </p>
+      <ul className="mt-4 divide-y divide-linha rounded-2xl bg-folha ring-1 ring-linha">
+        {lista.slice(0, 12).map((v) => (
+          <li key={v.id} className="flex gap-4 px-5 py-4">
+            <span
+              className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl font-display text-lg ${
+                v.rating <= 3 ? 'bg-alerta-fundo text-alerta' : 'bg-ok-fundo text-ok'
+              }`}
+              aria-label={`Nota ${v.rating} de 5`}
+            >
+              {v.rating}
+            </span>
+            <span className="min-w-0 flex-1">
+              <a href={`#paciente/${v.patientId}`} className="font-semibold hover:underline">
+                {v.patientName}
+              </a>
+              <span className="ml-2 text-sm text-nevoa">
+                consulta de {dataCurta(v.appointmentStartsAt.slice(0, 10))}
+              </span>
+              {v.comment ? <span className="mt-1 block text-[0.95rem]">“{v.comment}”</span> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

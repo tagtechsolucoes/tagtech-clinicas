@@ -129,3 +129,22 @@ export async function chamar<T>(path: string, init: RequestInit = {}): Promise<T
   }
   return body as T;
 }
+
+export interface OfferView {
+  clinic: ManageView['clinic'];
+  patientFirstName: string;
+  serviceName: string;
+  professionalName: string;
+  unit: { name: string; address: string; timezone: string };
+  startsAt: string;
+  expiresAt: string;
+  status: 'offered' | 'accepted' | 'declined' | 'expired' | 'taken';
+  manageToken?: string | null;
+}
+
+export interface ReviewView {
+  clinic: ManageView['clinic'];
+  patientFirstName: string;
+  rating: number | null;
+  googleUrl: string | null;
+}

@@ -31,11 +31,22 @@ const diaLongo = (ymd: string) =>
   }).format(new Date(`${ymd}T12:00:00Z`));
 
 /** O passo a passo de agendamento: serviço, profissional, dia e hora, dados. */
-export function Agendar({ clinic }: { clinic: PublicClinic }) {
+export function Agendar({
+  clinic,
+  servicoInicial,
+}: {
+  clinic: PublicClinic;
+  /** Vem do link do lembrete de retorno (?servico=). */
+  servicoInicial?: string | undefined;
+}) {
   const tz = clinic.units[0]?.timezone ?? 'America/Recife';
   const hoje = localClock(new Date(), tz).ymd;
   const [serviceId, setServiceId] = useState<string | null>(
-    clinic.services.length === 1 ? clinic.services[0]!.id : null,
+    clinic.services.some((s) => s.id === servicoInicial)
+      ? servicoInicial!
+      : clinic.services.length === 1
+        ? clinic.services[0]!.id
+        : null,
   );
   const servico = clinic.services.find((s) => s.id === serviceId);
   const pros = useMemo(

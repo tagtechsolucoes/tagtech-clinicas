@@ -19,7 +19,10 @@ const carregar = cache(async (slug: string): Promise<PublicClinic | null> => {
   return (await r.json()) as PublicClinic;
 });
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ servico?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const c = await carregar((await params).slug).catch(() => null);
@@ -37,7 +40,9 @@ export async function generateViewport({ params }: Props): Promise<Viewport> {
   return c ? { themeColor: temaSeguro(c.theme).primaryColor } : {};
 }
 
-export default async function Page({ params }: Props) {
+export default async function Page({ params, searchParams }: Props) {
+  const sp = searchParams ? await searchParams : {};
+  const servicoInicial = typeof sp.servico === 'string' ? sp.servico : undefined;
   const c = await carregar((await params).slug);
   if (!c) notFound();
   const { estilo } = estiloDoTema(temaSeguro(c.theme));
@@ -95,7 +100,7 @@ export default async function Page({ params }: Props) {
 
       <main className="mx-auto -mt-16 grid max-w-6xl gap-10 px-5 pb-20 sm:px-8 lg:-mt-24 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
         <section id="agendar" className="scroll-mt-6">
-          <Agendar clinic={c} />
+          <Agendar clinic={c} servicoInicial={servicoInicial} />
         </section>
 
         <aside className="space-y-10 lg:pt-28">

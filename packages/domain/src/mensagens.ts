@@ -51,3 +51,24 @@ export function whenText(startsAt: Date, timeZone: string, now = new Date()): st
   }).format(startsAt);
   return `${semana}, ${data}, às ${hora}`;
 }
+
+/** Modelos de mensagem do relacionamento. Cada um precisa ser aprovado na Meta com este texto. */
+export const RELATIONSHIP_TEMPLATES = {
+  vaga_oferta: {
+    body: 'Olá, {{1}}! Abriu um horário de {{2}} na {{3}}: {{4}}. Você estava na lista de espera. Para ficar com ele, toque no link até {{5}}: {{6}}',
+    category: 'UTILITY',
+  },
+  retorno_aviso: {
+    body: 'Olá, {{1}}! Já está na hora do seu retorno de {{2}} na {{3}}. Escolha o melhor horário pelo link: {{4}}',
+    category: 'UTILITY',
+  },
+  reativacao: {
+    body: 'Olá, {{1}}! Faz um tempo que você não vem à {{2}}. Quando quiser voltar, é só agendar pelo link: {{3}}',
+    category: 'MARKETING',
+  },
+  avaliacao_pedido: {
+    body: 'Olá, {{1}}! Obrigado por vir à {{2}}. Como foi o seu atendimento? Leva 10 segundos: {{3}}',
+    category: 'UTILITY',
+  },
+} as const;
+export type RelationshipTemplate = keyof typeof RELATIONSHIP_TEMPLATES;

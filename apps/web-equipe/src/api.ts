@@ -83,6 +83,7 @@ export interface Service {
   category: string;
   durationMinutes: number;
   priceCents: number | null;
+  returnDays?: number | null;
   color: string;
   onlineBooking: boolean;
   active: boolean;
@@ -603,6 +604,7 @@ export interface Results {
     waitlist: { count: number; valueCents: number };
     online: { count: number; valueCents: number };
     plans: { count: number; sent: number; valueCents: number };
+    recalls: { count: number; sent: number; valueCents: number };
   };
   agenda: {
     total: number;
@@ -614,6 +616,13 @@ export interface Results {
     confirmedByPatient: number;
   };
   whatsappSent: number;
+  reviews: {
+    requested: number;
+    answered: number;
+    average: number | null;
+    toGoogle: number;
+    low: number;
+  };
   deposits: { count: number; valueCents: number };
   previous: { noShowRate: number | null; generatedCents: number };
 }
@@ -743,6 +752,23 @@ export interface Receipt {
     professionalName: string;
     council: string;
   } | null;
+}
+
+export interface RelationshipSettings {
+  waitlistAutoOffer: boolean;
+  reactivationDays: number;
+  googleReviewUrl: string;
+}
+
+export interface Review {
+  id: string;
+  patientId: string;
+  patientName: string;
+  appointmentStartsAt: string;
+  rating: number;
+  comment: string;
+  sentToGoogle: boolean;
+  answeredAt: string;
 }
 
 const qs = (params: Record<string, string | number | undefined>) =>
@@ -1127,6 +1153,12 @@ export const api = {
       `/patients/${id}/erase`,
     ),
   exportClinicUrl: () => '/api/clinic/export',
+
+  // relacionamento
+  relationship: () => request<RelationshipSettings>('/relationship/settings'),
+  saveRelationship: (patch: Partial<RelationshipSettings>) =>
+    send<RelationshipSettings>('PATCH', '/relationship/settings', patch),
+  reviews: () => request<Review[]>('/relationship/reviews'),
 
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),

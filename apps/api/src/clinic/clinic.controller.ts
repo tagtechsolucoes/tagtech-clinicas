@@ -129,6 +129,7 @@ const serviceFields = {
   category: z.string().trim().max(60),
   durationMinutes: z.number().int().min(5).max(600),
   priceCents: z.number().int().min(0).max(100_000_000).nullable(),
+  returnDays: z.number().int().min(7).max(730).nullable(),
   color,
   onlineBooking: z.boolean(),
   active: z.boolean(),

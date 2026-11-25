@@ -4,6 +4,7 @@ import { api, siteUrl } from './api';
 import { mensagem, usePainel } from './contexto';
 import { telefone } from './formato';
 import { WhatsAppConfig } from './whatsapp';
+import { Relacionamento } from './relacionamento';
 import { Botao, Cabecalho, Campo, Entrada, Icone, Interruptor, Seletor, Texto } from './ui';
 
 const FONTES: Record<DisplayFont, { nome: string; css: string }> = {
@@ -352,6 +353,13 @@ export function ClinicaTela() {
         descricao="Aviso ao agendar, remarcar e cancelar, e lembrete antes da consulta com o link para confirmar."
       >
         <WhatsAppConfig />
+      </Secao>
+
+      <Secao
+        titulo="Mensagens que trazem paciente"
+        descricao="Lista de espera, retorno, reativação e avaliação no Google. Tudo pelo WhatsApp da clínica."
+      >
+        <Relacionamento />
       </Secao>
 
       <Secao

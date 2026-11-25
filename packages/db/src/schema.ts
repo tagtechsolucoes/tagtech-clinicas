@@ -57,6 +57,9 @@ export const tenants = pgTable('tenants', {
   legalName: text('legal_name').notNull().default(''),
   document: text('document').notNull().default(''),
   insuranceEnabled: boolean('insurance_enabled').notNull().default(false),
+  waitlistAutoOffer: boolean('waitlist_auto_offer').notNull().default(true),
+  reactivationDays: integer('reactivation_days').notNull().default(0),
+  googleReviewUrl: text('google_review_url').notNull().default(''),
   createdAt: createdAt(),
 });
 
@@ -144,6 +147,7 @@ export const services = pgTable('services', {
   category: text('category').notNull().default(''),
   durationMinutes: integer('duration_minutes').notNull(),
   priceCents: integer('price_cents'),
+  returnDays: integer('return_days'),
   color: text('color').notNull().default('#3b82a0'),
   onlineBooking: boolean('online_booking').notNull().default(true),
   active: boolean('active').notNull().default(true),
@@ -761,4 +765,53 @@ export const serviceInvoices = pgTable('service_invoices', {
   message: text('message'),
   createdAt: createdAt(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------- relacionamento
+
+export const patientMessages = pgTable('patient_messages', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  kind: text('kind', { enum: ['waitlist_offer', 'recall', 'reactivation', 'review'] }).notNull(),
+  refId: uuid('ref_id').notNull(),
+  serviceId: uuid('service_id'),
+  status: text('status', { enum: ['sending', 'sent', 'failed'] })
+    .notNull()
+    .default('sending'),
+  providerMessageId: text('provider_message_id'),
+  error: text('error'),
+  createdAt: createdAt(),
+});
+
+export const waitlistOffers = pgTable('waitlist_offers', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  waitlistId: uuid('waitlist_id').notNull(),
+  sourceAppointmentId: uuid('source_appointment_id').notNull(),
+  serviceId: uuid('service_id').notNull(),
+  professionalId: uuid('professional_id').notNull(),
+  unitId: uuid('unit_id').notNull(),
+  startsAt: ts('starts_at').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: ts('expires_at').notNull(),
+  status: text('status', { enum: ['offered', 'accepted', 'declined', 'expired', 'taken'] })
+    .notNull()
+    .default('offered'),
+  bookedAppointmentId: uuid('booked_appointment_id'),
+  decidedAt: ts('decided_at'),
+  createdAt: createdAt(),
+});
+
+export const reviewRequests = pgTable('review_requests', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  appointmentId: uuid('appointment_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  tokenHash: text('token_hash').notNull(),
+  rating: smallint('rating'),
+  comment: text('comment').notNull().default(''),
+  sentToGoogle: boolean('sent_to_google').notNull().default(false),
+  answeredAt: ts('answered_at'),
+  createdAt: createdAt(),
 });

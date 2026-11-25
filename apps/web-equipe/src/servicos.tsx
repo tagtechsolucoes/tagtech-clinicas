@@ -129,6 +129,7 @@ function Formulario({ s, aoFechar }: { s: Service | null; aoFechar: () => void }
     description: s?.description ?? '',
     durationMinutes: s?.durationMinutes ?? 30,
     preco: s?.priceCents != null ? centsToInput(s.priceCents) : '',
+    returnDays: s?.returnDays ?? null,
     color: s?.color ?? CORES[0]!,
     onlineBooking: s?.onlineBooking ?? true,
     active: s?.active ?? true,
@@ -223,6 +224,30 @@ function Formulario({ s, aoFechar }: { s: Service | null; aoFechar: () => void }
           />
         </Campo>
       </div>
+      <Campo
+        rotulo="Lembrete de retorno"
+        ajuda="O paciente recebe no WhatsApp um convite para voltar, com o link para agendar."
+      >
+        <Seletor
+          value={dados.returnDays ?? ''}
+          onChange={(e) =>
+            setDados({ ...dados, returnDays: e.target.value ? Number(e.target.value) : null })
+          }
+        >
+          <option value="">Sem lembrete</option>
+          {[...new Set([15, 30, 60, 90, 180, 365, ...(dados.returnDays ? [dados.returnDays] : [])])]
+            .sort((a, b) => a - b)
+            .map((d) => (
+              <option key={d} value={d}>
+                {d < 60
+                  ? `${d} dias depois`
+                  : d === 365
+                    ? '1 ano depois'
+                    : `${d / 30} meses depois`}
+              </option>
+            ))}
+        </Seletor>
+      </Campo>
       <Campo rotulo="Categoria">
         <Entrada
           list="categorias"
