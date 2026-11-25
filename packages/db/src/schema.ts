@@ -3,6 +3,7 @@ import {
   date,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -502,4 +503,126 @@ export const pixPayments = pgTable('pix_payments', {
   expiresAt: ts('expires_at').notNull(),
   createdAt: createdAt(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+// ---------------------------------------------------------------- estoque
+
+const qty = (name: string) => numeric(name, { precision: 12, scale: 3, mode: 'number' });
+
+export const suppliers = pgTable('suppliers', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  name: text('name').notNull(),
+  contact: text('contact').notNull().default(''),
+  whatsapp: text('whatsapp').notNull().default(''),
+  email: text('email').notNull().default(''),
+  leadTimeDays: smallint('lead_time_days').notNull().default(2),
+  notes: text('notes').notNull().default(''),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const stockItems = pgTable('stock_items', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  name: text('name').notNull(),
+  category: text('category').notNull().default(''),
+  unit: text('unit').notNull().default('unidade'),
+  purchaseUnit: text('purchase_unit').notNull().default('unidade'),
+  unitsPerPurchase: qty('units_per_purchase').notNull().default(1),
+  costCents: integer('cost_cents').notNull().default(0),
+  minQty: qty('min_qty').notNull().default(0),
+  supplierId: uuid('supplier_id'),
+  openValidityDays: smallint('open_validity_days'),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const supplierPrices = pgTable(
+  'supplier_prices',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    supplierId: uuid('supplier_id').notNull(),
+    itemId: uuid('item_id').notNull(),
+    lastPriceCents: integer('last_price_cents').notNull(),
+    previousPriceCents: integer('previous_price_cents'),
+    updatedAt: ts('updated_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.supplierId, t.itemId] })],
+);
+
+export const serviceMaterials = pgTable(
+  'service_materials',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    serviceId: uuid('service_id').notNull(),
+    itemId: uuid('item_id').notNull(),
+    qty: qty('qty').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.serviceId, t.itemId] })],
+);
+
+export const stockPurchases = pgTable('stock_purchases', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  supplierId: uuid('supplier_id'),
+  invoice: text('invoice').notNull().default(''),
+  totalCents: integer('total_cents').notNull(),
+  receivedOn: date('received_on').notNull(),
+  expenseId: uuid('expense_id'),
+  createdBy: uuid('created_by'),
+  createdAt: createdAt(),
+});
+
+export const stockLots = pgTable('stock_lots', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  itemId: uuid('item_id').notNull(),
+  lot: text('lot').notNull().default(''),
+  expiresOn: date('expires_on'),
+  qty: qty('qty').notNull(),
+  costCents: integer('cost_cents').notNull().default(0),
+  openedAt: ts('opened_at'),
+  purchaseId: uuid('purchase_id'),
+  createdAt: createdAt(),
+});
+
+export const stockMoveKind = pgEnum('stock_move_kind', [
+  'purchase',
+  'consume',
+  'return',
+  'loss',
+  'expired',
+  'manual',
+  'adjust',
+]);
+
+export const stockMoves = pgTable('stock_moves', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  itemId: uuid('item_id').notNull(),
+  lotId: uuid('lot_id'),
+  kind: stockMoveKind('kind').notNull(),
+  qty: qty('qty').notNull(),
+  costCents: integer('cost_cents').notNull().default(0),
+  reason: text('reason').notNull().default(''),
+  appointmentId: uuid('appointment_id'),
+  purchaseId: uuid('purchase_id'),
+  userId: uuid('user_id'),
+  createdAt: createdAt(),
+});
+
+export const purchaseOrders = pgTable('purchase_orders', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  supplierId: uuid('supplier_id'),
+  status: text('status', { enum: ['open', 'received', 'cancelled'] })
+    .notNull()
+    .default('open'),
+  items: jsonb('items')
+    .$type<Array<{ itemId: string; purchaseQty: number }>>()
+    .notNull()
+    .default([]),
+  createdBy: uuid('created_by'),
+  createdAt: createdAt(),
 });

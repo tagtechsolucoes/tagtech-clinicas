@@ -4,6 +4,12 @@ import { requireEnv } from './env';
 import {
   appointments,
   charges,
+  serviceMaterials,
+  stockItems,
+  stockLots,
+  stockMoves,
+  supplierPrices,
+  suppliers,
   clinicalNotes,
   expenses,
   memberships,
@@ -291,7 +297,7 @@ async function main() {
       };
     };
     const d0 = hoje;
-    await db
+    const ags = await db
       .insert(appointments)
       .values([
         marca(d0, '08:00', helena.id, limpeza, 0, 'done'),
@@ -317,7 +323,8 @@ async function main() {
         marca(dia(2), '11:00', helena.id, aval, 11, 'scheduled', { source: 'online' }),
         marca(dia(-1), '08:00', helena.id, limpeza, 12, 'done'),
         marca(dia(-1), '10:00', helena.id, aval, 13, 'no_show'),
-      ]);
+      ])
+      .returning();
 
     await db.insert(timeOff).values({
       tenantId,
@@ -542,6 +549,204 @@ async function main() {
         dueDate: dia(8),
       },
     ]);
+
+    // Estoque: dois fornecedores, materiais com lote e validade, ficha por procedimento.
+    const [dental, estetica] = await db
+      .insert(suppliers)
+      .values([
+        {
+          tenantId,
+          name: 'Dental Nordeste',
+          contact: 'Rogério',
+          whatsapp: '5581999990001',
+          leadTimeDays: 2,
+          notes: 'Pedido até 14h sai no mesmo dia',
+        },
+        {
+          tenantId,
+          name: 'Estética Distribuidora',
+          contact: 'Paula',
+          whatsapp: '5581999990002',
+          leadTimeDays: 5,
+        },
+      ])
+      .returning();
+    const antigo = em(dia(-90), '09:00');
+    const mats = await db
+      .insert(stockItems)
+      .values([
+        {
+          tenantId,
+          name: 'Anestésico lidocaína 2%',
+          category: 'Anestesia',
+          unit: 'tubete',
+          purchaseUnit: 'caixa',
+          unitsPerPurchase: 50,
+          costCents: 180,
+          minQty: 20,
+          supplierId: dental!.id,
+          createdAt: antigo,
+        },
+        {
+          tenantId,
+          name: 'Luva nitrílica M',
+          category: 'Descartáveis',
+          unit: 'par',
+          purchaseUnit: 'caixa',
+          unitsPerPurchase: 50,
+          costCents: 90,
+          minQty: 40,
+          supplierId: dental!.id,
+          createdAt: antigo,
+        },
+        {
+          tenantId,
+          name: 'Gel clareador 35%',
+          category: 'Clareamento',
+          unit: 'seringa',
+          purchaseUnit: 'caixa',
+          unitsPerPurchase: 3,
+          costCents: 6000,
+          minQty: 2,
+          supplierId: dental!.id,
+          createdAt: antigo,
+        },
+        {
+          tenantId,
+          name: 'Pasta profilática',
+          category: 'Profilaxia',
+          unit: 'g',
+          purchaseUnit: 'pacote',
+          unitsPerPurchase: 90,
+          costCents: 30,
+          minQty: 60,
+          supplierId: dental!.id,
+          createdAt: antigo,
+        },
+        {
+          tenantId,
+          name: 'Toxina botulínica 100U',
+          category: 'Harmonização',
+          unit: 'U',
+          purchaseUnit: 'frasco',
+          unitsPerPurchase: 100,
+          costCents: 900,
+          minQty: 100,
+          supplierId: estetica!.id,
+          openValidityDays: 30,
+          createdAt: antigo,
+        },
+        {
+          tenantId,
+          name: 'Fio de sutura 4-0',
+          category: 'Cirurgia',
+          unit: 'unidade',
+          purchaseUnit: 'caixa',
+          unitsPerPurchase: 24,
+          costCents: 520,
+          minQty: 0,
+          supplierId: dental!.id,
+          createdAt: antigo,
+        },
+      ])
+      .returning();
+    const [anest, luva, gel, pasta, tox, fio] = mats as [
+      (typeof mats)[0],
+      (typeof mats)[0],
+      (typeof mats)[0],
+      (typeof mats)[0],
+      (typeof mats)[0],
+      (typeof mats)[0],
+    ];
+    const lotes = await db
+      .insert(stockLots)
+      .values([
+        {
+          tenantId,
+          itemId: anest.id,
+          lot: 'LD2-4471',
+          expiresOn: dia(220),
+          qty: 34,
+          costCents: 180,
+        },
+        {
+          tenantId,
+          itemId: luva.id,
+          lot: 'NT-M-0921',
+          expiresOn: dia(500),
+          qty: 30,
+          costCents: 90,
+        },
+        { tenantId, itemId: gel.id, lot: 'CL35-118', expiresOn: dia(150), qty: 0, costCents: 6000 },
+        { tenantId, itemId: pasta.id, lot: 'PP-77', expiresOn: dia(300), qty: 410, costCents: 30 },
+        { tenantId, itemId: tox.id, lot: 'BTX-5521', expiresOn: dia(24), qty: 160, costCents: 900 },
+        { tenantId, itemId: fio.id, lot: 'SUT-40-3', expiresOn: dia(600), qty: 18, costCents: 520 },
+      ])
+      .returning();
+    await db.insert(serviceMaterials).values([
+      { tenantId, serviceId: limpeza.id, itemId: luva.id, qty: 2 },
+      { tenantId, serviceId: limpeza.id, itemId: pasta.id, qty: 10 },
+      { tenantId, serviceId: aval.id, itemId: luva.id, qty: 1 },
+      { tenantId, serviceId: clareamento.id, itemId: gel.id, qty: 1 },
+      { tenantId, serviceId: clareamento.id, itemId: luva.id, qty: 2 },
+      { tenantId, serviceId: toxina.id, itemId: tox.id, qty: 50 },
+      { tenantId, serviceId: toxina.id, itemId: luva.id, qty: 1 },
+      { tenantId, serviceId: manutencao.id, itemId: luva.id, qty: 1 },
+    ]);
+    // Consumo dos últimos dias (para a previsão de término).
+    const consumo: Array<[typeof anest, number, number]> = [
+      [luva, 3, -6],
+      [luva, 4, -4],
+      [luva, 3, -9],
+      [luva, 4, -13],
+      [luva, 2, -17],
+      [luva, 3, -22],
+      [pasta, 20, -6],
+      [pasta, 30, -13],
+      [pasta, 20, -22],
+      [anest, 2, -8],
+      [anest, 3, -16],
+      [tox, 50, -10],
+    ];
+    await db.insert(stockMoves).values(
+      consumo.map(([it, q, d]) => ({
+        tenantId,
+        itemId: it.id,
+        lotId: lotes.find((l) => l.itemId === it.id)!.id,
+        kind: 'consume' as const,
+        qty: -q,
+        costCents: q * it.costCents,
+        createdAt: em(dia(d), '10:00'),
+      })),
+    );
+    await db.insert(supplierPrices).values([
+      {
+        tenantId,
+        supplierId: dental!.id,
+        itemId: anest.id,
+        lastPriceCents: 9000,
+        previousPriceCents: 8500,
+      },
+      {
+        tenantId,
+        supplierId: dental!.id,
+        itemId: luva.id,
+        lastPriceCents: 4500,
+        previousPriceCents: 3800,
+      },
+      { tenantId, supplierId: dental!.id, itemId: gel.id, lastPriceCents: 18000 },
+      { tenantId, supplierId: estetica!.id, itemId: tox.id, lastPriceCents: 90000 },
+    ]);
+    // Um horário vago que a lista de espera preencheu.
+    await db.insert(waitlist).values({
+      tenantId,
+      patientId: p(8),
+      serviceId: limpeza.id,
+      fromDate: d0,
+      toDate: dia(5),
+      status: 'booked',
+      bookedAppointmentId: ags[17]!.id,
+    });
     console.log(
       `Clínica de demonstração pronta. Entre com ${DEMO_EMAIL} / demo-tagtech-123 · site /c/${SLUG}`,
     );

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { centsToInput, parseBRL } from '@tagtech/domain';
-import { api, type Service } from './api';
+import { api, type Service, type StockItem } from './api';
 import { mensagem, usePainel } from './contexto';
 import { dinheiro, duracao } from './formato';
 import { CORES } from './profissionais';
@@ -135,14 +135,44 @@ function Formulario({ s, aoFechar }: { s: Service | null; aoFechar: () => void }
     professionalIds: s?.professionalIds ?? [],
   });
   const precoCents = dados.preco.trim() === '' ? null : parseBRL(dados.preco);
+  // Ficha de materiais: o que o procedimento consome (sai do estoque ao finalizar).
+  const [itens, setItens] = useState<StockItem[]>([]);
+  const [mats, setMats] = useState<Array<{ itemId: string; qty: string }>>([]);
+  const [matsMudou, setMatsMudou] = useState(false);
+  useEffect(() => {
+    api
+      .stock()
+      .then(setItens)
+      .catch(() => setItens([]));
+    if (s)
+      api
+        .serviceMaterials(s.id)
+        .then((l) =>
+          setMats(l.map((m) => ({ itemId: m.itemId, qty: String(m.qty).replace('.', ',') }))),
+        )
+        .catch(() => undefined);
+  }, [s]);
+  const num = (v: string) => Number(v.replace(',', '.')) || 0;
+  const custoMaterial = Math.round(
+    mats.reduce(
+      (t, m) => t + num(m.qty) * (itens.find((i) => i.id === m.itemId)?.costCents ?? 0),
+      0,
+    ),
+  );
   const categorias = [...new Set(services.map((x) => x.category).filter(Boolean))];
 
   async function salvar() {
     const { preco: _p, ...resto } = dados;
     const corpo = { ...resto, priceCents: precoCents };
     try {
-      if (s) await api.updateService(s.id, corpo);
-      else await api.createService(corpo);
+      const salvo = s ? await api.updateService(s.id, corpo) : await api.createService(corpo);
+      if (matsMudou)
+        await api.setServiceMaterials(
+          salvo.id,
+          mats
+            .filter((m) => m.itemId && num(m.qty) > 0)
+            .map((m) => ({ itemId: m.itemId, qty: num(m.qty) })),
+        );
       await recarregar();
       avisar('Serviço salvo');
       aoFechar();
@@ -254,6 +284,81 @@ function Formulario({ s, aoFechar }: { s: Service | null; aoFechar: () => void }
           Sem ninguém marcado, qualquer profissional pode fazer.
         </p>
       </div>
+      {itens.length ? (
+        <div>
+          <span className="mb-1 block text-[0.82rem] font-semibold text-nevoa">
+            Materiais do procedimento
+          </span>
+          <p className="mb-2 text-[0.8rem] text-bruma">
+            Saem do estoque sozinhos quando a consulta é finalizada.
+          </p>
+          <ul className="space-y-2">
+            {mats.map((m, i) => {
+              const it = itens.find((x) => x.id === m.itemId);
+              return (
+                <li key={i} className="flex items-center gap-2">
+                  <Seletor
+                    aria-label="Material"
+                    value={m.itemId}
+                    onChange={(e) => {
+                      setMats(mats.map((x, j) => (j === i ? { ...x, itemId: e.target.value } : x)));
+                      setMatsMudou(true);
+                    }}
+                  >
+                    <option value="">Escolha</option>
+                    {itens.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                  </Seletor>
+                  <span className="block w-20 shrink-0">
+                    <Entrada
+                      aria-label="Quantidade"
+                      inputMode="decimal"
+                      value={m.qty}
+                      onChange={(e) => {
+                        setMats(mats.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)));
+                        setMatsMudou(true);
+                      }}
+                      className="text-right"
+                    />
+                  </span>
+                  <span className="w-14 shrink-0 text-sm text-nevoa">{it?.unit ?? ''}</span>
+                  <button
+                    type="button"
+                    aria-label="Tirar material"
+                    onClick={() => {
+                      setMats(mats.filter((_, j) => j !== i));
+                      setMatsMudou(true);
+                    }}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-nevoa hover:text-alerta"
+                  >
+                    <Icone nome="x" className="h-4 w-4" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-2 flex items-center justify-between">
+            <Botao
+              tamanho="pequeno"
+              onClick={() => {
+                setMats([...mats, { itemId: '', qty: '1' }]);
+                setMatsMudou(true);
+              }}
+            >
+              <Icone nome="mais" className="h-4 w-4" /> Material
+            </Botao>
+            {custoMaterial > 0 ? (
+              <span className="text-sm text-nevoa">
+                Custo de material {dinheiro(custoMaterial)}
+                {precoCents ? ` · sobra ${dinheiro(precoCents - custoMaterial)}` : ''}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       <div>
         <span className="mb-2 block text-[0.82rem] font-semibold text-nevoa">Cor na agenda</span>
         <div className="flex flex-wrap gap-2">

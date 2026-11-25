@@ -70,6 +70,18 @@ function Formulario({
   const [notas, setNotas] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [faltaMaterial, setFaltaMaterial] = useState<
+    Array<{ itemId: string; name: string; unit: string; need: number; available: number }>
+  >([]);
+  // Aviso na hora: o procedimento tem material até esse dia?
+  useEffect(() => {
+    setFaltaMaterial([]);
+    if (!serviceId || !horaEscolhida) return;
+    api
+      .stockCheck(serviceId, instante(dia, horaEscolhida))
+      .then(setFaltaMaterial)
+      .catch(() => undefined);
+  }, [serviceId, dia, horaEscolhida]);
 
   useEffect(() => {
     if (!serviceId || !proEscolhido) return;
@@ -272,6 +284,18 @@ function Formulario({
         </Campo>
       </section>
 
+      {faltaMaterial.length ? (
+        <p className="flex gap-2.5 rounded-xl bg-ambar-fundo px-4 py-3 text-sm text-ambar-tinta">
+          <Icone nome="caixa" className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <strong>Pode faltar material:</strong>{' '}
+            {faltaMaterial
+              .map((f) => `${f.name} (precisa ${f.need}, sobra ${f.available} ${f.unit})`)
+              .join(', ')}
+            . Dá para agendar; veja a lista de compras.
+          </span>
+        </p>
+      ) : null}
       {erro ? (
         <p className="rounded-xl bg-alerta-fundo px-4 py-3 text-sm font-medium text-alerta">
           {erro}

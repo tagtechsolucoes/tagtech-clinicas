@@ -469,6 +469,148 @@ export interface PixSettings {
   testMode: boolean;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  contact: string;
+  whatsapp: string;
+  email: string;
+  leadTimeDays: number;
+  notes: string;
+  active: boolean;
+  prices?: Array<{
+    itemId: string;
+    itemName: string;
+    purchaseUnit: string;
+    lastPriceCents: number;
+    previousPriceCents: number | null;
+    updatedAt: string;
+  }>;
+}
+
+export interface StockItem {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  purchaseUnit: string;
+  unitsPerPurchase: number;
+  costCents: number;
+  minQty: number;
+  supplierId: string | null;
+  supplierName: string | null;
+  openValidityDays: number | null;
+  active: boolean;
+  qty: number;
+  valueCents: number;
+  scheduled30: number;
+  used30: number;
+  daysLeft: number | null;
+  shortage: { appointmentId: string; startsAt: string; missing: number } | null;
+  expiring: Array<{
+    lotId: string;
+    lot: string;
+    expiresOn: string;
+    qty: number;
+    expired: boolean;
+    opened?: boolean;
+  }>;
+  idle: boolean;
+  onOrder: number;
+  lastUsedAt: string | null;
+}
+
+export interface StockMove {
+  id: string;
+  kind: 'purchase' | 'consume' | 'return' | 'loss' | 'expired' | 'manual' | 'adjust';
+  qty: number;
+  costCents: number;
+  reason: string;
+  lot: string | null;
+  expiresOn: string | null;
+  appointmentId: string | null;
+  purchaseId: string | null;
+  patientName: string | null;
+  createdAt: string;
+}
+
+export interface StockLot {
+  id: string;
+  lot: string;
+  expiresOn: string | null;
+  qty: number;
+  costCents: number;
+  openedAt: string | null;
+}
+
+export interface ShoppingGroup {
+  supplier: Supplier | null;
+  totalCents: number;
+  items: Array<{
+    itemId: string;
+    name: string;
+    purchaseUnit: string;
+    unitsPerPurchase: number;
+    unit: string;
+    qty: number;
+    reasons: Array<'agenda' | 'minimum' | 'ending' | 'expiring'>;
+    shortage: { appointmentId: string; startsAt: string; missing: number } | null;
+    suggestedQty: number;
+    priceCents: number;
+    supplierId: string | null;
+  }>;
+}
+
+export interface StockReport {
+  month: string;
+  purchasesCents: number;
+  bySupplier: Array<{ supplierId: string | null; name: string; totalCents: number }>;
+  byProcedure: Array<{ serviceId: string; name: string; costCents: number }>;
+  lossesCents: number;
+  procedureMargins: Array<{
+    serviceId: string;
+    name: string;
+    priceCents: number | null;
+    materialCents: number;
+    marginCents: number | null;
+  }>;
+  priceIncreases: Array<{ name: string; supplier: string; fromCents: number; toCents: number }>;
+}
+
+export interface AppointmentMaterial {
+  id: string;
+  itemId: string;
+  name: string;
+  unit: string;
+  kind: string;
+  qty: number;
+  lot: string | null;
+  expiresOn: string | null;
+  createdAt: string;
+}
+
+export interface Results {
+  month: string;
+  generatedCents: number;
+  parts: {
+    waitlist: { count: number; valueCents: number };
+    online: { count: number; valueCents: number };
+    plans: { count: number; sent: number; valueCents: number };
+  };
+  agenda: {
+    total: number;
+    done: number;
+    noShows: number;
+    cancelled: number;
+    noShowRate: number | null;
+    confirmed: number;
+    confirmedByPatient: number;
+  };
+  whatsappSent: number;
+  deposits: { count: number; valueCents: number };
+  previous: { noShowRate: number | null; generatedCents: number };
+}
+
 const qs = (params: Record<string, string | number | undefined>) =>
   new URLSearchParams(
     Object.entries(params).flatMap(([k, v]) =>
@@ -726,6 +868,60 @@ export const api = {
   savePix: (data: { accessToken?: string; depositCents?: number }) =>
     send<PixSettings>('PUT', '/finance/pix', data),
   removePix: () => send<PixSettings>('DELETE', '/finance/pix'),
+
+  // estoque
+  suppliers: () => request<Supplier[]>('/suppliers'),
+  createSupplier: (data: Partial<Supplier> & { name: string }) =>
+    send<Supplier>('POST', '/suppliers', data),
+  updateSupplier: (id: string, data: Partial<Supplier>) =>
+    send<Supplier>('PATCH', `/suppliers/${id}`, data),
+  stock: () => request<StockItem[]>('/stock'),
+  createItem: (data: Record<string, unknown>) => send<StockItem>('POST', '/stock/items', data),
+  updateItem: (id: string, data: Record<string, unknown>) =>
+    send<StockItem>('PATCH', `/stock/items/${id}`, data),
+  itemMoves: (id: string) =>
+    request<{ lots: StockLot[]; moves: StockMove[] }>(`/stock/items/${id}/moves`),
+  stockOut: (
+    id: string,
+    data: { kind: 'loss' | 'expired' | 'manual'; qty: number; reason: string },
+  ) => send<void>('POST', `/stock/items/${id}/out`, data),
+  stockCount: (id: string, counted: number) =>
+    send<{ difference: number }>('POST', `/stock/items/${id}/count`, { counted }),
+  stockPurchase: (data: Record<string, unknown>) =>
+    send<{
+      id: string;
+      totalCents: number;
+      priceAlerts: Array<{ name: string; fromCents: number; toCents: number }>;
+    }>('POST', '/stock/purchases', data),
+  shopping: () => request<ShoppingGroup[]>('/stock/shopping'),
+  orders: () =>
+    request<
+      Array<{
+        id: string;
+        supplierId: string | null;
+        items: Array<{ itemId: string; purchaseQty: number }>;
+        createdAt: string;
+      }>
+    >('/stock/orders'),
+  createOrder: (supplierId: string | null, items: Array<{ itemId: string; purchaseQty: number }>) =>
+    send<{ id: string }>('POST', '/stock/orders', { supplierId, items }),
+  cancelOrder: (id: string) => send<void>('DELETE', `/stock/orders/${id}`),
+  stockCheck: (serviceId: string, startsAt: string) =>
+    request<Array<{ itemId: string; name: string; unit: string; need: number; available: number }>>(
+      `/stock/check?${qs({ serviceId, startsAt })}`,
+    ),
+  stockReport: (month: string) => request<StockReport>(`/stock/report?month=${month}`),
+  serviceMaterials: (id: string) =>
+    request<Array<{ itemId: string; qty: number; name: string; unit: string; costCents: number }>>(
+      `/services/${id}/materials`,
+    ),
+  setServiceMaterials: (id: string, list: Array<{ itemId: string; qty: number }>) =>
+    send<unknown>('PUT', `/services/${id}/materials`, list),
+  appointmentMaterials: (id: string) =>
+    request<AppointmentMaterial[]>(`/appointments/${id}/materials`),
+  addAppointmentMaterial: (id: string, itemId: string, qty: number) =>
+    send<AppointmentMaterial[]>('POST', `/appointments/${id}/materials`, { itemId, qty }),
+  results: (month: string) => request<Results>(`/results?month=${month}`),
 
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),
