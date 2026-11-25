@@ -32,6 +32,14 @@ const SIZES: Record<ImageKind, { width: number; height: number; fit: 'cover' | '
  * confirma que o arquivo é mesmo uma imagem, tira metadados (localização da foto,
  * por exemplo) e padroniza tamanho e formato.
  */
+/** Área a esconder, em fração da imagem (0 a 1). */
+export interface HideArea {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 @Injectable()
 export class MediaService {
   constructor(private readonly dir: string) {}
@@ -105,12 +113,43 @@ export class MediaService {
     await unlink(join(this.clinicalDir(), name)).catch(() => {});
   }
 
-  /** Cópia pública de uma foto clínica (galeria autorizada). Devolve a URL pública. */
-  async publishClinical(name: string): Promise<string> {
+  /**
+   * Cópia pública de uma foto clínica (galeria autorizada). As áreas marcadas (rosto,
+   * tatuagem…) saem borradas e pixeladas na cópia; a foto original do prontuário não muda.
+   * Devolve a URL pública.
+   */
+  async publishClinical(name: string, hide: HideArea[] = []): Promise<string> {
     if (!NAME.test(name)) throw new NotFoundException();
     const pub = `${randomBytes(16).toString('hex')}.webp`;
     await mkdir(this.dir, { recursive: true });
-    await copyFile(join(this.clinicalDir(), name), join(this.dir, pub));
+    const src = join(this.clinicalDir(), name);
+    if (!hide.length) {
+      await copyFile(src, join(this.dir, pub));
+      return `/media/${pub}`;
+    }
+    const base = sharp(src);
+    const { width = 0, height = 0 } = await base.metadata();
+    const camadas = await Promise.all(
+      hide.map(async (a) => {
+        const left = Math.max(0, Math.floor(a.x * width));
+        const top = Math.max(0, Math.floor(a.y * height));
+        const w = Math.max(1, Math.min(width - left, Math.ceil(a.w * width)));
+        const h = Math.max(1, Math.min(height - top, Math.ceil(a.h * height)));
+        // Pixela (reduz e amplia) e depois borra: não dá para reverter e reconhecer.
+        const bloco = Math.max(1, Math.round(Math.max(w, h) / 12));
+        const pequeno = await sharp(src)
+          .extract({ left, top, width: w, height: h })
+          .blur(Math.max(3, Math.max(w, h) / 10))
+          .resize(Math.max(1, Math.round(w / bloco)), Math.max(1, Math.round(h / bloco)))
+          .toBuffer();
+        const input = await sharp(pequeno)
+          .resize(w, h, { kernel: 'nearest' })
+          .blur(Math.max(2, bloco / 2))
+          .toBuffer();
+        return { input, left, top };
+      }),
+    );
+    await base.composite(camadas).webp({ quality: 85 }).toFile(join(this.dir, pub));
     return `/media/${pub}`;
   }
 

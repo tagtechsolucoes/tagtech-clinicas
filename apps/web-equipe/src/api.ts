@@ -669,6 +669,8 @@ export const api = {
     afterPhotoId: string;
     title: string;
     serviceId?: string;
+    hideBefore?: Array<{ x: number; y: number; w: number; h: number }>;
+    hideAfter?: Array<{ x: number; y: number; w: number; h: number }>;
   }) => send<GalleryItem>('POST', '/gallery', data),
   unpublish: (id: string) => send<void>('DELETE', `/gallery/${id}`),
 

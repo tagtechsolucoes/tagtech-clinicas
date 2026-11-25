@@ -252,6 +252,63 @@ describe('fotos e galeria', () => {
     expect((await as(dra, 'GET', `/photos/${antes.id}/file`)).statusCode).toBe(200);
   });
 
+  it('esconde o rosto: a área marcada sai borrada no site e a original não muda', async () => {
+    await as(a.cookie, 'POST', `/patients/${patientId}/image-consent`, {
+      scope: 'site',
+      signedOn: '2026-11-03',
+    });
+    const ruido = await sharp({
+      create: {
+        width: 240,
+        height: 240,
+        channels: 3,
+        background: '#808080',
+        noise: { type: 'gaussian', mean: 128, sigma: 70 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const foto = (
+      await app.inject({
+        method: 'PUT',
+        url: `/patients/${patientId}/photos?stage=before&takenOn=2026-11-03`,
+        headers: { cookie: dra, 'content-type': 'image/png' },
+        payload: ruido,
+      })
+    ).json() as { id: string };
+    const fora = { x: 0, y: 0, w: 0.9, h: 1.2 };
+    expect(
+      (
+        await as(a.cookie, 'POST', '/gallery', {
+          beforePhotoId: foto.id,
+          afterPhotoId: depois.id,
+          title: 'x',
+          hideBefore: [fora],
+        })
+      ).statusCode,
+    ).toBe(400);
+    const pub = await as(a.cookie, 'POST', '/gallery', {
+      beforePhotoId: foto.id,
+      afterPhotoId: depois.id,
+      title: 'Harmonização',
+      hideBefore: [{ x: 0, y: 0, w: 0.5, h: 0.5 }],
+    });
+    expect(pub.statusCode).toBe(201);
+    const publica = (await app.inject({ method: 'GET', url: pub.json().beforeUrl })).rawPayload;
+    const original = (await as(dra, 'GET', `/photos/${foto.id}/file`)).rawPayload;
+    const desvio = async (img: Buffer, left: number) =>
+      (
+        await sharp(
+          await sharp(img).extract({ left, top: 10, width: 90, height: 90 }).toBuffer(),
+        ).stats()
+      ).channels[0]!.stdev;
+    // Dentro da área: quase liso. Fora dela e na original: o ruído continua.
+    expect(await desvio(publica, 10)).toBeLessThan(15);
+    expect(await desvio(publica, 140)).toBeGreaterThan(30);
+    expect(await desvio(original, 10)).toBeGreaterThan(30);
+    await as(a.cookie, 'DELETE', `/gallery/${pub.json().id}`);
+  });
+
   it('apagar a foto remove o arquivo', async () => {
     expect((await as(dra, 'DELETE', `/photos/${antes.id}`)).statusCode).toBe(204);
     expect((await as(dra, 'GET', `/photos/${antes.id}/file`)).statusCode).toBe(404);
