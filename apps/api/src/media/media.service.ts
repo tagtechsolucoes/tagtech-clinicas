@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
@@ -27,7 +27,7 @@ const SIZES: Record<ImageKind, { width: number; height: number; fit: 'cover' | '
 };
 
 /**
- * Guarda as imagens do restaurante. Hoje em disco; em produção a mesma interface
+ * Guarda as imagens da clínica. Hoje em disco; em produção a mesma interface
  * passa a gravar no S3. Toda imagem é reprocessada antes de ser guardada: isso
  * confirma que o arquivo é mesmo uma imagem, tira metadados (localização da foto,
  * por exemplo) e padroniza tamanho e formato.
@@ -62,6 +62,56 @@ export class MediaService {
     const name = url?.replace(/^\/media\//, '');
     if (!name || !NAME.test(name)) return;
     await unlink(join(this.dir, name)).catch(() => {});
+  }
+
+  // ---------------------------------------------------------------- fotos clínicas
+  // Ficam numa subpasta que a rota pública não serve (o nome sozinho não abre nada).
+
+  private clinicalDir() {
+    return join(this.dir, 'clinico');
+  }
+
+  /** Foto clínica: lado maior até 2000 px, sem metadados. Devolve o nome do arquivo. */
+  async saveClinical(input: unknown): Promise<string> {
+    if (!Buffer.isBuffer(input) || input.length === 0) {
+      throw new BadRequestException('Envie a foto no corpo da requisição (JPEG, PNG ou WebP)');
+    }
+    let output: Buffer;
+    try {
+      output = await sharp(input, { limitInputPixels: 50_000_000, failOn: 'error' })
+        .rotate()
+        .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 86 })
+        .toBuffer();
+    } catch {
+      throw new BadRequestException('O arquivo não é uma imagem válida');
+    }
+    const name = `${randomBytes(16).toString('hex')}.webp`;
+    await mkdir(this.clinicalDir(), { recursive: true });
+    await writeFile(join(this.clinicalDir(), name), output);
+    return name;
+  }
+
+  async openClinical(name: string) {
+    if (!NAME.test(name)) throw new NotFoundException();
+    const path = join(this.clinicalDir(), name);
+    const info = await stat(path).catch(() => null);
+    if (!info?.isFile()) throw new NotFoundException();
+    return { stream: createReadStream(path), size: info.size };
+  }
+
+  async removeClinical(name: string): Promise<void> {
+    if (!NAME.test(name)) return;
+    await unlink(join(this.clinicalDir(), name)).catch(() => {});
+  }
+
+  /** Cópia pública de uma foto clínica (galeria autorizada). Devolve a URL pública. */
+  async publishClinical(name: string): Promise<string> {
+    if (!NAME.test(name)) throw new NotFoundException();
+    const pub = `${randomBytes(16).toString('hex')}.webp`;
+    await mkdir(this.dir, { recursive: true });
+    await copyFile(join(this.clinicalDir(), name), join(this.dir, pub));
+    return `/media/${pub}`;
   }
 
   async open(name: string) {

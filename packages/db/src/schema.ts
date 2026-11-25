@@ -17,6 +17,16 @@ import {
 
 export const memberRole = pgEnum('member_role', ['owner', 'manager', 'reception', 'professional']);
 
+const RECORD_KINDS = [
+  'geral',
+  'odonto',
+  'estetica',
+  'fisio',
+  'psico',
+  'nutri',
+  'medicina',
+] as const; // igual a @tagtech/domain
+
 const id = () => uuid('id').primaryKey().defaultRandom();
 const ts = (name: string) => timestamp(name, { withTimezone: true });
 const createdAt = () => ts('created_at').notNull().defaultNow();
@@ -108,6 +118,7 @@ export const professionals = pgTable('professionals', {
   onlineBooking: boolean('online_booking').notNull().default(true),
   active: boolean('active').notNull().default(true),
   position: integer('position').notNull().default(0),
+  recordKind: text('record_kind', { enum: RECORD_KINDS }).notNull().default('geral'),
   createdAt: createdAt(),
 });
 
@@ -292,5 +303,91 @@ export const appointmentMessages = pgTable('appointment_messages', {
     .default('sending'),
   providerMessageId: text('provider_message_id'),
   error: text('error'),
+  createdAt: createdAt(),
+});
+
+// ---------------------------------------------------------------- prontuário
+
+export const clinicalNotes = pgTable('clinical_notes', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  appointmentId: uuid('appointment_id'),
+  professionalId: uuid('professional_id'),
+  kind: text('kind', { enum: RECORD_KINDS }).notNull(),
+  data: jsonb('data').$type<Record<string, string | number>>().notNull().default({}),
+  text: text('text').notNull().default(''),
+  private: boolean('private').notNull().default(false),
+  authorUserId: uuid('author_user_id'),
+  lockedAt: ts('locked_at'),
+  addendumOf: uuid('addendum_of'),
+  createdAt: createdAt(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+export const toothChart = pgTable(
+  'tooth_chart',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    patientId: uuid('patient_id').notNull(),
+    tooth: smallint('tooth').notNull(),
+    state: text('state', {
+      enum: [
+        'caries',
+        'restored',
+        'missing',
+        'implant',
+        'crown',
+        'root_canal',
+        'extraction',
+        'prosthesis',
+        'healthy',
+      ],
+    }).notNull(),
+    note: text('note').notNull().default(''),
+    updatedBy: uuid('updated_by'),
+    updatedAt: ts('updated_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.patientId, t.tooth] })],
+);
+
+export const patientPhotos = pgTable('patient_photos', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  appointmentId: uuid('appointment_id'),
+  file: text('file').notNull(),
+  stage: text('stage', { enum: ['before', 'during', 'after'] }).notNull(),
+  region: text('region').notNull().default(''),
+  angle: text('angle').notNull().default(''),
+  takenOn: date('taken_on').notNull().defaultNow(),
+  note: text('note').notNull().default(''),
+  createdBy: uuid('created_by'),
+  createdAt: createdAt(),
+});
+
+export const imageConsents = pgTable('image_consents', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  scope: text('scope', { enum: ['site', 'social', 'both'] }).notNull(),
+  termText: text('term_text').notNull(),
+  signedOn: date('signed_on').notNull(),
+  recordedBy: uuid('recorded_by'),
+  revokedAt: ts('revoked_at'),
+  createdAt: createdAt(),
+});
+
+export const galleryItems = pgTable('gallery_items', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  beforePhoto: uuid('before_photo').notNull(),
+  afterPhoto: uuid('after_photo').notNull(),
+  beforeUrl: text('before_url').notNull(),
+  afterUrl: text('after_url').notNull(),
+  title: text('title').notNull(),
+  serviceId: uuid('service_id'),
+  position: integer('position').notNull().default(0),
   createdAt: createdAt(),
 });

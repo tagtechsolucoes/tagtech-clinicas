@@ -3,6 +3,7 @@ import { createDb } from './client';
 import { requireEnv } from './env';
 import {
   appointments,
+  clinicalNotes,
   memberships,
   patients,
   professionals,
@@ -10,6 +11,7 @@ import {
   services,
   tenants,
   timeOff,
+  toothChart,
   units,
   waitlist,
   workingHours,
@@ -82,6 +84,7 @@ async function main() {
           council: 'CRO-PE 12.345',
           color: '#1d4e5f',
           position: 0,
+          recordKind: 'odonto',
           bio: 'Formada pela UFPE, 12 anos de consultório. Tratamentos conservadores, explicados passo a passo.',
         },
         {
@@ -91,6 +94,7 @@ async function main() {
           council: 'CRO-PE 23.456',
           color: '#3563c9',
           position: 1,
+          recordKind: 'odonto',
           bio: 'Aparelhos fixos e alinhadores. Atende crianças a partir de 7 anos.',
         },
         {
@@ -100,6 +104,7 @@ async function main() {
           council: 'CRO-PE 34.567',
           color: '#c2417a',
           position: 2,
+          recordKind: 'estetica',
           bio: 'Toxina botulínica e preenchimento com planejamento facial completo.',
         },
       ])
@@ -317,6 +322,46 @@ async function main() {
       endsAt: em(d0, '13:00'),
       reason: 'Almoço com fornecedor',
     });
+    // Prontuário de exemplo da primeira paciente.
+    await db.insert(clinicalNotes).values([
+      {
+        tenantId,
+        patientId: p(0),
+        professionalId: helena.id,
+        authorUserId: user!.id,
+        kind: 'odonto',
+        data: {
+          queixa: 'Sensibilidade ao frio no lado esquerdo',
+          procedimentos: 'Profilaxia e aplicação de flúor',
+          dentes: '26, 27',
+          proximo: 'Restauração do 26',
+        },
+        lockedAt: new Date(),
+        createdAt: em(dia(-20), '09:30'),
+      },
+      {
+        tenantId,
+        patientId: p(0),
+        professionalId: helena.id,
+        authorUserId: user!.id,
+        kind: 'odonto',
+        data: {
+          procedimentos: 'Restauração em resina, face oclusal',
+          dentes: '26',
+          materiais: 'Resina A2, lote 2231',
+        },
+        text: 'Paciente sem queixas após o procedimento.',
+        createdAt: em(hoje, '08:40'),
+      },
+    ]);
+    await db.insert(toothChart).values([
+      { tenantId, patientId: p(0), tooth: 26, state: 'restored', note: 'Oclusal, resina A2' },
+      { tenantId, patientId: p(0), tooth: 27, state: 'caries', note: 'Mesial' },
+      { tenantId, patientId: p(0), tooth: 18, state: 'missing' },
+      { tenantId, patientId: p(0), tooth: 36, state: 'root_canal' },
+      { tenantId, patientId: p(0), tooth: 46, state: 'crown' },
+    ]);
+
     await db.insert(waitlist).values([
       {
         tenantId,

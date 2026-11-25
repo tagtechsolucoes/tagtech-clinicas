@@ -121,3 +121,23 @@ describe('mensagens', async () => {
     );
   });
 });
+
+describe('prontuário', async () => {
+  const { cleanRecordData, isTooth, bmi } = await import('./prontuario');
+  it('só guarda os campos do modelo e confere números', () => {
+    expect(cleanRecordData('fisio', { dor: '7', avaliacao: '  ok ', invasor: 'x' })).toEqual({
+      ok: true,
+      data: { dor: 7, avaliacao: 'ok' },
+    });
+    expect(cleanRecordData('fisio', { dor: 11 })).toEqual({
+      ok: false,
+      error: 'Dor: valor inválido',
+    });
+    expect(cleanRecordData('nutri', { peso: '72,5' })).toEqual({ ok: true, data: { peso: 72.5 } });
+  });
+  it('dentes e IMC', () => {
+    expect([11, 18, 48, 55, 85].every(isTooth)).toBe(true);
+    expect([10, 19, 49, 56, 90, 86].some(isTooth)).toBe(false);
+    expect(bmi(72, 170)).toBe(24.9);
+  });
+});

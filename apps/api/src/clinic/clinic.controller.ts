@@ -12,7 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { DISPLAY_FONTS, normalizePhoneBR } from '@tagtech/domain';
+import { DISPLAY_FONTS, normalizePhoneBR, RECORD_KINDS } from '@tagtech/domain';
 import { z } from 'zod';
 import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/auth.guard';
 import { validate } from '../common/validate';
@@ -98,6 +98,7 @@ const proFields = {
   onlineBooking: z.boolean(),
   active: z.boolean(),
   membershipId: uuid.nullable(),
+  recordKind: z.enum(RECORD_KINDS),
 };
 const proCreate = z.object(proFields).partial().required({ name: true }).strict();
 const proPatch = nonEmpty(proFields);

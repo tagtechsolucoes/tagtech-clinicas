@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { pgError, schema, type TenantTx } from '@tagtech/db';
-import type { DisplayFont } from '@tagtech/domain';
+import type { DisplayFont, RecordKind } from '@tagtech/domain';
 import { and, asc, eq, gt, inArray, lt } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { recordAudit } from '../audit/audit';
@@ -74,6 +74,7 @@ export interface ProfessionalInput {
   onlineBooking?: boolean | undefined;
   active?: boolean | undefined;
   membershipId?: string | null | undefined;
+  recordKind?: RecordKind | undefined;
 }
 
 export interface HoursInput {
@@ -524,6 +525,7 @@ export async function loadProfessionals(tx: TenantTx, ids?: string[]) {
     onlineBooking: p.onlineBooking,
     active: p.active,
     membershipId: p.membershipId,
+    recordKind: p.recordKind,
     hours: hours
       .filter((h) => h.professionalId === p.id)
       .map((h) => ({

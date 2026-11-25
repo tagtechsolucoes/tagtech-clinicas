@@ -1,4 +1,10 @@
-import type { AppointmentStatus, BrandTheme, ClinicRole } from '@tagtech/domain';
+import type {
+  AppointmentStatus,
+  BrandTheme,
+  ClinicRole,
+  RecordKind,
+  ToothState,
+} from '@tagtech/domain';
 
 export interface Membership {
   tenantId: string;
@@ -61,6 +67,7 @@ export interface Professional {
   onlineBooking: boolean;
   active: boolean;
   membershipId: string | null;
+  recordKind: RecordKind;
   hours: WorkHours[];
   serviceIds: string[];
 }
@@ -203,6 +210,59 @@ export interface SentMessage {
   status: 'sending' | 'sent' | 'failed';
   error: string | null;
   at: string;
+}
+
+export interface ClinicalNote {
+  id: string;
+  kind: RecordKind;
+  appointmentId: string | null;
+  professionalName: string | null;
+  author: string;
+  mine: boolean;
+  private: boolean;
+  hidden: boolean;
+  data: Record<string, string | number>;
+  text: string;
+  locked: boolean;
+  addendumOf: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Tooth {
+  tooth: number;
+  state: ToothState;
+  note: string;
+  updatedAt: string;
+}
+
+export interface Photo {
+  id: string;
+  stage: 'before' | 'during' | 'after';
+  region: string;
+  angle: string;
+  takenOn: string;
+  note: string;
+  appointmentId: string | null;
+  createdAt: string;
+}
+
+export interface ImageConsent {
+  active: boolean;
+  id?: string;
+  scope?: 'site' | 'social' | 'both';
+  signedOn?: string;
+  termText: string;
+}
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  serviceId: string | null;
+  beforeUrl: string;
+  afterUrl: string;
+  patientId: string;
+  patientName: string;
 }
 
 export class ApiError extends Error {
@@ -445,6 +505,62 @@ export const api = {
   messages: (appointmentId: string) =>
     request<SentMessage[]>(`/appointments/${appointmentId}/messages`),
 
+  // prontuário
+  notes: (patientId: string) => request<ClinicalNote[]>(`/patients/${patientId}/notes`),
+  createNote: (
+    patientId: string,
+    data: {
+      kind: RecordKind;
+      data: Record<string, unknown>;
+      text: string;
+      private?: boolean;
+      addendumOf?: string;
+      appointmentId?: string;
+    },
+  ) => send<ClinicalNote>('POST', `/patients/${patientId}/notes`, data),
+  updateNote: (
+    id: string,
+    patch: { data?: Record<string, unknown>; text?: string; private?: boolean },
+  ) => send<ClinicalNote>('PATCH', `/notes/${id}`, patch),
+  lockNote: (id: string) => send<ClinicalNote>('POST', `/notes/${id}/lock`),
+  teeth: (patientId: string) => request<Tooth[]>(`/patients/${patientId}/teeth`),
+  setTooth: (patientId: string, tooth: number, state: ToothState | null, note = '') =>
+    send<unknown>('PUT', `/patients/${patientId}/teeth/${tooth}`, { state, note }),
+  photos: (patientId: string) => request<Photo[]>(`/patients/${patientId}/photos`),
+  addPhoto: async (
+    patientId: string,
+    file: File,
+    meta: { stage: Photo['stage']; region: string; angle: string; takenOn: string },
+  ) => {
+    const corpo = await prepararImagem(file);
+    return request<Photo>(`/patients/${patientId}/photos?${qs(meta)}`, {
+      method: 'PUT',
+      body: corpo,
+      contentType: corpo.type,
+    });
+  },
+  updatePhoto: (
+    id: string,
+    patch: Partial<Pick<Photo, 'stage' | 'region' | 'angle' | 'takenOn' | 'note'>>,
+  ) => send<Photo>('PATCH', `/photos/${id}`, patch),
+  deletePhoto: (id: string) => send<void>('DELETE', `/photos/${id}`),
+  imageConsent: (patientId: string) =>
+    request<ImageConsent>(`/patients/${patientId}/image-consent`),
+  recordConsent: (
+    patientId: string,
+    data: { scope: 'site' | 'social' | 'both'; signedOn: string; termText?: string },
+  ) => send<ImageConsent>('POST', `/patients/${patientId}/image-consent`, data),
+  revokeConsent: (patientId: string) =>
+    send<ImageConsent>('DELETE', `/patients/${patientId}/image-consent`),
+  gallery: () => request<GalleryItem[]>('/gallery'),
+  publish: (data: {
+    beforePhotoId: string;
+    afterPhotoId: string;
+    title: string;
+    serviceId?: string;
+  }) => send<GalleryItem>('POST', '/gallery', data),
+  unpublish: (id: string) => send<void>('DELETE', `/gallery/${id}`),
+
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),
   createInvite: (name: string, role: ClinicRole) =>
@@ -455,6 +571,9 @@ export const api = {
     send<void>('PATCH', `/team/members/${membershipId}`, { role }),
   removeMember: (membershipId: string) => send<void>('DELETE', `/team/members/${membershipId}`),
 };
+
+/** Arquivo de uma foto clínica (só abre com login). */
+export const photoUrl = (id: string) => `/api/photos/${id}/file`;
 
 /** Endereço do site público (agendamento e link do paciente). */
 export const siteBase = () =>
