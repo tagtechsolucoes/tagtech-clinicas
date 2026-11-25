@@ -9,7 +9,7 @@ import { Botao, Cabecalho, Campo, Entrada, Icone, Interruptor, Seletor, Texto } 
 
 const FONTES: Record<DisplayFont, { nome: string; css: string }> = {
   // As mesmas fontes do site de agendamento (apps/web-cliente/src/lib/tema.ts).
-  grotesca: { nome: 'Moderna', css: "'Bricolage Grotesque Variable', sans-serif" },
+  grotesca: { nome: 'Moderna', css: "'Manrope Variable', sans-serif" },
   serifada: { nome: 'Clássica', css: "'Fraunces Variable', serif" },
   condensada: { nome: 'Marcante', css: "'Oswald Variable', sans-serif" },
 };

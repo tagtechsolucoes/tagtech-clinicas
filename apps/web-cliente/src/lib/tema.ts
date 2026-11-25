@@ -7,8 +7,15 @@ import {
 } from '@tagtech/domain';
 import type { CSSProperties } from 'react';
 
+/** Peso e espaçamento que cada fonte de título pede para ficar bonita. */
+const AJUSTE: Record<BrandTheme['displayFont'], [number, string]> = {
+  grotesca: [650, '-0.03em'],
+  serifada: [500, '-0.015em'],
+  condensada: [500, '0'],
+};
+
 const FONTES: Record<BrandTheme['displayFont'], string> = {
-  grotesca: "'Bricolage Grotesque Variable'",
+  grotesca: "'Manrope Variable'",
   serifada: "'Fraunces Variable'",
   condensada: "'Oswald Variable'",
 };
@@ -47,6 +54,8 @@ export function estiloDoTema(theme: BrandTheme): { estilo: CSSProperties; fundo:
       '--color-destaque-forte': t.accentStrong,
       '--color-sobre-destaque': t.onAccent,
       '--color-destaque-na-marca': t.accentOnPrimary,
+      '--peso-display': AJUSTE[theme.displayFont][0],
+      '--espaco-display': AJUSTE[theme.displayFont][1],
       '--font-display': `${FONTES[theme.displayFont]}, ui-sans-serif, system-ui, sans-serif`,
     } as CSSProperties,
   };

@@ -181,7 +181,7 @@ export default async function Page({ params, searchParams }: Props) {
               ) : null}
             </p>
           ) : null}
-          <h1 className="mt-5 text-[2.6rem] leading-[1.02] font-medium tracking-[-0.01em] text-balance sm:text-[3.4rem] lg:text-[4rem]">
+          <h1 className="mt-5 text-[2.6rem] leading-[1.02] tracking-[-0.01em] text-balance sm:text-[3.4rem] lg:text-[4rem]">
             {c.tagline || c.name}
           </h1>
           {c.about ? (
@@ -231,9 +231,7 @@ export default async function Page({ params, searchParams }: Props) {
       >
         <div className="mx-auto grid max-w-6xl gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:gap-16">
           <div className="lg:pt-4">
-            <h2 className="text-[2.2rem] leading-tight font-medium sm:text-[2.6rem]">
-              Marque sua consulta
-            </h2>
+            <h2 className="text-[2.2rem] leading-tight sm:text-[2.6rem]">Marque sua consulta</h2>
             <p className="mt-3 max-w-sm text-sobre-marca/75">
               Escolha o serviço, o profissional e o horário. Leva um minuto e não precisa de senha.
             </p>
@@ -269,9 +267,7 @@ export default async function Page({ params, searchParams }: Props) {
         >
           <div className="grid gap-10 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:gap-16">
             <div>
-              <h2 className="text-[2.2rem] leading-tight font-medium sm:text-[2.6rem]">
-                Serviços e valores
-              </h2>
+              <h2 className="text-[2.2rem] leading-tight sm:text-[2.6rem]">Serviços e valores</h2>
               <p className="mt-3 max-w-sm text-nevoa">
                 Preço do atendimento particular. Tratamentos maiores recebem orçamento por escrito
                 antes de começar.
@@ -326,7 +322,7 @@ export default async function Page({ params, searchParams }: Props) {
       {c.professionals.length ? (
         <section id="equipe" className="scroll-mt-4 bg-folha py-16 sm:py-24">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
-            <h2 className="text-[2.2rem] leading-tight font-medium sm:text-[2.6rem]">
+            <h2 className="text-[2.2rem] leading-tight sm:text-[2.6rem]">
               Quem vai cuidar de você
             </h2>
             <ul className="mt-10 grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
@@ -377,7 +373,7 @@ export default async function Page({ params, searchParams }: Props) {
           id="resultados"
           className="mx-auto max-w-6xl scroll-mt-4 px-5 py-16 sm:px-8 sm:py-24"
         >
-          <h2 className="text-[2.2rem] leading-tight font-medium sm:text-[2.6rem]">Resultados</h2>
+          <h2 className="text-[2.2rem] leading-tight sm:text-[2.6rem]">Resultados</h2>
           <p className="mt-3 max-w-xl text-nevoa">
             Arraste para comparar. Fotos publicadas com autorização dos pacientes.
           </p>

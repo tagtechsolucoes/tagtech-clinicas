@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/manrope';
 @import '@fontsource-variable/instrument-sans';
 @import '@fontsource-variable/fraunces';
 @import '@fontsource-variable/oswald';
@@ -58,7 +58,12 @@ body {
   h2,
   h3 {
     font-family: var(--font-display);
-    letter-spacing: -0.015em;
+    font-weight: var(--peso-display, 500);
+    letter-spacing: var(--espaco-display, -0.015em);
+  }
+  .font-display {
+    font-weight: var(--peso-display, 500);
+    letter-spacing: var(--espaco-display, -0.015em);
   }
 }
 
