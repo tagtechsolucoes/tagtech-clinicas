@@ -444,10 +444,12 @@ export function Foto({
   nome,
   url,
   tamanho = 'h-12 w-12',
+  cor,
 }: {
   nome: string;
   url: string | null;
   tamanho?: string;
+  cor?: string | undefined;
 }) {
   if (url)
     return (
@@ -462,6 +464,7 @@ export function Foto({
   return (
     <span
       className={`${tamanho} grid shrink-0 place-items-center rounded-full bg-marca font-semibold text-sobre-marca`}
+      style={cor && /^#[0-9a-f]{6}$/i.test(cor) ? { background: cor, color: '#fff' } : undefined}
     >
       {ini}
     </span>

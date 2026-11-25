@@ -95,10 +95,41 @@ export default async function Page({ params, searchParams }: Props) {
             ) : null}
           </div>
           {unidade?.address ? <p className="mt-6 text-sm opacity-75">{unidade.address}</p> : null}
+          {c.professionals.length ? (
+            <div className="absolute right-8 bottom-36 hidden w-72 rounded-3xl bg-white/[0.07] p-6 ring-1 ring-white/15 backdrop-blur lg:block">
+              <div className="flex -space-x-2.5">
+                {c.professionals.slice(0, 4).map((p) => (
+                  <span
+                    key={p.id}
+                    className="block rounded-full ring-4 ring-[color-mix(in_srgb,var(--color-marca)_80%,white)]"
+                  >
+                    <Foto
+                      nome={p.name}
+                      url={p.photoUrl}
+                      cor={p.color}
+                      tamanho="h-12 w-12 text-sm"
+                    />
+                  </span>
+                ))}
+              </div>
+              <p className="mt-4 font-semibold">
+                {c.professionals.length === 1
+                  ? c.professionals[0]!.name
+                  : `${c.professionals.length} profissionais`}
+              </p>
+              <ul className="mt-3 space-y-2 text-sm opacity-80">
+                <li>Agende em 1 minuto, sem criar senha</li>
+                <li>Confirmação e lembrete pelo WhatsApp</li>
+                {c.insurers.length ? (
+                  <li>Aceita {c.insurers.map((i) => i.name).join(', ')}</li>
+                ) : null}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </header>
 
-      <main className="mx-auto -mt-16 grid max-w-6xl gap-10 px-5 pb-20 sm:px-8 lg:-mt-24 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
+      <main className="relative z-10 mx-auto -mt-16 grid max-w-6xl gap-10 px-5 pb-20 sm:px-8 lg:-mt-24 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
         <section id="agendar" className="scroll-mt-6">
           <Agendar clinic={c} servicoInicial={servicoInicial} />
         </section>
@@ -110,7 +141,12 @@ export default async function Page({ params, searchParams }: Props) {
               <ul className="mt-5 space-y-5">
                 {c.professionals.map((p) => (
                   <li key={p.id} className="flex gap-4">
-                    <Foto nome={p.name} url={p.photoUrl} tamanho="h-16 w-16 text-lg" />
+                    <Foto
+                      nome={p.name}
+                      url={p.photoUrl}
+                      cor={p.color}
+                      tamanho="h-16 w-16 text-lg"
+                    />
                     <div className="min-w-0">
                       <p className="font-semibold">{p.name}</p>
                       <p className="text-sm text-nevoa">

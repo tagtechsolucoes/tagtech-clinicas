@@ -26,6 +26,7 @@ export interface PublicClinic {
     name: string;
     specialty: string;
     council: string;
+    color?: string;
     bio: string;
     photoUrl: string | null;
     serviceIds: string[];

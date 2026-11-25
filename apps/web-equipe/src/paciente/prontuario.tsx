@@ -8,7 +8,7 @@ import {
 } from '@tagtech/domain';
 import { api, type ClinicalNote } from '../api';
 import { mensagem, usePainel } from '../contexto';
-import { dataHora } from '../formato';
+import { dataHora, getFuso, hora } from '../formato';
 import { Botao, Campo, Entrada, Icone, Seletor, Texto } from '../ui';
 
 /** Evoluções do paciente: escrever (com o modelo da especialidade) e a linha do tempo. */
@@ -60,22 +60,26 @@ export function Prontuario({ patientId }: { patientId: string }) {
             Nenhuma evolução ainda. A primeira fica à esquerda.
           </p>
         ) : (
-          <ol className="space-y-4">
-            {principais.map((n) => (
-              <li key={n.id}>
-                <Cartao
-                  n={n}
-                  aoMudar={() => void carregar()}
-                  aoAdendo={() => {
-                    setAdendo(n);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                />
-                {adendos(n.id).map((x) => (
-                  <div key={x.id} className="mt-2 ml-6 border-l-2 border-linha pl-4">
-                    <Cartao n={x} aoMudar={() => void carregar()} />
-                  </div>
-                ))}
+          <ol>
+            {principais.map((n, i) => (
+              <li key={n.id} className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-4">
+                <Marco iso={n.createdAt} ultimo={i === principais.length - 1} fechado={n.locked} />
+                <div className="pb-5">
+                  <Cartao
+                    semData
+                    n={n}
+                    aoMudar={() => void carregar()}
+                    aoAdendo={() => {
+                      setAdendo(n);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  />
+                  {adendos(n.id).map((x) => (
+                    <div key={x.id} className="mt-2 ml-6 border-l-2 border-linha pl-4">
+                      <Cartao n={x} aoMudar={() => void carregar()} />
+                    </div>
+                  ))}
+                </div>
               </li>
             ))}
           </ol>
@@ -280,11 +284,38 @@ function Editor({
   );
 }
 
+/** Trilho da linha do tempo: dia em destaque, mês e hora; o ponto cheio é evolução finalizada. */
+function Marco({ iso, ultimo, fechado }: { iso: string; ultimo: boolean; fechado: boolean }) {
+  const d = new Date(iso);
+  const tz = getFuso();
+  const dia = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', timeZone: tz }).format(d);
+  const mes = new Intl.DateTimeFormat('pt-BR', { month: 'short', year: '2-digit', timeZone: tz })
+    .format(d)
+    .replace('.', '')
+    .replace(' de ', ' ');
+  return (
+    <div className="relative flex flex-col items-end pt-4 pr-2 text-right">
+      <span className="font-display text-[1.7rem] leading-none tabular-nums">{dia}</span>
+      <span className="mt-1 text-xs font-semibold text-nevoa">{mes}</span>
+      <span className="text-xs text-bruma tabular-nums">{hora(iso)}</span>
+      <span
+        aria-hidden
+        className={`absolute top-6 -right-[0.82rem] h-2.5 w-2.5 rounded-full ring-4 ring-porcelana ${fechado ? 'bg-petroleo' : 'bg-ambar'}`}
+      />
+      {!ultimo ? (
+        <span aria-hidden className="absolute top-10 -right-[0.53rem] bottom-0 w-px bg-linha" />
+      ) : null}
+    </div>
+  );
+}
+
 function Cartao({
   n,
   aoMudar,
   aoAdendo,
+  semData,
 }: {
+  semData?: boolean;
   n: ClinicalNote;
   aoMudar: () => void;
   aoAdendo?: () => void;
@@ -300,8 +331,8 @@ function Cartao({
   return (
     <article className="rounded-2xl bg-folha p-5 ring-1 ring-linha">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <span className="font-semibold">{dataHora(n.createdAt)}</span>
-        <span className="text-nevoa">
+        {semData ? null : <span className="font-semibold">{dataHora(n.createdAt)}</span>}
+        <span className={semData ? 'font-semibold' : 'text-nevoa'}>
           {n.addendumOf ? 'Adendo · ' : ''}
           {modelo.label} · {n.professionalName ?? n.author}
         </span>
@@ -367,8 +398,8 @@ function Cartao({
             .filter((f) => n.data[f.key] !== undefined)
             .map((f) => (
               <div key={f.key}>
-                <dt className="text-xs font-semibold text-nevoa">{f.label}</dt>
-                <dd className="mt-0.5 whitespace-pre-line">
+                <dt className="text-[0.78rem] font-semibold text-bruma">{f.label}</dt>
+                <dd className="mt-0.5 text-[0.95rem] whitespace-pre-line">
                   {f.type === 'scale'
                     ? `${n.data[f.key]}/${f.max}`
                     : `${n.data[f.key]}${f.unit ? ` ${f.unit}` : ''}`}
