@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   addDays,
   formatBRL,
@@ -11,6 +11,7 @@ import {
 } from '@tagtech/domain';
 import { chamar, ApiError, type ManageView, type Pix, type PublicClinic } from '@/lib/api';
 import { PixSinal } from './pix';
+import { EVENTO_ESCOLHA, type Escolha } from '@/lib/escolher';
 import { imagem } from '@/lib/tema';
 
 type Slots = Array<{ professionalId: string; unitId: string; timezone: string; times: string[] }>;
@@ -67,6 +68,24 @@ export function Agendar({
     pix: Pix | null;
   } | null>(null);
   const [recarga, setRecarga] = useState(0);
+  // Escolha feita fora do cartão (horário do topo, tabela de serviços).
+  const horaPendente = useRef<string | null>(null);
+  useEffect(() => {
+    const ouvir = (ev: Event) => {
+      const e = (ev as CustomEvent<Escolha>).detail;
+      if (!clinic.services.some((s) => s.id === e.serviceId)) return;
+      setFeito(null);
+      setServiceId(e.serviceId);
+      setProfessionalId(e.professionalId === undefined ? undefined : e.professionalId);
+      if (e.date) {
+        setInicio(e.date < hoje ? hoje : e.date);
+        setDia(e.date);
+      }
+      horaPendente.current = e.time ?? null;
+    };
+    window.addEventListener(EVENTO_ESCOLHA, ouvir);
+    return () => window.removeEventListener(EVENTO_ESCOLHA, ouvir);
+  }, [clinic.services, hoje]);
   // Depois de agendar, leva a pessoa para o recado de sucesso.
   useEffect(() => {
     if (feito) document.getElementById('agendar')?.scrollIntoView({ block: 'start' });
@@ -114,6 +133,14 @@ export function Agendar({
   }, [dia, serviceId, professionalId, recarga]);
 
   const horarios = [...new Set(slots?.flatMap((s) => s.times) ?? [])].sort();
+  useEffect(() => {
+    const h = horaPendente.current;
+    if (h && slots && horarios.includes(h)) {
+      setHora(h);
+      horaPendente.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots]);
   const periodos = [
     ['Manhã', horarios.filter((h) => toMinutes(h) < 12 * 60)],
     ['Tarde', horarios.filter((h) => toMinutes(h) >= 12 * 60 && toMinutes(h) < 18 * 60)],
