@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { STATUS_LABELS, whatsappLink, type AppointmentStatus } from '@tagtech/domain';
+import {
+  MESSAGE_LABELS,
+  STATUS_LABELS,
+  whatsappLink,
+  type AppointmentStatus,
+} from '@tagtech/domain';
 import {
   api,
   ApiError,
   linkPaciente,
   type Appointment,
   type HistoryEvent,
+  type SentMessage,
   type Patient,
   type WaitlistEntry,
 } from '../api';
@@ -78,6 +84,7 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
   const { clinic, professionals, avisar } = usePainel();
   const [ficha, setFicha] = useState<Patient | null>(null);
   const [historico, setHistorico] = useState<HistoryEvent[]>([]);
+  const [mensagens, setMensagens] = useState<SentMessage[]>([]);
   const [modo, setModo] = useState<'nada' | 'remarcar' | 'cancelar'>('nada');
   const [ocupado, setOcupado] = useState(false);
   const [espera, setEspera] = useState<WaitlistEntry[] | null>(null);
@@ -266,6 +273,32 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
           </Botao>
         ) : null}
       </section>
+
+      {mensagens.length ? (
+        <section>
+          <h3 className="mb-3 text-sm font-semibold text-nevoa">WhatsApp automático</h3>
+          <ul className="space-y-2">
+            {mensagens.map((m, i) => (
+              <li key={i} className="flex items-center gap-2.5 text-sm">
+                <Icone
+                  nome={m.status === 'failed' ? 'alerta' : 'whatsapp'}
+                  className={`h-4 w-4 ${m.status === 'failed' ? 'text-alerta' : 'text-ok'}`}
+                />
+                <span className="font-medium">{MESSAGE_LABELS[m.event]}</span>
+                <span className="text-nevoa">
+                  ·{' '}
+                  {m.status === 'failed'
+                    ? 'não enviada'
+                    : m.status === 'sent'
+                      ? 'enviada'
+                      : 'enviando'}{' '}
+                  · {dataHora(m.at)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {historico.length ? (
         <section>

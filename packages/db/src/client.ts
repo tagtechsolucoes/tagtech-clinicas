@@ -61,3 +61,14 @@ export async function resolveAppointmentToken(
 export function generateToken(): string {
   return randomBytes(16).toString('base64url');
 }
+
+/** Consultas (de todas as clínicas) na hora do lembrete e ainda sem lembrete. */
+export async function dueReminders(
+  db: Db,
+  now: Date,
+): Promise<Array<{ tenantId: string; appointmentId: string }>> {
+  const rows = await db.execute<{ tenant_id: string; appointment_id: string }>(
+    sql`select tenant_id, appointment_id from due_reminders(${now.toISOString()}::timestamptz)`,
+  );
+  return rows.map((r) => ({ tenantId: r.tenant_id, appointmentId: r.appointment_id }));
+}

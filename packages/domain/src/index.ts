@@ -5,3 +5,4 @@ export * from './team';
 export * from './contato';
 export * from './tempo';
 export * from './agenda';
+export * from './mensagens';

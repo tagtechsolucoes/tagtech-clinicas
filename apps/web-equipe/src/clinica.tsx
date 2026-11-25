@@ -3,6 +3,7 @@ import { DISPLAY_FONTS, isHexColor, themeTokens, type DisplayFont } from '@tagte
 import { api, siteUrl } from './api';
 import { mensagem, usePainel } from './contexto';
 import { telefone } from './formato';
+import { WhatsAppConfig } from './whatsapp';
 import { Botao, Cabecalho, Campo, Entrada, Icone, Interruptor, Seletor, Texto } from './ui';
 
 const FONTES: Record<DisplayFont, { nome: string; css: string }> = {
@@ -301,6 +302,13 @@ export function ClinicaTela() {
             </Seletor>
           </Campo>
         </div>
+      </Secao>
+
+      <Secao
+        titulo="WhatsApp automático"
+        descricao="Aviso ao agendar, remarcar e cancelar, e lembrete antes da consulta com o link para confirmar."
+      >
+        <WhatsAppConfig />
       </Secao>
 
       <Secao

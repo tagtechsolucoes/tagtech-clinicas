@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -22,6 +21,8 @@ import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
 import { findOrCreatePatient, patientSummary } from '../patients/patients.service';
 import { availability } from './availability';
+import { hashToken } from '../common/token';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 const {
   appointments,
@@ -36,8 +37,6 @@ const {
   waitlist,
   workingHours,
 } = schema;
-
-export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 type AppointmentRow = typeof appointments.$inferSelect;
 
@@ -116,7 +115,10 @@ export function mapBookingError(e: unknown): never {
 
 @Injectable()
 export class AgendaService {
-  constructor(@Inject(DbService) private readonly dbService: DbService) {}
+  constructor(
+    @Inject(DbService) private readonly dbService: DbService,
+    @Inject(WhatsAppService) private readonly whatsapp: WhatsAppService,
+  ) {}
 
   private run<T>(ctx: TenantContext, fn: (tx: TenantTx) => Promise<T>) {
     return inClinic(this.dbService.db, ctx, fn);
@@ -249,8 +251,8 @@ export class AgendaService {
     return all[0]!.id;
   }
 
-  book(ctx: TenantContext, input: BookInput) {
-    return this.run(ctx, async (tx) => {
+  async book(ctx: TenantContext, input: BookInput) {
+    const booked = await this.run(ctx, async (tx) => {
       const [service] = await tx.select().from(services).where(eq(services.id, input.serviceId));
       if (!service) throw new NotFoundException('Serviço não encontrado');
       const [pro] = await tx
@@ -313,6 +315,8 @@ export class AgendaService {
       const [view] = await loadAppointments(tx, eq(appointments.id, row!.id));
       return { ...view!, manageToken: token };
     });
+    this.whatsapp.appointmentEvent(ctx.tenantId, booked.id, 'booked', booked.manageToken);
+    return booked;
   }
 
   private async assertRoom(tx: TenantTx, roomId: string, unitId: string) {
@@ -328,8 +332,9 @@ export class AgendaService {
   }
 
   /** Remarca (horário, profissional, sala) ou ajusta observação e preço. */
-  update(ctx: TenantContext, id: string, patch: ReschedulePatch) {
-    return this.run(ctx, async (tx) => {
+  async update(ctx: TenantContext, id: string, patch: ReschedulePatch) {
+    let moved = false;
+    const view = await this.run(ctx, async (tx) => {
       const before = await this.current(tx, id);
       const moving =
         (patch.startsAt && patch.startsAt.getTime() !== before.startsAt.getTime()) ||
@@ -369,6 +374,7 @@ export class AgendaService {
         })
         .where(eq(appointments.id, id))
         .catch(mapBookingError);
+      moved = Boolean(moving);
       if (moving) {
         await tx.insert(appointmentEvents).values({
           tenantId: ctx.tenantId,
@@ -382,10 +388,13 @@ export class AgendaService {
       }
       return (await loadAppointments(tx, eq(appointments.id, id)))[0]!;
     });
+    if (moved) this.whatsapp.appointmentEvent(ctx.tenantId, id, 'rescheduled');
+    return view;
   }
 
-  setStatus(ctx: TenantContext, id: string, status: AppointmentStatus, reason?: string) {
-    return this.run(ctx, async (tx) => {
+  async setStatus(ctx: TenantContext, id: string, status: AppointmentStatus, reason?: string) {
+    let changed = false;
+    const view = await this.run(ctx, async (tx) => {
       const before = await this.current(tx, id);
       if (before.status === status)
         return (await loadAppointments(tx, eq(appointments.id, id)))[0]!;
@@ -416,6 +425,7 @@ export class AgendaService {
         actorUserId: ctx.user.userId,
         reason: reason?.trim() || null,
       });
+      changed = true;
       if (status === 'cancelled') {
         await recordAudit(tx, ctx, {
           unitId: before.unitId,
@@ -426,6 +436,9 @@ export class AgendaService {
       }
       return (await loadAppointments(tx, eq(appointments.id, id)))[0]!;
     });
+    if (changed && status === 'cancelled')
+      this.whatsapp.appointmentEvent(ctx.tenantId, id, 'cancelled');
+    return view;
   }
 
   /** Link novo para o paciente confirmar ou desmarcar (o anterior deixa de valer). */
