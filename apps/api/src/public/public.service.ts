@@ -137,6 +137,7 @@ export class PublicService {
           name: p.name,
           specialty: p.specialty,
           council: p.council,
+          color: p.color,
           bio: p.bio,
           photoUrl: p.photoUrl,
           serviceIds: p.serviceIds,

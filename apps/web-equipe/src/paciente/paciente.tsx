@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { STATUS_LABELS } from '@tagtech/domain';
 import { api, type Patient } from '../api';
 import { mensagem, usePainel } from '../contexto';
-import { dataHora, idade, telefone } from '../formato';
+import { dataHora, dinheiro, idade, telefone } from '../formato';
 import { Ficha } from '../pacientes';
 import { Avatar, Botao, Gaveta, Icone, STATUS_ESTILO } from '../ui';
 import { Documentos } from './documentos';
@@ -158,6 +158,8 @@ export function PacienteTela({ id }: { id: string }) {
         </div>
       </Gaveta>
 
+      <Resumo p={p} />
+
       {p.allergies || p.medications ? (
         <div className="mb-6 flex flex-wrap gap-2.5">
           {p.allergies ? (
@@ -173,14 +175,17 @@ export function PacienteTela({ id }: { id: string }) {
         </div>
       ) : null}
 
-      <nav aria-label="Ficha" className="mb-7 flex gap-1 border-b border-linha">
+      <nav
+        aria-label="Ficha"
+        className="rolagem-fina mb-7 flex gap-1 overflow-x-auto border-b border-linha"
+      >
         {abas.map(([k, nome]) => (
           <button
             key={k}
             type="button"
             aria-current={aba === k ? 'page' : undefined}
             onClick={() => setAba(k)}
-            className={`-mb-px border-b-2 px-4 pb-3 text-[0.95rem] font-semibold transition-colors ${
+            className={`-mb-px shrink-0 border-b-2 px-4 pb-3 text-[0.95rem] font-semibold transition-colors ${
               aba === k
                 ? 'border-petroleo text-petroleo'
                 : 'border-transparent text-nevoa hover:text-tinta'
@@ -228,5 +233,73 @@ export function PacienteTela({ id }: { id: string }) {
         aoSalvar={() => void carregar()}
       />
     </>
+  );
+}
+
+/** Faixa com o essencial antes de abrir qualquer aba: próxima, última, histórico e saldo. */
+function Resumo({ p }: { p: Patient }) {
+  const { vinculo } = usePainel();
+  const [aberto, setAberto] = useState<number | null>(null);
+  useEffect(() => {
+    if (vinculo.role === 'professional') return;
+    api
+      .charges({ patientId: p.id, status: 'open' })
+      .then((l) => setAberto(l.reduce((s, c) => s + c.amountCents, 0)))
+      .catch(() => setAberto(null));
+  }, [p.id, vinculo.role]);
+  const agora = Date.now();
+  const lista = p.appointments ?? [];
+  const proxima = lista
+    .filter(
+      (a) =>
+        new Date(a.startsAt).getTime() >= agora && ['scheduled', 'confirmed'].includes(a.status),
+    )
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  const ultima = lista
+    .filter((a) => a.status === 'done')
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt))[0];
+  const feitas = lista.filter((a) => a.status === 'done').length;
+  const faltas = lista.filter((a) => a.status === 'no_show').length;
+  const itens: Array<{ rotulo: string; valor: string; detalhe?: string; tom?: string }> = [
+    {
+      rotulo: 'Próxima consulta',
+      valor: proxima ? dataHora(proxima.startsAt) : 'Nada marcado',
+      ...(proxima ? { detalhe: `${proxima.serviceName} · ${proxima.professionalName}` } : {}),
+      ...(proxima ? {} : { tom: 'text-nevoa' }),
+    },
+    {
+      rotulo: 'Última visita',
+      valor: ultima ? dataHora(ultima.startsAt) : 'Primeira vez',
+      ...(ultima ? { detalhe: ultima.serviceName } : {}),
+    },
+    {
+      rotulo: 'Histórico',
+      valor: `${feitas} ${feitas === 1 ? 'consulta' : 'consultas'}`,
+      detalhe: faltas ? `${faltas} ${faltas === 1 ? 'falta' : 'faltas'}` : 'Nenhuma falta',
+      ...(faltas >= 2 ? { tom: 'text-alerta' } : {}),
+    },
+    ...(aberto !== null
+      ? [
+          {
+            rotulo: 'Em aberto',
+            valor: aberto ? dinheiro(aberto) : 'Nada a receber',
+            ...(aberto ? { tom: 'text-ambar-tinta' } : { tom: 'text-nevoa' }),
+          },
+        ]
+      : []),
+  ];
+  return (
+    <dl className="mb-6 grid grid-cols-2 overflow-hidden rounded-2xl bg-folha ring-1 ring-linha lg:grid-cols-4">
+      {itens.map((i, n) => (
+        <div
+          key={i.rotulo}
+          className={`px-5 py-4 ${n % 2 ? 'border-l border-linha' : ''} ${n >= 2 ? 'border-t border-linha lg:border-t-0' : ''} ${n === 2 ? 'lg:border-l' : ''}`}
+        >
+          <dt className="text-[0.8rem] font-semibold text-bruma">{i.rotulo}</dt>
+          <dd className={`mt-1 font-semibold tabular-nums ${i.tom ?? ''}`}>{i.valor}</dd>
+          {i.detalhe ? <dd className="mt-0.5 truncate text-sm text-nevoa">{i.detalhe}</dd> : null}
+        </div>
+      ))}
+    </dl>
   );
 }
