@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type PointerEvent as EventoPonteiro } from 'react';
 import { api, photoUrl, type GalleryItem, type ImageConsent, type Photo } from '../api';
 import { mensagem, usePainel } from '../contexto';
 import { dataCurta, hoje } from '../formato';
@@ -410,13 +410,31 @@ function Publicar({
   const { services, avisar } = usePainel();
   const [titulo, setTitulo] = useState('');
   const [serviceId, setServiceId] = useState('');
+  const [esconderAntes, setEsconderAntes] = useState<Area[]>([]);
+  const [esconderDepois, setEsconderDepois] = useState<Area[]>([]);
   return (
     <section className="rounded-3xl bg-agua p-5">
       <h3 className="font-semibold text-petroleo">Publicar este antes e depois no site</h3>
       <p className="mt-1 text-sm text-nevoa">
         O nome do paciente nunca aparece. Revogar a autorização tira do site na hora.
       </p>
-      <div className="mt-3 space-y-3">
+      <div className="mt-4">
+        <p className="text-sm font-semibold text-petroleo">Esconder rosto ou marcas</p>
+        <p className="mt-0.5 text-sm text-nevoa">
+          Arraste sobre a foto para marcar o que deve sair borrado no site. A foto do prontuário não
+          muda.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Marcador foto={antes} rotulo="Antes" areas={esconderAntes} aoMudar={setEsconderAntes} />
+          <Marcador
+            foto={depois}
+            rotulo="Depois"
+            areas={esconderDepois}
+            aoMudar={setEsconderDepois}
+          />
+        </div>
+      </div>
+      <div className="mt-4 space-y-3">
         <Entrada
           placeholder="Título, ex.: Clareamento em 2 sessões"
           value={titulo}
@@ -442,9 +460,13 @@ function Publicar({
                 afterPhotoId: depois.id,
                 title: titulo.trim(),
                 ...(serviceId ? { serviceId } : {}),
+                ...(esconderAntes.length ? { hideBefore: esconderAntes } : {}),
+                ...(esconderDepois.length ? { hideAfter: esconderDepois } : {}),
               });
               avisar('Publicado no site');
               setTitulo('');
+              setEsconderAntes([]);
+              setEsconderDepois([]);
               aoPublicar();
             } catch (e) {
               avisar(mensagem(e), 'erro');
@@ -455,5 +477,88 @@ function Publicar({
         </Botao>
       </div>
     </section>
+  );
+}
+
+type Area = { x: number; y: number; w: number; h: number };
+
+/** Foto em que se arrasta para marcar áreas a borrar. A prévia já mostra o desfoque. */
+function Marcador({
+  foto,
+  rotulo,
+  areas,
+  aoMudar,
+}: {
+  foto: Photo;
+  rotulo: string;
+  areas: Area[];
+  aoMudar: (a: Area[]) => void;
+}) {
+  const [inicio, setInicio] = useState<{ x: number; y: number } | null>(null);
+  const [atual, setAtual] = useState<Area | null>(null);
+  const ponto = (e: EventoPonteiro<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)),
+    };
+  };
+  const caixa = (a: { x: number; y: number }, b: { x: number; y: number }): Area => ({
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    w: Math.abs(a.x - b.x),
+    h: Math.abs(a.y - b.y),
+  });
+  const todas = atual ? [...areas, atual] : areas;
+  return (
+    <figure>
+      <div
+        role="img"
+        aria-label={`Foto ${rotulo.toLowerCase()}: arraste para marcar a área a esconder`}
+        className="relative cursor-crosshair touch-none overflow-hidden rounded-2xl bg-tinta select-none"
+        onPointerDown={(e) => {
+          if (areas.length >= 6) return;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setInicio(ponto(e));
+        }}
+        onPointerMove={(e) => inicio && setAtual(caixa(inicio, ponto(e)))}
+        onPointerUp={(e) => {
+          if (inicio) {
+            const a = caixa(inicio, ponto(e));
+            if (a.w > 0.02 && a.h > 0.02) aoMudar([...areas, a]);
+          }
+          setInicio(null);
+          setAtual(null);
+        }}
+      >
+        <img src={photoUrl(foto.id)} alt="" draggable={false} className="block w-full" />
+        {todas.map((a, i) => (
+          <span
+            key={i}
+            className="absolute rounded-md ring-2 ring-ambar backdrop-blur-md"
+            style={{
+              left: `${a.x * 100}%`,
+              top: `${a.y * 100}%`,
+              width: `${a.w * 100}%`,
+              height: `${a.h * 100}%`,
+            }}
+          />
+        ))}
+      </div>
+      <figcaption className="mt-1.5 flex items-center justify-between text-sm">
+        <span className="font-semibold">{rotulo}</span>
+        {areas.length ? (
+          <button
+            type="button"
+            onClick={() => aoMudar([])}
+            className="font-semibold text-nevoa hover:text-alerta"
+          >
+            Limpar ({areas.length})
+          </button>
+        ) : (
+          <span className="text-bruma">nada escondido</span>
+        )}
+      </figcaption>
+    </figure>
   );
 }

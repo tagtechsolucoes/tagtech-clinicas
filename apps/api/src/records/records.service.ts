@@ -18,7 +18,7 @@ import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
-import { MediaService } from '../media/media.service';
+import { MediaService, type HideArea } from '../media/media.service';
 
 const {
   clinicalNotes,
@@ -478,6 +478,8 @@ export class RecordsService {
       afterPhotoId: string;
       title: string;
       serviceId?: string | undefined;
+      hideBefore?: HideArea[] | undefined;
+      hideAfter?: HideArea[] | undefined;
     },
   ) {
     const { before, after } = await this.run(ctx, async (tx) => {
@@ -503,8 +505,8 @@ export class RecordsService {
       }
       return { before, after };
     });
-    const beforeUrl = await this.media.publishClinical(before.file);
-    const afterUrl = await this.media.publishClinical(after.file);
+    const beforeUrl = await this.media.publishClinical(before.file, input.hideBefore ?? []);
+    const afterUrl = await this.media.publishClinical(after.file, input.hideAfter ?? []);
     try {
       return await this.run(ctx, async (tx) => {
         const [g] = await tx

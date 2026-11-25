@@ -61,12 +61,20 @@ const consentSchema = z
     termText: z.string().max(4000).optional(),
   })
   .strict();
+const frac = z.number().min(0).max(1);
+const hideArea = z
+  .object({ x: frac, y: frac, w: frac.refine((v) => v > 0), h: frac.refine((v) => v > 0) })
+  .strict()
+  .refine((a) => a.x + a.w <= 1.0001 && a.y + a.h <= 1.0001, 'Área fora da foto');
 const publishSchema = z
   .object({
     beforePhotoId: uuid,
     afterPhotoId: uuid,
     title: z.string().trim().min(1).max(80),
     serviceId: uuid.optional(),
+    // Rosto, tatuagem ou outra marca que identifique: sai borrado no site.
+    hideBefore: z.array(hideArea).max(6).optional(),
+    hideAfter: z.array(hideArea).max(6).optional(),
   })
   .strict();
 
