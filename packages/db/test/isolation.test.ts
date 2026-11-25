@@ -53,12 +53,13 @@ describe('usuário do banco da aplicação', () => {
     expect(unprotected.map((r) => r.relname)).toEqual([]);
   });
 
-  it('não apaga pacientes nem consultas', async () => {
-    await expect(
-      withTenant(app.db, a.tenantId, (tx) =>
-        tx.delete(patients).where(eq(patients.id, a.patientId)),
-      ),
-    ).rejects.toThrow();
+  it('não apaga consultas; paciente só da própria clínica', async () => {
+    await expect(withTenant(app.db, a.tenantId, (tx) => tx.delete(appointments))).rejects.toThrow();
+    // Apagar paciente existe (pedido de exclusão da LGPD), mas o de outra clínica nem aparece.
+    const apagados = await withTenant(app.db, b.tenantId, (tx) =>
+      tx.delete(patients).where(eq(patients.id, a.patientId)).returning(),
+    );
+    expect(apagados).toHaveLength(0);
   });
 });
 
