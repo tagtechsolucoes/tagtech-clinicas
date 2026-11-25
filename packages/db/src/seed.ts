@@ -39,6 +39,10 @@ const DEMO_EMAIL = 'dono@demo.tagtech';
 const DEMO_PASSWORD_HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$1XGMDAnyNTnQDt1EUNZZRg$uoCQDV1EAfhZXjj+EPB4ghYTjgKVVHk9rcpORsB4aog';
 const SLUG = 'clinica-aurora';
+const INTO = process.env.SEED_INTO?.trim() || '';
+// Na clínica de verdade, telefones de mentira (nunca de alguém): 55 81 90000-00NN.
+const fone = (real: string, i: number) =>
+  INTO ? `558190000${String(i + 1).padStart(4, '0')}` : real;
 const TZ_OFFSET = '-03:00'; // Recife não tem horário de verão
 
 const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife' }).format(new Date());
@@ -53,40 +57,78 @@ const h = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3)
 async function main() {
   const { db, close } = createDb(requireEnv('DATABASE_OWNER_URL'), { max: 1 });
   try {
-    await db.delete(tenants).where(eq(tenants.slug, SLUG));
-    await db.execute(sql`delete from users where email = ${DEMO_EMAIL}`);
+    // SEED_INTO="Nome ou endereço da clínica": preenche uma clínica que já existe (com o dono
+    // que você criou) em vez de criar a Clínica Aurora.
+    let tenantId: string;
+    let u: { id: string } | undefined;
+    let autorId: string;
+    if (INTO) {
+      const [t] = await db.execute<{ id: string; name: string }>(
+        sql`select id, name from tenants where lower(name) = lower(${INTO}) or slug = ${INTO}`,
+      );
+      if (!t)
+        throw new Error(`Clínica "${INTO}" não encontrada (use o nome ou o endereço do site)`);
+      const [{ n }] = (await db.execute<{ n: number }>(
+        sql`select count(*)::int n from patients where tenant_id = ${t.id}`,
+      )) as unknown as [{ n: number }];
+      if (n > 0 && process.env.SEED_FORCE !== '1')
+        throw new Error(
+          `"${t.name}" já tem ${n} pacientes. Para preencher mesmo assim: SEED_FORCE=1`,
+        );
+      tenantId = t.id;
+      [u] = await db
+        .select({ id: units.id })
+        .from(units)
+        .where(eq(units.tenantId, tenantId))
+        .limit(1);
+      if (!u) throw new Error('A clínica não tem unidade');
+      const [dono] = await db.execute<{ user_id: string }>(
+        sql`select user_id from memberships where tenant_id = ${tenantId} and role = 'owner' limit 1`,
+      );
+      autorId = dono!.user_id;
+      await db.execute(sql`update tenants set
+          tagline = coalesce(nullif(tagline, ''), 'Odontologia com hora marcada, sem sala de espera cheia'),
+          about = coalesce(nullif(about, ''), 'Agenda enxuta, orçamento por escrito antes de começar e o mesmo profissional do começo ao fim do tratamento.')
+        where id = ${tenantId}`);
+      console.log(`Preenchendo "${t.name}" com dados de demonstração…`);
+    } else {
+      await db.delete(tenants).where(eq(tenants.slug, SLUG));
+      await db.execute(sql`delete from users where email = ${DEMO_EMAIL}`);
 
-    const [user] = await db.execute<{ id: string }>(
-      sql`insert into users (email, name, password_hash) values (${DEMO_EMAIL}, 'Marina Duarte', ${DEMO_PASSWORD_HASH}) returning id`,
-    );
-    const [t] = await db
-      .insert(tenants)
-      .values({
-        name: 'Clínica Aurora',
-        slug: SLUG,
-        tagline: 'Odontologia e estética com hora marcada, sem sala de espera cheia',
-        about:
-          'Consultório no coração de Boa Viagem, com agenda enxuta e o mesmo profissional do começo ao fim do tratamento. Orçamento por escrito antes de começar.',
-        whatsapp: '5581999990000',
-        instagram: 'clinica.aurora',
-        brandPrimary: '#1d4e5f',
-        brandAccent: '#e9a23b',
-        displayFont: 'serifada',
-        bookingMinNoticeMinutes: 60,
-        slotStepMinutes: 30,
-      })
-      .returning();
-    const tenantId = t!.id;
-    const [u] = await db
-      .insert(units)
-      .values({
-        tenantId,
-        name: 'Boa Viagem',
-        address: 'Av. Conselheiro Aguiar, 2000, sala 804 · Boa Viagem · Recife/PE',
-        phone: '5581999990000',
-      })
-      .returning();
-    await db.insert(memberships).values({ tenantId, userId: user!.id, role: 'owner' });
+      const [user] = await db.execute<{ id: string }>(
+        sql`insert into users (email, name, password_hash) values (${DEMO_EMAIL}, 'Marina Duarte', ${DEMO_PASSWORD_HASH}) returning id`,
+      );
+      const [novo] = await db
+        .insert(tenants)
+        .values({
+          name: 'Clínica Aurora',
+          slug: SLUG,
+          tagline: 'Odontologia e estética com hora marcada, sem sala de espera cheia',
+          about:
+            'Consultório no coração de Boa Viagem, com agenda enxuta e o mesmo profissional do começo ao fim do tratamento. Orçamento por escrito antes de começar.',
+          whatsapp: '5581999990000',
+          instagram: 'clinica.aurora',
+          brandPrimary: '#1d4e5f',
+          brandAccent: '#e9a23b',
+          displayFont: 'serifada',
+          bookingMinNoticeMinutes: 60,
+          slotStepMinutes: 30,
+        })
+        .returning();
+      tenantId = novo!.id;
+      const [unidade] = await db
+        .insert(units)
+        .values({
+          tenantId,
+          name: 'Boa Viagem',
+          address: 'Av. Conselheiro Aguiar, 2000, sala 804 · Boa Viagem · Recife/PE',
+          phone: '5581999990000',
+        })
+        .returning();
+      await db.insert(memberships).values({ tenantId, userId: user!.id, role: 'owner' });
+      u = unidade;
+      autorId = user!.id;
+    }
 
     const pros = await db
       .insert(professionals)
@@ -260,10 +302,10 @@ async function main() {
     const pac = await db
       .insert(patients)
       .values(
-        nomes.map(([name, phone, birthDate, allergies, medications]) => ({
+        nomes.map(([name, phone, birthDate, allergies, medications], i) => ({
           tenantId,
           name,
-          phone,
+          phone: fone(phone!, i),
           birthDate,
           allergies: allergies ?? '',
           medications: medications ?? '',
@@ -343,7 +385,7 @@ async function main() {
         tenantId,
         patientId: p(0),
         professionalId: helena.id,
-        authorUserId: user!.id,
+        authorUserId: autorId,
         kind: 'odonto',
         data: {
           queixa: 'Sensibilidade ao frio no lado esquerdo',
@@ -358,7 +400,7 @@ async function main() {
         tenantId,
         patientId: p(0),
         professionalId: helena.id,
-        authorUserId: user!.id,
+        authorUserId: autorId,
         kind: 'odonto',
         data: {
           procedimentos: 'Restauração em resina, face oclusal',
@@ -859,7 +901,9 @@ async function main() {
       .set({ insurerId: sorrisoPlus!.id, authorizationId: guiaDemo!.id, priceCents: 12000 })
       .where(eq(appointments.id, ags[7]!.id));
     console.log(
-      `Clínica de demonstração pronta. Entre com ${DEMO_EMAIL} / demo-tagtech-123 · site /c/${SLUG}`,
+      INTO
+        ? 'Pronto. Apague os pacientes de demonstração antes de ligar o WhatsApp.'
+        : `Clínica de demonstração pronta. Entre com ${DEMO_EMAIL} / demo-tagtech-123 · site /c/${SLUG}`,
     );
   } finally {
     await close();
