@@ -33,7 +33,7 @@ function Secao({
   return (
     <section className="grid gap-6 border-t border-linha py-8 lg:grid-cols-[16rem_minmax(0,1fr)]">
       <div>
-        <h2 className="text-xl font-medium">{titulo}</h2>
+        <h2 className="text-xl font-semibold">{titulo}</h2>
         {descricao ? <p className="mt-1.5 text-sm text-nevoa">{descricao}</p> : null}
       </div>
       <div className="space-y-5">{children}</div>

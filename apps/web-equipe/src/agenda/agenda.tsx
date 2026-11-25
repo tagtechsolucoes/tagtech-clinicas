@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addDays, STATUS_LABELS, weekdayOf } from '@tagtech/domain';
 import { api, type Appointment, type Professional, type TimeOff } from '../api';
+import { aoPedirNovoAgendamento, consumirNovoAgendamento } from '../atalhos';
 import { mensagem, usePainel } from '../contexto';
 import { diaCurto, diaLongo, hoje, hora, inicioDoDia, minutoDoDia } from '../formato';
 import { Avatar, Botao, Icone, Vazio } from '../ui';
@@ -49,6 +50,13 @@ export function Agenda() {
   const [novo, setNovo] = useState<Sugestao | null>(null);
   const [bloquear, setBloquear] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
+
+  // "Novo agendamento" pedido de outra tela (painel inicial, busca).
+  useEffect(() => {
+    const abrir = () => consumirNovoAgendamento() && setNovo({ dia: hoje() });
+    abrir();
+    return aoPedirNovoAgendamento(abrir);
+  }, []);
 
   // Semana começa na segunda.
   const inicio = visao === 'dia' ? dia : addDays(dia, -((weekdayOf(dia) + 6) % 7));
@@ -164,7 +172,7 @@ export function Agenda() {
               <Icone nome="direita" />
             </button>
           </div>
-          <h1 className="min-w-0 text-[1.45rem] leading-none font-medium first-letter:uppercase sm:text-[1.9rem]">
+          <h1 className="min-w-0 text-[1.45rem] leading-none font-bold first-letter:uppercase sm:text-[1.9rem]">
             {titulo}
           </h1>
           {dia !== hoje() ? (

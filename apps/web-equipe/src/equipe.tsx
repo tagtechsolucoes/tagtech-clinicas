@@ -52,7 +52,7 @@ export function EquipeTela() {
       />
 
       <section className="mb-10 rounded-3xl bg-folha p-6 ring-1 ring-linha">
-        <h2 className="text-xl font-medium">Convidar alguém</h2>
+        <h2 className="text-xl font-semibold">Convidar alguém</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end">
           <Campo rotulo="Nome">
             <Entrada
@@ -106,7 +106,7 @@ export function EquipeTela() {
 
       {dados?.invites.length ? (
         <section className="mb-10">
-          <h2 className="mb-3 text-xl font-medium">Convites pendentes</h2>
+          <h2 className="mb-3 text-xl font-semibold">Convites pendentes</h2>
           <ul className="divide-y divide-linha rounded-2xl bg-folha ring-1 ring-linha">
             {dados.invites.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
@@ -146,7 +146,7 @@ export function EquipeTela() {
       ) : null}
 
       <section>
-        <h2 className="mb-3 text-xl font-medium">Quem já está na equipe</h2>
+        <h2 className="mb-3 text-xl font-semibold">Quem já está na equipe</h2>
         <ul className="divide-y divide-linha rounded-2xl bg-folha ring-1 ring-linha">
           {dados?.members.map((m) => (
             <li key={m.membershipId} className="flex flex-wrap items-center gap-3 px-5 py-3.5">

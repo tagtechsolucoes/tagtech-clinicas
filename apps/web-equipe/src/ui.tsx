@@ -170,7 +170,7 @@ export function Gaveta({
         <>
           <header className="flex items-start justify-between gap-4 border-b border-linha px-6 pt-6 pb-5">
             <div className="min-w-0">
-              <h2 className="text-[1.6rem] leading-tight font-medium">{titulo}</h2>
+              <h2 className="text-[1.6rem] leading-tight font-semibold">{titulo}</h2>
               {subtitulo ? <p className="mt-1 text-sm text-nevoa">{subtitulo}</p> : null}
             </div>
             <button
@@ -219,7 +219,7 @@ export function Cabecalho({
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[2.2rem] leading-none font-medium">{titulo}</h1>
+        <h1 className="text-[2.2rem] leading-none font-bold">{titulo}</h1>
         {descricao ? <p className="mt-2.5 max-w-2xl text-nevoa">{descricao}</p> : null}
       </div>
       {acoes ? <div className="flex flex-wrap gap-2.5">{acoes}</div> : null}
@@ -278,6 +278,8 @@ export function Avatar({
 }
 
 const PATHS: Record<string, string> = {
+  painel:
+    'M4 5.5A1.5 1.5 0 0 1 5.5 4h4A1.5 1.5 0 0 1 11 5.5v5A1.5 1.5 0 0 1 9.5 12h-4A1.5 1.5 0 0 1 4 10.5zM13 5.5A1.5 1.5 0 0 1 14.5 4h4A1.5 1.5 0 0 1 20 5.5v1A1.5 1.5 0 0 1 18.5 8h-4A1.5 1.5 0 0 1 13 6.5zM13 11.5a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5zM4 15.5A1.5 1.5 0 0 1 5.5 14h4a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 9.5 20h-4A1.5 1.5 0 0 1 4 18.5z',
   agenda:
     'M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5zM4 10h16M8.5 3v4M15.5 3v4',
   pessoas:

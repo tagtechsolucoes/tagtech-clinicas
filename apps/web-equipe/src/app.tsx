@@ -13,7 +13,10 @@ import {
   type Service,
 } from './api';
 import { Agenda } from './agenda/agenda';
+import { Busca } from './busca';
 import { ClinicaTela } from './clinica';
+import { InicioTela } from './inicio';
+import { ResumoDoDia } from './resumo-dia';
 import { PainelContexto, type Painel } from './contexto';
 import { Convite } from './convite';
 import { Entrada, type ModoEntrada } from './entrada';
@@ -40,6 +43,7 @@ type Estado =
   | { fase: 'pronto'; me: Me; vinculo: Membership };
 
 export type Secao =
+  | 'inicio'
   | 'agenda'
   | 'recepcao'
   | 'pacientes'
@@ -65,6 +69,7 @@ const SECOES: Array<{
   convenio?: boolean;
   grupo: 'Atendimento' | 'Gestão' | 'Clínica';
 }> = [
+  { id: 'inicio', nome: 'Painel', icone: 'painel', gerencia: true, grupo: 'Atendimento' },
   { id: 'agenda', nome: 'Agenda', icone: 'agenda', grupo: 'Atendimento' },
   { id: 'recepcao', nome: 'Recepção', icone: 'fila', grupo: 'Atendimento' },
   { id: 'pacientes', nome: 'Pacientes', icone: 'pessoas', grupo: 'Atendimento' },
@@ -105,7 +110,7 @@ const ESCOLHA = 'tt:clinica';
 function lerSecao(): Secao {
   const h = location.hash.replace(/^#/, '');
   if (/^paciente\/[0-9a-f-]{36}$/.test(h)) return 'pacientes';
-  return SECOES.some((s) => s.id === h) ? (h as Secao) : 'agenda';
+  return SECOES.some((s) => s.id === h) ? (h as Secao) : 'inicio';
 }
 
 /** Paciente aberto em página própria (#paciente/<id>). */
@@ -221,6 +226,7 @@ function Casca({
   } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [recado, setRecado] = useState<{ texto: string; tipo: 'ok' | 'erro' } | null>(null);
+  const [busca, setBusca] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gerencia = vinculo.role === 'owner' || vinculo.role === 'manager';
 
@@ -282,12 +288,16 @@ function Casca({
       (!s.convenio || painel.clinic.insuranceEnabled) &&
       (!s.equipe || painel.professionals.filter((p) => p.active).length > 1),
   );
-  const atual = visiveis.some((s) => s.id === secao) ? secao : 'agenda';
+  const atual = visiveis.some((s) => s.id === secao)
+    ? secao
+    : visiveis.some((s) => s.id === 'inicio')
+      ? 'inicio'
+      : 'agenda';
 
   return (
     <PainelContexto.Provider value={painel}>
       <div className="min-h-full lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
-        <aside className="border-linha bg-folha lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:border-r">
+        <aside className="bg-folha lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:bg-noite lg:text-white">
           <div className="flex items-center gap-3 px-5 pt-5 pb-4 lg:px-5 lg:pt-6">
             {painel.clinic.logoUrl ? (
               <img
@@ -299,7 +309,7 @@ function Casca({
               <img src="/icone.svg" alt="" className="h-10 w-10 rounded-xl" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold leading-tight">{painel.clinic.name}</p>
+              <p className="truncate leading-tight font-semibold">{painel.clinic.name}</p>
               {me.memberships.length > 1 ? (
                 <select
                   aria-label="Trocar de clínica"
@@ -308,7 +318,7 @@ function Casca({
                     const m = me.memberships.find((x) => x.tenantId === e.target.value);
                     if (m) aoTrocar(m);
                   }}
-                  className="mt-0.5 max-w-full truncate bg-transparent text-xs text-nevoa"
+                  className="mt-0.5 max-w-full truncate bg-transparent text-xs text-nevoa lg:text-white/55 [&>option]:text-tinta"
                 >
                   {me.memberships.map((m) => (
                     <option key={m.tenantId} value={m.tenantId}>
@@ -317,10 +327,22 @@ function Casca({
                   ))}
                 </select>
               ) : (
-                <p className="text-xs text-nevoa">{ROLE_LABELS[vinculo.role]}</p>
+                <p className="text-xs text-nevoa lg:text-white/55">{ROLE_LABELS[vinculo.role]}</p>
               )}
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setBusca(true)}
+            className="mx-4 mb-2 hidden h-10 items-center gap-2.5 rounded-xl bg-white/[0.07] px-3 text-sm text-white/60 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white lg:flex"
+          >
+            <Icone nome="busca" className="h-4 w-4" />
+            <span className="flex-1 text-left">Buscar</span>
+            <kbd className="font-sans rounded bg-white/10 px-1.5 py-0.5 text-[0.68rem] font-semibold">
+              Ctrl K
+            </kbd>
+          </button>
 
           <nav
             aria-label="Seções"
@@ -330,8 +352,8 @@ function Casca({
               const itens = visiveis.filter((s) => s.grupo === g);
               if (!itens.length) return null;
               return (
-                <div key={g} className="mt-4 first:mt-1">
-                  <p className="px-3 pb-1.5 text-[0.74rem] font-semibold text-bruma">{g}</p>
+                <div key={g} className="mt-3 first:mt-0">
+                  <p className="px-3 pb-1.5 text-[0.72rem] font-semibold text-white/40">{g}</p>
                   {itens.map((s) => (
                     <ItemMenu key={s.id} s={s} ativo={s.id === atual} />
                   ))}
@@ -340,24 +362,25 @@ function Casca({
             })}
           </nav>
 
-          <div className="mt-auto hidden space-y-3 px-5 pb-6 lg:block">
+          <div className="mt-auto hidden space-y-3 px-4 pb-5 lg:block">
+            <ResumoDoDia />
             <a
               href={siteUrl(painel.clinic.slug)}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 rounded-xl bg-porcelana px-3 py-2.5 text-sm font-medium text-petroleo hover:bg-agua"
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-white/70 hover:bg-white/[0.07] hover:text-white"
             >
               <Icone nome="globo" className="h-4 w-4" />
               Ver site de agendamento
             </a>
             <div className="flex items-center gap-3">
               <Avatar nome={me.name} tamanho="h-8 w-8 text-xs" />
-              <p className="min-w-0 flex-1 truncate text-sm">{me.name}</p>
+              <p className="min-w-0 flex-1 truncate text-sm text-white/85">{me.name}</p>
               <button
                 type="button"
                 onClick={aoSair}
                 aria-label="Sair"
-                className="grid h-9 w-9 place-items-center rounded-lg text-nevoa hover:bg-trilho hover:text-tinta"
+                className="grid h-9 w-9 place-items-center rounded-lg text-white/55 hover:bg-white/10 hover:text-white"
               >
                 <Icone nome="sair" className="h-[1.1rem] w-[1.1rem]" />
               </button>
@@ -369,6 +392,7 @@ function Casca({
           {atual === 'agenda' ? <Agenda /> : null}
           {atual !== 'agenda' ? (
             <div className="mx-auto w-full max-w-6xl px-5 py-8 lg:px-10 lg:py-10">
+              {atual === 'inicio' ? <InicioTela /> : null}
               {atual === 'pacientes' && pacienteId ? (
                 <PacienteTela key={pacienteId} id={pacienteId} />
               ) : null}
@@ -394,6 +418,7 @@ function Casca({
         siteHref={siteUrl(painel.clinic.slug)}
         aoSair={aoSair}
       />
+      <Busca telas={visiveis} aberta={busca} setAberta={setBusca} />
       <Recado texto={recado?.texto ?? null} tipo={recado?.tipo ?? 'ok'} />
     </PainelContexto.Provider>
   );
@@ -407,8 +432,10 @@ function ItemMenu({ s, ativo }: { s: ItemSecao; ativo: boolean }) {
     <a
       href={`#${s.id}`}
       aria-current={ativo ? 'page' : undefined}
-      className={`relative flex h-9 items-center gap-3 rounded-xl px-3 text-[0.93rem] font-medium whitespace-nowrap transition-colors ${
-        ativo ? 'bg-agua text-petroleo' : 'text-nevoa hover:bg-trilho hover:text-tinta'
+      className={`relative flex h-[2.15rem] items-center gap-3 rounded-xl px-3 text-[0.93rem] font-medium whitespace-nowrap transition-colors ${
+        ativo
+          ? 'bg-white/[0.12] text-white before:absolute before:top-2 before:bottom-2 before:-left-3 before:w-1 before:rounded-r-full before:bg-ambar'
+          : 'text-white/60 hover:bg-white/[0.06] hover:text-white'
       }`}
     >
       <Icone nome={s.icone} className="h-[1.1rem] w-[1.1rem]" />
@@ -431,7 +458,7 @@ function BarraCelular({
 }) {
   const [mais, setMais] = useState(false);
   const principais = visiveis.filter((s) =>
-    ['agenda', 'recepcao', 'pacientes', 'financeiro'].includes(s.id),
+    ['inicio', 'agenda', 'recepcao', 'pacientes'].includes(s.id),
   );
   const noMais = !principais.some((s) => s.id === atual);
   useEffect(() => {

@@ -19,6 +19,7 @@
   --color-trilho: #eaeff1;
   --color-petroleo: #1d4e5f;
   --color-petroleo-escuro: #123542;
+  --color-noite: #0d252e;
   --color-agua: #e2edf0;
   --color-ambar: #e9a23b;
   --color-ambar-fundo: #fdf1dc;
@@ -30,7 +31,7 @@
   --color-azul: #3563c9;
   --color-azul-fundo: #e8eefb;
 
-  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+  --font-display: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -57,10 +58,8 @@ body {
   h1,
   h2 {
     font-family: var(--font-display);
-    font-variation-settings:
-      'opsz' 96,
-      'SOFT' 50;
-    letter-spacing: -0.015em;
+    font-weight: 700;
+    letter-spacing: -0.025em;
   }
 }
 

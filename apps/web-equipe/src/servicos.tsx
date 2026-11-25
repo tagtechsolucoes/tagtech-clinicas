@@ -46,7 +46,7 @@ export function ServicosTela() {
         <div className="space-y-8">
           {categorias.map((cat) => (
             <section key={cat}>
-              <h2 className="mb-3 text-xl font-medium">{cat}</h2>
+              <h2 className="mb-3 text-xl font-semibold">{cat}</h2>
               <ul className="divide-y divide-linha overflow-hidden rounded-2xl bg-folha ring-1 ring-linha">
                 {services
                   .filter((s) => (s.category || 'Sem categoria') === cat)
