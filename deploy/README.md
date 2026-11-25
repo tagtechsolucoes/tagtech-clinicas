@@ -4,7 +4,7 @@
 > do DuckDNS, sem pagar servidor nem domínio. O script `bootstrap-vps.sh` prepara qualquer VPS Ubuntu.
 > Tem créditos no Google Cloud? Veja [GCP.md](GCP.md): um script no Cloud Shell faz tudo.
 
-Um servidor só, com tudo em contêineres: Postgres, API, cardápio (Next), app da equipe
+Um servidor só, com tudo em contêineres: Postgres, API, site de agendamento (Next), app da equipe
 (estático) e Caddy na frente com HTTPS automático.
 
 ```
@@ -26,10 +26,10 @@ Internet ─► Caddy :443 ─┬─ agendar.seudominio  ─► web-cliente (Nex
 
 No painel do registro do domínio, crie dois registros **A** apontando para o IP estático:
 
-| Nome       | Tipo | Valor          |
-| ---------- | ---- | -------------- |
-| `cardapio` | A    | IP do servidor |
-| `app`      | A    | IP do servidor |
+| Nome      | Tipo | Valor          |
+| --------- | ---- | -------------- |
+| `agendar` | A    | IP do servidor |
+| `app`     | A    | IP do servidor |
 
 ## 3. Instalar
 
@@ -49,7 +49,7 @@ estiver propagado.
 
 ## 4. Primeiro acesso
 
-1. Abra `https://app.seudominio.com.br/cadastro` e crie a conta do restaurante.
+1. Abra `https://app.seudominio.com.br/cadastro` e crie a conta da clínica.
 2. No painel: Marca, Cardápio, Mesas (imprima os QR), Equipe (convide e ligue o tablet).
 3. Faça um pedido de teste pelo QR e feche a conta.
 
@@ -68,15 +68,36 @@ inesperadas são enviados, sem corpo de pedido, cookies ou cabeçalhos.
 
 ## 7. Backup
 
-```bash
-crontab -e
-15 4 * * * /opt/tagtech/deploy/backup.sh >> /var/log/tagtech-backup.log 2>&1
-```
+O backup sai do servidor **já criptografado** e vai para um bucket. Quem tiver só o bucket, ou
+só o servidor, não consegue ler nada: precisa da chave privada, que fica com vocês.
 
-Guarda 14 dias em `deploy/backups`. Para ter cópia fora do servidor, crie um bucket no
-Lightsail, instale o `aws` CLI e preencha no `.env`:
-`BACKUP_S3_URI=s3://nome-do-bucket/tagtech` e `BACKUP_S3_ENDPOINT=https://...` (o endpoint
-que o Lightsail mostra). Para restaurar: `./restore.sh backups/banco-....dump backups/fotos-....tar.gz`.
+1. **Chave (no seu computador, uma vez):** `./gerar-chave-backup.sh`. Copie a linha
+   `age1...` para `BACKUP_AGE_RECIPIENT` no `.env` do servidor. Guarde `chave-backup.txt`
+   em dois lugares seguros (gerenciador de senhas dos sócios) e apague o arquivo solto.
+   **Perdeu a chave privada, perdeu os backups.**
+2. **Bucket:** crie um bucket privado (Google Cloud Storage em `southamerica-east1`, S3 ou
+   Cloudflare R2), com uma conta de serviço que só escreve nele. No `.env`:
+   - Google: `BACKUP_REMOTE=:gcs:nome-do-bucket/clinicas`,
+     `BACKUP_GCS_KEY_FILE=/opt/tagtech/conta-backup.json` (chave JSON da conta de serviço,
+     com `chmod 600`),
+     `RCLONE_GCS_BUCKET_POLICY_ONLY=true`
+   - S3/R2: `BACKUP_REMOTE=:s3:nome-do-bucket/clinicas`, `RCLONE_S3_PROVIDER=Cloudflare`
+     (ou `AWS`), `RCLONE_S3_ACCESS_KEY_ID`, `RCLONE_S3_SECRET_ACCESS_KEY`, `RCLONE_S3_ENDPOINT`
+3. **Agendar:**
+
+   ```bash
+   crontab -e
+   15 4 * * * /opt/tagtech/deploy/backup.sh >> /var/log/tagtech-backup.log 2>&1
+   ```
+
+Fica 7 dias no servidor e 30 no bucket (`BACKUP_DIAS_REMOTO`).
+
+**Restaurar:** `./restore.sh --baixar 2026-12-01_0415` traz os arquivos do bucket; depois
+`./restore.sh chave-backup.txt backups/banco-....dump.age backups/fotos-....tar.gz.age`.
+
+**Testar a restauração (todo trimestre):** `./testar-restauracao.sh chave-backup.txt` abre o
+backup mais recente num banco descartável e mostra a contagem de clínicas, pacientes e
+consultas, sem tocar em produção. Rode com a chave e apague-a do servidor em seguida.
 
 ## 8. Atualizar
 

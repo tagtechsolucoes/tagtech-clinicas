@@ -8,7 +8,7 @@ chave sai da sua conta.
 1. **Projeto:** no console, crie um projeto só para isso (ex.: `tagtech-food-piloto`) e
    ligue o faturamento com os créditos.
 2. **Endereços:** em duckdns.org (login com GitHub ou Google), crie dois subdomínios, por
-   exemplo `brasaepao-app` e `brasaepao-cardapio`. Não precisa pôr IP: o script faz isso.
+   exemplo `minhaclinica-app` e `minhaclinica-site`. Não precisa pôr IP: o script faz isso.
    Copie o **token** do topo da página. (Com domínio próprio, o script pede os registros A.)
 3. **Token do GitHub** para clonar o repositório privado: _Settings → Developer settings →
    Fine-grained tokens_, só o `tagtech-food`, **Contents: Read-only**.
@@ -29,7 +29,7 @@ O script cria a máquina **e2-medium (2 vCPUs, 4 GB) em São Paulo**, IP fixo, f
 snapshot diário do disco; aponta o DuckDNS; instala o Docker; envia o código; gera o `.env`
 com senhas; constrói e sobe; e agenda o backup. A primeira vez leva uns 15 a 20 minutos.
 
-No fim ele mostra os endereços. Abra o da equipe em `/cadastro` e crie o restaurante.
+No fim ele mostra os endereços. Abra o da equipe em `/cadastro` e crie a clínica.
 
 ## Atualizar
 
