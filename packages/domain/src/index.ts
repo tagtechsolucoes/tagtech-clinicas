@@ -7,3 +7,4 @@ export * from './tempo';
 export * from './agenda';
 export * from './mensagens';
 export * from './prontuario';
+export * from './financeiro';

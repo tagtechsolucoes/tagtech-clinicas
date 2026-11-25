@@ -141,3 +141,30 @@ describe('prontuário', async () => {
     expect(bmi(72, 170)).toBe(24.9);
   });
 });
+
+describe('financeiro', async () => {
+  const { splitInstallments, planTotals, monthlyDueDates } = await import('./financeiro');
+  it('parcelas fecham o total, centavos nas primeiras', () => {
+    expect(splitInstallments(100000, 3)).toEqual([33334, 33333, 33333]);
+    expect(splitInstallments(100000, 3).reduce((a, b) => a + b)).toBe(100000);
+  });
+  it('desconto geral e à vista', () => {
+    expect(
+      planTotals(
+        [
+          { quantity: 2, unitPriceCents: 30000 },
+          { quantity: 1, unitPriceCents: 40000 },
+        ],
+        5000,
+        10,
+      ),
+    ).toEqual({
+      subtotal: 100000,
+      total: 95000,
+      cashTotal: 85500,
+    });
+  });
+  it('vencimentos mensais ajustam fim de mês', () => {
+    expect(monthlyDueDates('2026-01-31', 3)).toEqual(['2026-01-31', '2026-02-28', '2026-03-31']);
+  });
+});

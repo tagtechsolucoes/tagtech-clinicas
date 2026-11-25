@@ -1,6 +1,8 @@
+import { parseBRL } from '@tagtech/domain';
 import {
   useEffect,
   useRef,
+  useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -305,6 +307,11 @@ const PATHS: Record<string, string> = {
   bloqueio: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8',
   upload: 'M12 16V4M7 9l5-5 5 5M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
   editar: 'M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4',
+  dinheiro: 'M3 7h18v10H3zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM6.5 10v4M17.5 10v4',
+  recibo: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3',
+  copiar: 'M9 9h10v11H9zM5 15V4h10',
+  enviar: 'M21 3L10 14M21 3l-7 18-4-7-7-4z',
+  qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
 };
 
 export function Icone({
@@ -340,3 +347,40 @@ export const STATUS_ESTILO: Record<string, string> = {
   no_show: 'bg-alerta-fundo text-alerta',
   cancelled: 'bg-trilho text-bruma line-through',
 };
+
+/** Campo de valor em reais. Guarda centavos; aceita "1.234,56", "1234,5" ou "80". */
+export function EntradaDinheiro({
+  valor,
+  aoMudar,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+  valor: number | null;
+  aoMudar: (cents: number | null) => void;
+}) {
+  const [texto, setTexto] = useState(valor === null ? '' : centsParaTexto(valor));
+  useEffect(() => {
+    const atual = parseBRL(texto);
+    if (atual !== valor) setTexto(valor === null ? '' : centsParaTexto(valor));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valor]);
+  return (
+    <span className="relative block">
+      <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[0.95rem] text-bruma">
+        R$
+      </span>
+      <input
+        inputMode="decimal"
+        {...props}
+        value={texto}
+        onChange={(e) => {
+          setTexto(e.target.value);
+          aoMudar(e.target.value.trim() ? parseBRL(e.target.value) : null);
+        }}
+        className={`${campo} pl-10 tabular-nums ${props.className ?? ''}`}
+      />
+    </span>
+  );
+}
+
+const centsParaTexto = (c: number) =>
+  `${Math.trunc(c / 100)},${String(Math.abs(c) % 100).padStart(2, '0')}`;
