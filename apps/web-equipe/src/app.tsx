@@ -30,7 +30,7 @@ import { PacientesTela } from './pacientes';
 import { PacienteTela } from './paciente/paciente';
 import { ProfissionaisTela } from './profissionais';
 import { ServicosTela } from './servicos';
-import { Avatar, Icone, Recado } from './ui';
+import { Avatar, Gaveta, Icone, Recado } from './ui';
 
 type Estado =
   | { fase: 'carregando' }
@@ -63,20 +63,41 @@ const SECOES: Array<{
   /** Só com 2 profissionais ou mais (modo consultório esconde). */
   equipe?: boolean;
   convenio?: boolean;
+  grupo: 'Atendimento' | 'Gestão' | 'Clínica';
 }> = [
-  { id: 'agenda', nome: 'Agenda', icone: 'agenda' },
-  { id: 'recepcao', nome: 'Recepção', icone: 'fila' },
-  { id: 'pacientes', nome: 'Pacientes', icone: 'pessoas' },
-  { id: 'espera', nome: 'Lista de espera', icone: 'espera' },
-  { id: 'financeiro', nome: 'Financeiro', icone: 'dinheiro', balcao: true },
-  { id: 'estoque', nome: 'Estoque', icone: 'caixa', balcao: true },
-  { id: 'convenios', nome: 'Convênios', icone: 'recibo', balcao: true, convenio: true },
-  { id: 'resultado', nome: 'Resultado', icone: 'grafico', gerencia: true },
-  { id: 'relatorios', nome: 'Relatórios', icone: 'relatorio', gerencia: true, equipe: true },
-  { id: 'profissionais', nome: 'Profissionais', icone: 'estetoscopio', gerencia: true },
-  { id: 'servicos', nome: 'Serviços', icone: 'lista', gerencia: true },
-  { id: 'clinica', nome: 'Clínica e site', icone: 'clinica', gerencia: true },
-  { id: 'equipe', nome: 'Equipe', icone: 'equipe', gerencia: true },
+  { id: 'agenda', nome: 'Agenda', icone: 'agenda', grupo: 'Atendimento' },
+  { id: 'recepcao', nome: 'Recepção', icone: 'fila', grupo: 'Atendimento' },
+  { id: 'pacientes', nome: 'Pacientes', icone: 'pessoas', grupo: 'Atendimento' },
+  { id: 'espera', nome: 'Lista de espera', icone: 'espera', grupo: 'Atendimento' },
+  { id: 'financeiro', nome: 'Financeiro', icone: 'dinheiro', balcao: true, grupo: 'Gestão' },
+  { id: 'estoque', nome: 'Estoque', icone: 'caixa', balcao: true, grupo: 'Gestão' },
+  {
+    id: 'convenios',
+    nome: 'Convênios',
+    icone: 'recibo',
+    balcao: true,
+    convenio: true,
+    grupo: 'Gestão',
+  },
+  { id: 'resultado', nome: 'Resultado', icone: 'grafico', gerencia: true, grupo: 'Gestão' },
+  {
+    id: 'relatorios',
+    nome: 'Relatórios',
+    icone: 'relatorio',
+    gerencia: true,
+    equipe: true,
+    grupo: 'Gestão',
+  },
+  {
+    id: 'profissionais',
+    nome: 'Profissionais',
+    icone: 'estetoscopio',
+    gerencia: true,
+    grupo: 'Clínica',
+  },
+  { id: 'servicos', nome: 'Serviços', icone: 'lista', gerencia: true, grupo: 'Clínica' },
+  { id: 'clinica', nome: 'Clínica e site', icone: 'clinica', gerencia: true, grupo: 'Clínica' },
+  { id: 'equipe', nome: 'Equipe', icone: 'equipe', gerencia: true, grupo: 'Clínica' },
 ];
 
 const ESCOLHA = 'tt:clinica';
@@ -303,22 +324,18 @@ function Casca({
 
           <nav
             aria-label="Seções"
-            className="rolagem-fina flex gap-1 overflow-x-auto px-3 pb-3 lg:mt-3 lg:flex-col lg:overflow-visible"
+            className="rolagem-fina hidden flex-1 overflow-y-auto px-3 pb-3 lg:block"
           >
-            {visiveis.map((s) => {
-              const ativo = s.id === atual;
+            {GRUPOS.map((g) => {
+              const itens = visiveis.filter((s) => s.grupo === g);
+              if (!itens.length) return null;
               return (
-                <a
-                  key={s.id}
-                  href={`#${s.id}`}
-                  aria-current={ativo ? 'page' : undefined}
-                  className={`flex h-10 shrink-0 items-center gap-3 rounded-xl px-3 text-[0.95rem] font-medium whitespace-nowrap transition-colors ${
-                    ativo ? 'bg-agua text-petroleo' : 'text-nevoa hover:bg-trilho hover:text-tinta'
-                  }`}
-                >
-                  <Icone nome={s.icone} className="h-[1.15rem] w-[1.15rem]" />
-                  {s.nome}
-                </a>
+                <div key={g} className="mt-4 first:mt-1">
+                  <p className="px-3 pb-1.5 text-[0.74rem] font-semibold text-bruma">{g}</p>
+                  {itens.map((s) => (
+                    <ItemMenu key={s.id} s={s} ativo={s.id === atual} />
+                  ))}
+                </div>
               );
             })}
           </nav>
@@ -348,7 +365,7 @@ function Casca({
           </div>
         </aside>
 
-        <main className="min-w-0">
+        <main className="min-w-0 pb-24 lg:pb-0">
           {atual === 'agenda' ? <Agenda /> : null}
           {atual !== 'agenda' ? (
             <div className="mx-auto w-full max-w-6xl px-5 py-8 lg:px-10 lg:py-10">
@@ -371,7 +388,142 @@ function Casca({
           ) : null}
         </main>
       </div>
+      <BarraCelular
+        visiveis={visiveis}
+        atual={atual}
+        siteHref={siteUrl(painel.clinic.slug)}
+        aoSair={aoSair}
+      />
       <Recado texto={recado?.texto ?? null} tipo={recado?.tipo ?? 'ok'} />
     </PainelContexto.Provider>
+  );
+}
+
+const GRUPOS = ['Atendimento', 'Gestão', 'Clínica'] as const;
+type ItemSecao = (typeof SECOES)[number];
+
+function ItemMenu({ s, ativo }: { s: ItemSecao; ativo: boolean }) {
+  return (
+    <a
+      href={`#${s.id}`}
+      aria-current={ativo ? 'page' : undefined}
+      className={`relative flex h-9 items-center gap-3 rounded-xl px-3 text-[0.93rem] font-medium whitespace-nowrap transition-colors ${
+        ativo ? 'bg-agua text-petroleo' : 'text-nevoa hover:bg-trilho hover:text-tinta'
+      }`}
+    >
+      <Icone nome={s.icone} className="h-[1.1rem] w-[1.1rem]" />
+      {s.nome}
+    </a>
+  );
+}
+
+/** No celular: as 4 telas do dia a dia embaixo, ao alcance do polegar, e o resto em "Mais". */
+function BarraCelular({
+  visiveis,
+  atual,
+  siteHref,
+  aoSair,
+}: {
+  visiveis: ItemSecao[];
+  atual: string;
+  siteHref: string;
+  aoSair: () => void;
+}) {
+  const [mais, setMais] = useState(false);
+  const principais = visiveis.filter((s) =>
+    ['agenda', 'recepcao', 'pacientes', 'financeiro'].includes(s.id),
+  );
+  const noMais = !principais.some((s) => s.id === atual);
+  useEffect(() => {
+    const fechar = () => setMais(false);
+    window.addEventListener('hashchange', fechar);
+    return () => window.removeEventListener('hashchange', fechar);
+  }, []);
+  return (
+    <>
+      <nav
+        aria-label="Seções"
+        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-linha bg-folha/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        style={{ gridTemplateColumns: `repeat(${principais.length + 1}, minmax(0, 1fr))` }}
+      >
+        {principais.map((s) => {
+          const ativo = s.id === atual;
+          return (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              aria-current={ativo ? 'page' : undefined}
+              className={`flex h-16 flex-col items-center justify-center gap-1 text-[0.72rem] font-semibold ${ativo ? 'text-petroleo' : 'text-nevoa'}`}
+            >
+              <span
+                className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${ativo ? 'bg-agua' : ''}`}
+              >
+                <Icone nome={s.icone} className="h-5 w-5" />
+              </span>
+              {s.nome}
+            </a>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMais(true)}
+          aria-expanded={mais}
+          className={`flex h-16 flex-col items-center justify-center gap-1 text-[0.72rem] font-semibold ${noMais ? 'text-petroleo' : 'text-nevoa'}`}
+        >
+          <span
+            className={`grid h-7 w-12 place-items-center rounded-full ${noMais ? 'bg-agua' : ''}`}
+          >
+            <Icone nome="lista" className="h-5 w-5" />
+          </span>
+          Mais
+        </button>
+      </nav>
+      <Gaveta aberta={mais} aoFechar={() => setMais(false)} titulo="Menu">
+        <div className="space-y-5">
+          {GRUPOS.map((g) => {
+            const itens = visiveis.filter((s) => s.grupo === g);
+            if (!itens.length) return null;
+            return (
+              <div key={g}>
+                <p className="mb-2 text-[0.78rem] font-semibold text-bruma">{g}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {itens.map((s) => (
+                    <a
+                      key={s.id}
+                      href={`#${s.id}`}
+                      className={`flex h-14 items-center gap-2.5 rounded-2xl px-3.5 text-[0.95rem] font-semibold ring-1 ${
+                        s.id === atual
+                          ? 'bg-agua text-petroleo ring-petroleo/30'
+                          : 'bg-folha ring-linha'
+                      }`}
+                    >
+                      <Icone nome={s.icone} className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{s.nome}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex gap-2 border-t border-linha pt-5">
+            <a
+              href={siteHref}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-porcelana font-semibold text-petroleo"
+            >
+              <Icone nome="globo" className="h-4 w-4" /> Ver site
+            </a>
+            <button
+              type="button"
+              onClick={aoSair}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl font-semibold text-nevoa ring-1 ring-linha"
+            >
+              <Icone nome="sair" className="h-4 w-4" /> Sair
+            </button>
+          </div>
+        </div>
+      </Gaveta>
+    </>
   );
 }
