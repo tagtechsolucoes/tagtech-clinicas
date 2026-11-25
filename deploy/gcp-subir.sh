@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-NOME=${NOME:-tagtech-piloto}
+NOME=${NOME:-tagtech-clinicas}
 REGIAO=${REGIAO:-southamerica-east1}
 ZONA=${ZONA:-southamerica-east1-b}
 MAQUINA=${MAQUINA:-e2-medium}

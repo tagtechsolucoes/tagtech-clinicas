@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Prepara uma VPS Ubuntu nova (Oracle Cloud, Lightsail, qualquer uma) e sobe o TagTech Clínicas.
 # Uso, logado na VPS como o usuário padrão (ubuntu):
-#   curl -fsSL https://raw.githubusercontent.com/tagtechsolucoes/tagtech-food/main/deploy/bootstrap-vps.sh -o bootstrap.sh
+#   curl -fsSL https://raw.githubusercontent.com/tagtechsolucoes/tagtech-clinicas/main/deploy/bootstrap-vps.sh -o bootstrap.sh
 #   bash bootstrap.sh
 # O repositório é privado: o script pede um token do GitHub só para clonar (não fica salvo).
 set -euo pipefail
 
 DIR=/opt/tagtech
-REPO=github.com/tagtechsolucoes/tagtech-food.git
+REPO=github.com/tagtechsolucoes/tagtech-clinicas.git
 
 echo "== 1/6 Atualizando o sistema"
 sudo apt-get update -qq
