@@ -8,10 +8,12 @@ import { Avatar, Botao, Gaveta, Icone, STATUS_ESTILO } from '../ui';
 import { Fotos } from './fotos';
 import { Odontograma } from './odontograma';
 import { Orcamentos } from './orcamentos';
+import { Pacotes } from './pacotes';
 import { Convenio } from './convenio';
 import { Prontuario } from './prontuario';
 
-type Aba = 'prontuario' | 'odontograma' | 'fotos' | 'orcamentos' | 'convenio' | 'consultas';
+type Aba =
+  'prontuario' | 'odontograma' | 'fotos' | 'orcamentos' | 'pacotes' | 'convenio' | 'consultas';
 
 /** Página do paciente: dados, prontuário, odontograma, fotos e consultas. */
 export function PacienteTela({ id }: { id: string }) {
@@ -23,6 +25,7 @@ export function PacienteTela({ id }: { id: string }) {
     ...(clinico && temOdonto ? ([['odontograma', 'Odontograma']] as Array<[Aba, string]>) : []),
     ...(clinico ? ([['fotos', 'Fotos']] as Array<[Aba, string]>) : []),
     ['orcamentos', 'Orçamentos'],
+    ['pacotes', 'Pacotes'],
     ...(clinic.insuranceEnabled ? ([['convenio', 'Convênio']] as Array<[Aba, string]>) : []),
     ['consultas', 'Consultas'],
   ];
@@ -183,6 +186,7 @@ export function PacienteTela({ id }: { id: string }) {
       {aba === 'odontograma' ? <Odontograma patientId={p.id} /> : null}
       {aba === 'fotos' ? <Fotos patientId={p.id} /> : null}
       {aba === 'convenio' ? <Convenio patientId={p.id} /> : null}
+      {aba === 'pacotes' ? <Pacotes patientId={p.id} /> : null}
       {aba === 'orcamentos' ? <Orcamentos patientId={p.id} telefone={p.phone} /> : null}
       {aba === 'consultas' ? (
         p.appointments?.length ? (

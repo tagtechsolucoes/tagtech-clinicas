@@ -136,6 +136,8 @@ export interface Appointment {
   insurerId: string | null;
   authorizationId: string | null;
   copayCents: number | null;
+  packageId?: string | null;
+  seriesId?: string | null;
   notes: string;
   cancelReason: string | null;
   confirmedAt: string | null;
@@ -771,6 +773,26 @@ export interface Review {
   answeredAt: string;
 }
 
+export interface SessionPackage {
+  id: string;
+  patientId: string;
+  serviceId: string;
+  serviceName: string;
+  title: string;
+  totalSessions: number;
+  used: number;
+  booked: number;
+  remaining: number;
+  free: number;
+  endingSoon: boolean;
+  priceCents: number;
+  noShowCounts: boolean;
+  validUntil: string | null;
+  status: 'active' | 'finished' | 'cancelled';
+  notes: string;
+  createdAt: string;
+}
+
 const qs = (params: Record<string, string | number | undefined>) =>
   new URLSearchParams(
     Object.entries(params).flatMap(([k, v]) =>
@@ -854,7 +876,35 @@ export const api = {
     notes?: string;
     priceCents?: number | null;
     allowOutsideHours?: boolean;
-  }) => send<Appointment>('POST', '/appointments', data),
+    packageId?: string;
+    repeat?: { everyWeeks: number; count: number };
+  }) =>
+    send<
+      Appointment & {
+        series?: {
+          id: string;
+          created: number;
+          skipped: Array<{ startsAt: string; reason: string }>;
+        };
+      }
+    >('POST', '/appointments', data),
+  cancelSeries: (id: string, reason: string) =>
+    send<{ cancelled: number }>('POST', `/appointments/${id}/cancel-series`, { reason }),
+  packages: (patientId: string) => request<SessionPackage[]>(`/patients/${patientId}/packages`),
+  createPackage: (
+    patientId: string,
+    data: {
+      serviceId: string;
+      title?: string;
+      totalSessions: number;
+      priceCents: number;
+      noShowCounts: boolean;
+      validUntil?: string | null;
+      notes?: string;
+      charge?: { installments: number };
+    },
+  ) => send<SessionPackage>('POST', `/patients/${patientId}/packages`, data),
+  cancelPackage: (id: string) => send<SessionPackage>('POST', `/packages/${id}/cancel`),
   updateAppointment: (
     id: string,
     patch: {

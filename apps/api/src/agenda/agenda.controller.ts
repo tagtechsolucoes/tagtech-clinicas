@@ -56,6 +56,14 @@ const bookSchema = z
     priceCents: z.number().int().min(0).max(100_000_000).nullable().optional(),
     notes: z.string().trim().max(1000).optional(),
     allowOutsideHours: z.boolean().optional(),
+    packageId: uuid.optional(),
+    repeat: z
+      .object({
+        everyWeeks: z.number().int().min(1).max(4),
+        count: z.number().int().min(2).max(52),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .refine(
@@ -136,6 +144,20 @@ export class AgendaController {
   setStatus(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Body() body: unknown) {
     const { status, reason } = validate(statusSchema, body);
     return this.service.setStatus(ctx, validate(uuid, id), status, reason);
+  }
+
+  @Post('appointments/:id/cancel-series')
+  @HttpCode(200)
+  cancelSeries(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const { reason } = validate(
+      z.object({ reason: z.string().trim().min(3, 'Informe o motivo').max(200) }).strict(),
+      body,
+    );
+    return this.service.cancelSeries(ctx, validate(uuid, id), reason);
   }
 
   @Post('appointments/:id/link')
