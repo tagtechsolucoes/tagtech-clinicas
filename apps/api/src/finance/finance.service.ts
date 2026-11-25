@@ -15,6 +15,7 @@ import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
+import { RelationshipService } from '../relationship/relationship.service';
 import { NfseService } from '../nfse/nfse.service';
 import { fakePixAllowed, FakePix, MercadoPagoPix, PixProviderError, type PixProvider } from './pix';
 
@@ -91,6 +92,7 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(NfseService) private readonly nfse: NfseService,
+    @Inject(RelationshipService) private readonly relationship: RelationshipService,
   ) {}
 
   onModuleInit() {
@@ -640,10 +642,12 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
             actorKind: 'system',
             reason: 'Sinal não pago',
           });
+          return a.id;
         }
         return true;
       });
       if (feito) canceladas++;
+      if (typeof feito === 'string') this.relationship.slotFreed(d.tenantId, feito);
     }
     return canceladas;
   }

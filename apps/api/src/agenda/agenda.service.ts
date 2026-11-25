@@ -24,6 +24,7 @@ import { findOrCreatePatient, patientSummary } from '../patients/patients.servic
 import { availability } from './availability';
 import { hashToken } from '../common/token';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { RelationshipService } from '../relationship/relationship.service';
 
 const {
   appointments,
@@ -122,6 +123,7 @@ export class AgendaService {
   constructor(
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(WhatsAppService) private readonly whatsapp: WhatsAppService,
+    @Inject(RelationshipService) private readonly relationship: RelationshipService,
   ) {}
 
   private run<T>(ctx: TenantContext, fn: (tx: TenantTx) => Promise<T>) {
@@ -444,8 +446,10 @@ export class AgendaService {
       }
       return (await loadAppointments(tx, eq(appointments.id, id)))[0]!;
     });
-    if (changed && status === 'cancelled')
+    if (changed && status === 'cancelled') {
       this.whatsapp.appointmentEvent(ctx.tenantId, id, 'cancelled');
+      this.relationship.slotFreed(ctx.tenantId, id);
+    }
     return view;
   }
 

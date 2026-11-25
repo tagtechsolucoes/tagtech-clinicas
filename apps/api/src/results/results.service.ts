@@ -7,8 +7,16 @@ import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
 import { clinicTimezone } from '../finance/finance.service';
 
-const { appointmentEvents, appointmentMessages, appointments, charges, treatmentPlans, waitlist } =
-  schema;
+const {
+  appointmentEvents,
+  appointmentMessages,
+  appointments,
+  charges,
+  patientMessages,
+  reviewRequests,
+  treatmentPlans,
+  waitlist,
+} = schema;
 
 const somarMes = (mes: string, n: number) => {
   const [y, m] = mes.split('-').map(Number) as [number, number];
@@ -87,9 +95,40 @@ export class ResultsService {
         ),
       );
 
+    // Retornos: consulta marcada no mês por quem recebeu lembrete de retorno ou de
+    // reativação nos 30 dias antes. Conta aqui e não em "site", para não contar duas vezes.
+    const lembrados = await tx
+      .selectDistinct({ id: appointments.id, price: appointments.priceCents })
+      .from(appointments)
+      .innerJoin(
+        patientMessages,
+        and(
+          eq(patientMessages.patientId, appointments.patientId),
+          inArray(patientMessages.kind, ['recall', 'reactivation']),
+          eq(patientMessages.status, 'sent'),
+          lt(patientMessages.createdAt, appointments.createdAt),
+          gte(patientMessages.createdAt, sql`${appointments.createdAt} - interval '30 days'`),
+        ),
+      )
+      .where(and(noMes(appointments.createdAt), ne(appointments.status, 'cancelled')));
+    const idsLembrados = new Set(lembrados.map((r) => r.id));
+    const lembretes = await tx
+      .select({ kind: patientMessages.kind, n: sql<number>`count(*)::int` })
+      .from(patientMessages)
+      .where(and(eq(patientMessages.status, 'sent'), noMes(patientMessages.createdAt)))
+      .groupBy(patientMessages.kind);
+    const enviadas = (k: string) => lembretes.find((l) => l.kind === k)?.n ?? 0;
+
+    // Avaliações pedidas no mês.
+    const avaliacoes = await tx
+      .select({ rating: reviewRequests.rating, google: reviewRequests.sentToGoogle })
+      .from(reviewRequests)
+      .where(noMes(reviewRequests.createdAt));
+    const notas = avaliacoes.flatMap((a) => (a.rating ? [a.rating] : []));
+
     // Agendamentos que o paciente fez sozinho pelo site (feitos no mês, não cancelados).
-    const online = await tx
-      .select({ price: appointments.priceCents })
+    const onlineTodos = await tx
+      .select({ id: appointments.id, price: appointments.priceCents })
       .from(appointments)
       .where(
         and(
@@ -98,6 +137,7 @@ export class ResultsService {
           ne(appointments.status, 'cancelled'),
         ),
       );
+    const online = onlineTodos.filter((a) => !idsLembrados.has(a.id));
 
     // Orçamentos enviados pelo link e aprovados no mês.
     const aprovados = await tx
@@ -143,10 +183,16 @@ export class ResultsService {
     const soma = (r: Array<{ price: number | null }>) => r.reduce((s, x) => s + (x.price ?? 0), 0);
     const espera = soma(daEspera);
     const site = soma(online);
+    const retorno = soma(lembrados);
     return {
       month,
-      generatedCents: espera + site + valorAprovado,
+      generatedCents: espera + site + valorAprovado + retorno,
       parts: {
+        recalls: {
+          count: lembrados.length,
+          valueCents: retorno,
+          sent: enviadas('recall') + enviadas('reactivation'),
+        },
         waitlist: { count: daEspera.length, valueCents: espera },
         online: { count: online.length, valueCents: site },
         plans: { count: aprovados.length, sent: enviados[0]!.n, valueCents: valorAprovado },
@@ -160,7 +206,14 @@ export class ResultsService {
         confirmed: confirmadas,
         confirmedByPatient: pacienteConfirmou[0]!.n,
       },
-      whatsappSent: mensagens[0]!.n,
+      whatsappSent: mensagens[0]!.n + lembretes.reduce((x, l) => x + l.n, 0),
+      reviews: {
+        requested: avaliacoes.length,
+        answered: notas.length,
+        average: notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null,
+        toGoogle: avaliacoes.filter((a) => a.google).length,
+        low: notas.filter((n) => n <= 3).length,
+      },
       deposits: { count: sinais[0]!.n, valueCents: sinais[0]!.s },
     };
   }

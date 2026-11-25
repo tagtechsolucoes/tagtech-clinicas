@@ -103,3 +103,35 @@ export async function expiredDeposits(
   );
   return rows.map((r) => ({ tenantId: r.tenant_id, chargeId: r.charge_id }));
 }
+
+type Pair = { tenantId: string; id: string };
+async function pairs(db: Db, fn: string, col: string, now: Date): Promise<Pair[]> {
+  const rows = await db.execute<Record<string, string>>(
+    sql.raw(`select tenant_id, ${col} from ${fn}('${now.toISOString()}'::timestamptz)`),
+  );
+  return rows.map((r) => ({ tenantId: r.tenant_id!, id: r[col]! }));
+}
+
+/** Ofertas da lista de espera vencidas (todas as clínicas). */
+export const expiredOffers = (db: Db, now: Date) => pairs(db, 'expired_offers', 'offer_id', now);
+/** Consultas cujo retorno já está na hora. */
+export const dueRecalls = (db: Db, now: Date) => pairs(db, 'due_recalls', 'appointment_id', now);
+/** Última consulta de quem sumiu há tempo demais. */
+export const dueReactivations = (db: Db, now: Date) =>
+  pairs(db, 'due_reactivations', 'appointment_id', now);
+/** Consultas feitas que pedem avaliação. */
+export const dueReviews = (db: Db, now: Date) => pairs(db, 'due_reviews', 'appointment_id', now);
+
+export async function resolveOfferToken(db: Db, tokenHash: string): Promise<Pair | null> {
+  const rows = await db.execute<{ tenant_id: string; offer_id: string }>(
+    sql`select tenant_id, offer_id from resolve_offer_token(${tokenHash})`,
+  );
+  return rows[0] ? { tenantId: rows[0].tenant_id, id: rows[0].offer_id } : null;
+}
+
+export async function resolveReviewToken(db: Db, tokenHash: string): Promise<Pair | null> {
+  const rows = await db.execute<{ tenant_id: string; review_id: string }>(
+    sql`select tenant_id, review_id from resolve_review_token(${tokenHash})`,
+  );
+  return rows[0] ? { tenantId: rows[0].tenant_id, id: rows[0].review_id } : null;
+}

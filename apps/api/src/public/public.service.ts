@@ -26,6 +26,7 @@ import { clinicView } from '../clinic/clinic.service';
 import { loadProfessionals, loadServices } from '../clinic/clinic.service';
 import { findOrCreatePatient } from '../patients/patients.service';
 import { FinanceService } from '../finance/finance.service';
+import { RelationshipService } from '../relationship/relationship.service';
 import { applyInsurance } from '../insurance/insurance.service';
 
 const {
@@ -70,6 +71,7 @@ export class PublicService {
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(WhatsAppService) private readonly whatsapp: WhatsAppService,
     @Inject(FinanceService) private readonly finance: FinanceService,
+    @Inject(RelationshipService) private readonly relationship: RelationshipService,
   ) {}
 
   private async clinic<T>(
@@ -453,8 +455,9 @@ export class PublicService {
     });
   }
 
-  cancel(token: string, reason?: string) {
-    return this.byToken(token, async (tx, id) => {
+  async cancel(token: string, reason?: string) {
+    let freed: { tenantId: string; id: string } | null = null;
+    const out = await this.byToken(token, async (tx, id) => {
       const view = await this.manageView(tx, id);
       if (view.status === 'cancelled') return view;
       if (!view.canCancel)
@@ -474,7 +477,12 @@ export class PublicService {
         actorKind: 'patient',
         reason: why,
       });
+      freed = { tenantId: before!.tenantId, id };
       return this.manageView(tx, id);
     });
+    // O horário que o paciente largou vai para a lista de espera.
+    const f = freed as { tenantId: string; id: string } | null;
+    if (f) this.relationship.slotFreed(f.tenantId, f.id);
+    return out;
   }
 }

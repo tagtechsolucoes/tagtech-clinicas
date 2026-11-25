@@ -23,6 +23,11 @@ import { RecordsService } from './records/records.service';
 import { WhatsAppController } from './whatsapp/whatsapp.controller';
 import { WHATSAPP_HTTP, WhatsAppService } from './whatsapp/whatsapp.service';
 import { TeamService } from './team/team.service';
+import {
+  PublicRelationshipController,
+  RelationshipController,
+} from './relationship/relationship.controller';
+import { RelationshipService } from './relationship/relationship.service';
 import { FinanceController, PublicFinanceController } from './finance/finance.controller';
 import { FinanceService } from './finance/finance.service';
 import { PlansService } from './finance/plans.service';
@@ -54,6 +59,8 @@ import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
     StockController,
     InsuranceController,
     LgpdController,
+    RelationshipController,
+    PublicRelationshipController,
     MediaController,
   ],
   providers: [
@@ -69,6 +76,7 @@ import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
     AgendaService,
     PublicService,
     WhatsAppService,
+    RelationshipService,
     RecordsService,
     FinanceService,
     PlansService,

@@ -63,7 +63,8 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     await this.idle();
   }
 
-  private track(p: Promise<unknown>) {
+  /** Roda por fora, sem derrubar quem chamou; `idle()` espera. */
+  track(p: Promise<unknown>) {
     const q = p.catch((e: unknown) => this.log.error(e)).finally(() => this.inflight.delete(q));
     this.inflight.add(q);
   }
@@ -166,10 +167,12 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       this.log.warn(`Mensagem ${event} da consulta ${appointmentId} falhou: ${result.error}`);
   }
 
-  private async sendTemplate(
+  /** Envia um modelo aprovado na Meta. `name` padrão: o aviso de consulta da clínica. */
+  async sendTemplate(
     cfg: typeof clinicWhatsapp.$inferSelect,
     to: string,
     params: string[],
+    name: string = cfg.templateName,
   ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
     try {
       const res = await this.http(`${GRAPH}/${cfg.phoneNumberId}/messages`, {
@@ -180,7 +183,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
           to,
           type: 'template',
           template: {
-            name: cfg.templateName,
+            name,
             language: { code: cfg.templateLang },
             components: [
               { type: 'body', parameters: params.map((text) => ({ type: 'text', text })) },
