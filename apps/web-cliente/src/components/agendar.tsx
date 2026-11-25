@@ -610,7 +610,23 @@ function Dados({
         />
         <span className="text-nevoa">
           Autorizo a {clinic.name} a usar meus dados para este agendamento e para me lembrar da
-          consulta pelo WhatsApp.
+          consulta pelo WhatsApp.{' '}
+          <a
+            href={`/c/${clinic.slug}/privacidade`}
+            target="_blank"
+            className="font-semibold text-marca underline"
+          >
+            Como a clínica cuida dos seus dados
+          </a>{' '}
+          e{' '}
+          <a
+            href={`/c/${clinic.slug}/termos`}
+            target="_blank"
+            className="font-semibold text-marca underline"
+          >
+            termos do agendamento
+          </a>
+          .
         </span>
       </label>
       {erro ? (

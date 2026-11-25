@@ -112,6 +112,7 @@ export interface Patient extends PatientSummary {
   notes: string;
   source: 'staff' | 'online' | 'import';
   consentAt: string | null;
+  contactErasedAt?: string | null;
   createdAt: string;
   appointments?: Array<{
     id: string;
@@ -1115,6 +1116,15 @@ export const api = {
   cancelInvoice: (id: string, reason: string) =>
     send<ServiceInvoice>('POST', `/nfse/${id}/cancel`, { reason }),
   receipt: (chargeId: string) => request<Receipt>(`/finance/charges/${chargeId}/receipt`),
+
+  // LGPD
+  exportPatientUrl: (id: string) => `/api/patients/${id}/export`,
+  erasePatient: (id: string) =>
+    send<{ mode: 'deleted' | 'contact_erased'; cancelledAppointments?: number }>(
+      'POST',
+      `/patients/${id}/erase`,
+    ),
+  exportClinicUrl: () => '/api/clinic/export',
 
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),

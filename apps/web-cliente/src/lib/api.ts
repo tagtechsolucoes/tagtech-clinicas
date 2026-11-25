@@ -11,7 +11,7 @@ export interface PublicClinic {
   logoUrl: string | null;
   coverUrl: string | null;
   theme: BrandTheme;
-  booking: { enabled: boolean; horizonDays: number };
+  booking: { enabled: boolean; horizonDays: number; depositCents: number };
   insurers: Array<{ id: string; name: string }>;
   gallery: Array<{
     id: string;

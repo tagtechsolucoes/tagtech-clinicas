@@ -216,7 +216,14 @@ export default async function Page({ params }: Props) {
       ) : null}
 
       <footer className="border-t border-linha py-8 text-center text-sm text-bruma">
-        Agendamento online por TagTech Clínicas
+        <a href={`/c/${c.slug}/privacidade`} className="underline hover:text-nevoa">
+          Privacidade e seus dados
+        </a>{' '}
+        ·{' '}
+        <a href={`/c/${c.slug}/termos`} className="underline hover:text-nevoa">
+          Termos do agendamento
+        </a>{' '}
+        · Agendamento online por TagTech Clínicas
       </footer>
     </div>
   );

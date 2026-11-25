@@ -30,6 +30,8 @@ import { ResultsService } from './results/results.service';
 import { StockController } from './stock/stock.controller';
 import { StockService } from './stock/stock.service';
 import { InsuranceController } from './insurance/insurance.controller';
+import { LgpdController } from './lgpd/lgpd.controller';
+import { LgpdService } from './lgpd/lgpd.service';
 import { InsuranceService } from './insurance/insurance.service';
 import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
 
@@ -51,6 +53,7 @@ import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
     PublicFinanceController,
     StockController,
     InsuranceController,
+    LgpdController,
     MediaController,
   ],
   providers: [
@@ -73,6 +76,7 @@ import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
     ResultsService,
     InsuranceService,
     NfseService,
+    LgpdService,
     { provide: FOCUS_HTTP, useValue: (...a: Parameters<typeof fetch>) => fetch(...a) },
     { provide: WHATSAPP_HTTP, useValue: (...a: Parameters<typeof fetch>) => fetch(...a) },
     { provide: MEDIA_DIR, useFactory: defaultMediaDir },
