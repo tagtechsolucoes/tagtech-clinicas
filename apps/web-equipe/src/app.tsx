@@ -23,6 +23,8 @@ import { FinanceiroTela } from './financeiro/financeiro';
 import { EstoqueTela } from './estoque/estoque';
 import { ConveniosTela } from './convenios/convenios';
 import { ResultadoTela } from './resultado';
+import { RelatoriosTela } from './relatorios';
+import { RecepcaoTela } from './recepcao';
 import { setFuso } from './formato';
 import { PacientesTela } from './pacientes';
 import { PacienteTela } from './paciente/paciente';
@@ -39,12 +41,14 @@ type Estado =
 
 export type Secao =
   | 'agenda'
+  | 'recepcao'
   | 'pacientes'
   | 'espera'
   | 'financeiro'
   | 'estoque'
   | 'convenios'
   | 'resultado'
+  | 'relatorios'
   | 'profissionais'
   | 'servicos'
   | 'clinica'
@@ -59,12 +63,14 @@ const SECOES: Array<{
   convenio?: boolean;
 }> = [
   { id: 'agenda', nome: 'Agenda', icone: 'agenda' },
+  { id: 'recepcao', nome: 'Recepção', icone: 'fila' },
   { id: 'pacientes', nome: 'Pacientes', icone: 'pessoas' },
   { id: 'espera', nome: 'Lista de espera', icone: 'espera' },
   { id: 'financeiro', nome: 'Financeiro', icone: 'dinheiro', balcao: true },
   { id: 'estoque', nome: 'Estoque', icone: 'caixa', balcao: true },
   { id: 'convenios', nome: 'Convênios', icone: 'recibo', balcao: true, convenio: true },
   { id: 'resultado', nome: 'Resultado', icone: 'grafico', gerencia: true },
+  { id: 'relatorios', nome: 'Relatórios', icone: 'relatorio', gerencia: true },
   { id: 'profissionais', nome: 'Profissionais', icone: 'estetoscopio', gerencia: true },
   { id: 'servicos', nome: 'Serviços', icone: 'lista', gerencia: true },
   { id: 'clinica', nome: 'Clínica e site', icone: 'clinica', gerencia: true },
@@ -352,6 +358,8 @@ function Casca({
               {atual === 'estoque' ? <EstoqueTela /> : null}
               {atual === 'convenios' ? <ConveniosTela /> : null}
               {atual === 'resultado' ? <ResultadoTela /> : null}
+              {atual === 'relatorios' ? <RelatoriosTela /> : null}
+              {atual === 'recepcao' ? <RecepcaoTela /> : null}
               {atual === 'profissionais' ? <ProfissionaisTela /> : null}
               {atual === 'servicos' ? <ServicosTela /> : null}
               {atual === 'clinica' ? <ClinicaTela /> : null}

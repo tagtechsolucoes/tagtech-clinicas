@@ -793,6 +793,86 @@ export interface SessionPackage {
   createdAt: string;
 }
 
+export type DocumentKind = 'prescription' | 'certificate' | 'declaration' | 'exam_request';
+export interface ClinicalDocument {
+  id: string;
+  kind: DocumentKind;
+  patientId: string;
+  appointmentId: string | null;
+  professional: { id: string; name: string; council: string; specialty: string };
+  content: Record<string, unknown>;
+  createdAt: string;
+}
+export interface PrintableDocument extends ClinicalDocument {
+  patient: { name: string; cpf: string | null; birthDate: string | null };
+  clinic: {
+    name: string;
+    legalName: string;
+    document: string;
+    logoUrl: string | null;
+    primaryColor: string;
+    address: string;
+    phone: string;
+    city: string;
+    timezone: string;
+  };
+}
+export interface Payout {
+  professionalId: string;
+  name: string;
+  commissionPct: number;
+  appointments: number;
+  producedCents: number;
+  payoutCents: number;
+  lines: Array<{
+    appointmentId: string;
+    date: string;
+    serviceName: string;
+    baseCents: number;
+    insurance: boolean;
+    commissionCents: number;
+  }>;
+}
+export interface Overview {
+  month: string;
+  totals: {
+    appointments: number;
+    done: number;
+    noShows: number;
+    revenueCents: number;
+    noShowRate: number | null;
+  };
+  professionals: Array<{
+    professionalId: string;
+    name: string;
+    appointments: number;
+    done: number;
+    noShows: number;
+    noShowRate: number | null;
+    occupancy: number | null;
+    revenueCents: number;
+  }>;
+  plans: { sent: number; approved: number; declined: number; open: number; approvedCents: number };
+}
+export interface CommissionSetting {
+  professionalId: string;
+  name: string;
+  commissionPct: number;
+  rules: Array<{ serviceId: string; pct: number | null; fixedCents: number | null }>;
+}
+export interface QueueItem {
+  id: string;
+  status: AppointmentStatus;
+  startsAt: string;
+  patientId: string;
+  patientName: string;
+  serviceName: string;
+  professionalName: string;
+  roomName: string | null;
+  arrivedAt: string | null;
+  lastCalledAt: string | null;
+}
+
 const qs = (params: Record<string, string | number | undefined>) =>
   new URLSearchParams(
     Object.entries(params).flatMap(([k, v]) =>
@@ -1208,6 +1288,42 @@ export const api = {
     send<RelationshipSettings>('PATCH', '/relationship/settings', patch),
   reviews: () => request<Review[]>('/relationship/reviews'),
 
+  // documentos
+  documents: (patientId: string) => request<ClinicalDocument[]>(`/patients/${patientId}/documents`),
+  createDocument: (
+    patientId: string,
+    data: { kind: DocumentKind; content: Record<string, unknown>; professionalId?: string },
+  ) => send<ClinicalDocument>('POST', `/patients/${patientId}/documents`, data),
+  document: (id: string) => request<PrintableDocument>(`/documents/${id}`),
+
+  // relatórios
+  overview: (month: string) => request<Overview>(`/reports/overview?month=${month}`),
+  payouts: (month: string) => request<Payout[]>(`/reports/payouts?month=${month}`),
+  commissions: () => request<CommissionSetting[]>('/reports/commissions'),
+  saveCommission: (
+    professionalId: string,
+    data: {
+      commissionPct: number;
+      rules: Array<{ serviceId: string; pct?: number | null; fixedCents?: number | null }>;
+    },
+  ) => send<{ ok: true }>('PUT', `/reports/commissions/${professionalId}`, data),
+
+  // recepção
+  queue: () =>
+    request<{
+      waiting: QueueItem[];
+      inProgress: QueueItem[];
+      late: QueueItem[];
+      next: QueueItem[];
+    }>('/reception/queue'),
+  callPatient: (appointmentId: string, destination?: string) =>
+    send<{ id: string; displayName: string; destination: string }>(
+      'POST',
+      `/reception/call/${appointmentId}`,
+      destination ? { destination } : {},
+    ),
+  tvLink: () => send<{ token: string }>('POST', '/reception/tv-link'),
+
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),
   createInvite: (name: string, role: ClinicRole) =>
@@ -1228,4 +1344,5 @@ export const siteBase = () =>
   'http://localhost:3001';
 export const siteUrl = (slug: string) => `${siteBase()}/c/${slug}`;
 export const linkPaciente = (token: string) => `${siteBase()}/a/${token}`;
+export const linkTv = (token: string) => `${siteBase()}/tv/${token}`;
 export const linkOrcamento = (token: string) => `${siteBase()}/o/${token}`;

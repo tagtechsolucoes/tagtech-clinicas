@@ -103,6 +103,23 @@ export class LgpdService {
         .from(s.patientAccessLog)
         .where(eq(s.patientAccessLog.patientId, patientId))
         .orderBy(asc(s.patientAccessLog.createdAt));
+      const documentos = await tx
+        .select()
+        .from(s.clinicalDocuments)
+        .where(eq(s.clinicalDocuments.patientId, patientId))
+        .orderBy(asc(s.clinicalDocuments.createdAt));
+      const pacotes = await tx
+        .select()
+        .from(s.sessionPackages)
+        .where(eq(s.sessionPackages.patientId, patientId));
+      const outrasMensagens = await tx
+        .select()
+        .from(s.patientMessages)
+        .where(eq(s.patientMessages.patientId, patientId));
+      const avaliacoes = await tx
+        .select()
+        .from(s.reviewRequests)
+        .where(eq(s.reviewRequests.patientId, patientId));
       await this.log(tx, ctx, patientId, 'export');
 
       return {
@@ -194,6 +211,28 @@ export class LgpdService {
           situacao: m.status,
           enviadaEm: iso(m.createdAt),
         })),
+        documentos: documentos.map((d) => ({
+          tipo: d.kind,
+          conteudo: d.content,
+          emitidoEm: iso(d.createdAt),
+        })),
+        pacotes: pacotes.map((k) => ({
+          titulo: k.title,
+          sessoes: k.totalSessions,
+          valorCentavos: k.priceCents,
+          situacao: k.status,
+          criadoEm: iso(k.createdAt),
+        })),
+        outrasMensagens: outrasMensagens.map((m) => ({
+          tipo: m.kind,
+          situacao: m.status,
+          enviadaEm: iso(m.createdAt),
+        })),
+        avaliacoes: avaliacoes.map((r) => ({
+          nota: r.rating,
+          comentario: r.comment,
+          respondidaEm: iso(r.answeredAt),
+        })),
         registroDeAcesso: acessos.map((a) => ({ acao: a.action, em: iso(a.createdAt) })),
       };
     });
@@ -234,6 +273,18 @@ export class LgpdService {
         (await conta(tx.select({ n }).from(s.charges).where(eq(s.charges.patientId, patientId)))) +
         (await conta(
           tx.select({ n }).from(s.treatmentPlans).where(eq(s.treatmentPlans.patientId, patientId)),
+        )) +
+        (await conta(
+          tx
+            .select({ n })
+            .from(s.clinicalDocuments)
+            .where(eq(s.clinicalDocuments.patientId, patientId)),
+        )) +
+        (await conta(
+          tx
+            .select({ n })
+            .from(s.sessionPackages)
+            .where(eq(s.sessionPackages.patientId, patientId)),
         ));
 
       // Fotos publicadas no site saem junto (a cópia pública é apagada).
@@ -344,7 +395,7 @@ export class LgpdService {
       });
       return {
         geradoEm: new Date().toISOString(),
-        clinica: sem([t!], 'id'),
+        clinica: sem([t!], 'id', 'tvTokenHash'),
         unidades: await tabela(tx.select().from(s.units)),
         salas: await tabela(tx.select().from(s.rooms)),
         profissionais: await tabela(tx.select().from(s.professionals)),
@@ -373,6 +424,12 @@ export class LgpdService {
         lotesDeFaturamento: await tabela(tx.select().from(s.insuranceBatches)),
         guiasFaturadas: await tabela(tx.select().from(s.insuranceClaims)),
         notasFiscais: await tabela(tx.select().from(s.serviceInvoices)),
+        documentosClinicos: await tabela(tx.select().from(s.clinicalDocuments)),
+        pacotes: await tabela(tx.select().from(s.sessionPackages)),
+        regrasDeRepasse: await tabela(tx.select().from(s.commissionRules)),
+        mensagensAoPaciente: await tabela(tx.select().from(s.patientMessages)),
+        avaliacoes: await tabela(tx.select().from(s.reviewRequests), 'tokenHash'),
+        ofertasDaListaDeEspera: await tabela(tx.select().from(s.waitlistOffers), 'tokenHash'),
       };
     });
   }
