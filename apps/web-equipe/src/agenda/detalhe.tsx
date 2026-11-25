@@ -11,6 +11,8 @@ import {
   linkPaciente,
   type Appointment,
   type AppointmentMaterial,
+  type Insurer,
+  type PatientInsurance,
   type HistoryEvent,
   type StockItem,
   type SentMessage,
@@ -168,6 +170,10 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
           <span className="text-sm text-nevoa">Motivo: {a.cancelReason}</span>
         ) : null}
       </section>
+
+      {clinic.insuranceEnabled && vinculo.role !== 'professional' && a.status !== 'cancelled' ? (
+        <Pagamento a={a} aoMudar={aoMudar} />
+      ) : null}
 
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-2xl bg-porcelana p-5">
         <Item rotulo="Quando" valor={`${dataHora(a.startsAt)} – ${hora(a.endsAt)}`} largo />
@@ -533,5 +539,82 @@ function Cancelar({ aoCancelar }: { aoCancelar: (motivo: string) => void }) {
         Confirmar cancelamento
       </Botao>
     </div>
+  );
+}
+
+/** Particular ou convênio (com a guia, quando o plano pede). */
+function Pagamento({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) => void }) {
+  const { avisar } = usePainel();
+  const [planos, setPlanos] = useState<Insurer[]>([]);
+  const [paciente, setPaciente] = useState<PatientInsurance | null>(null);
+  const [avisos, setAvisos] = useState<string[]>([]);
+  useEffect(() => {
+    Promise.all([api.insurers(), api.patientInsurance(a.patient.id)])
+      .then(([p, c]) => {
+        setPlanos(p.filter((x) => x.active && x.prices.some((y) => y.serviceId === a.service.id)));
+        setPaciente(c);
+      })
+      .catch(() => undefined);
+  }, [a.patient.id, a.service.id]);
+
+  async function trocar(insurerId: string | null, authorizationId: string | null) {
+    try {
+      const r = await api.setAppointmentInsurance(a.id, insurerId, authorizationId);
+      setAvisos(r.warnings);
+      aoMudar(r.appointment);
+    } catch (e) {
+      avisar(mensagem(e), 'erro');
+    }
+  }
+
+  if (!planos.length && !a.insurerId) return null;
+  const guias = (paciente?.authorizations ?? []).filter(
+    (g) => g.insurerId === a.insurerId && g.serviceId === a.service.id,
+  );
+  const temCartao = (id: string) => paciente?.cards.some((c) => c.insurerId === id);
+  return (
+    <section className="space-y-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
+        <Seletor
+          aria-label="Pagamento"
+          value={a.insurerId ?? ''}
+          onChange={(e) => void trocar(e.target.value || null, null)}
+        >
+          <option value="">Particular</option>
+          {planos.map((p) => (
+            <option key={p.id} value={p.id} disabled={!temCartao(p.id)}>
+              {p.name}
+              {temCartao(p.id) ? '' : ' (sem carteirinha)'}
+            </option>
+          ))}
+        </Seletor>
+        {a.insurerId ? (
+          <Seletor
+            aria-label="Guia"
+            value={a.authorizationId ?? ''}
+            onChange={(e) => void trocar(a.insurerId, e.target.value || null)}
+          >
+            <option value="">Sem guia</option>
+            {guias.map((g) => (
+              <option
+                key={g.id}
+                value={g.id}
+                disabled={g.used >= g.sessions && g.id !== a.authorizationId}
+              >
+                Guia {g.guideNumber} ({g.used}/{g.sessions})
+              </option>
+            ))}
+          </Seletor>
+        ) : null}
+      </div>
+      {a.copayCents ? (
+        <p className="text-sm text-nevoa">Coparticipação do paciente: {dinheiro(a.copayCents)}</p>
+      ) : null}
+      {avisos.map((t) => (
+        <p key={t} className="rounded-xl bg-ambar-fundo px-3 py-2 text-sm text-ambar-tinta">
+          {t}
+        </p>
+      ))}
+    </section>
   );
 }

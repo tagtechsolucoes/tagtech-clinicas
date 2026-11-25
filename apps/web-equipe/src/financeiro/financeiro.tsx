@@ -7,6 +7,7 @@ import {
   type Expense,
   type FinanceSummary,
   type PixSettings,
+  type ServiceInvoice,
 } from '../api';
 import { mensagem, usePainel } from '../contexto';
 import { dataCurta, diaLongo, dinheiro, hoje } from '../formato';
@@ -22,6 +23,7 @@ import {
   Vazio,
 } from '../ui';
 import { Receber } from './receber';
+import { abrirRecibo, BotaoNota, NotaConfig } from './nota';
 
 type Aba = 'caixa' | 'receber' | 'pagar';
 
@@ -109,6 +111,7 @@ export function FinanceiroTela() {
       {aba === 'pagar' ? <APagar mes={mes} versao={versao} aoMudar={mudou} /> : null}
 
       {vinculo.role === 'owner' ? <PixConfig /> : null}
+      {vinculo.role === 'owner' ? <NotaConfig /> : null}
     </>
   );
 }
@@ -174,11 +177,21 @@ function Caixa({ versao, aoMudar }: { versao: number; aoMudar: () => void }) {
   const [abertas, setAbertas] = useState<Charge[]>([]);
   const [receber, setReceber] = useState<Charge | null>(null);
   const [nova, setNova] = useState(false);
+  const [fiscal, setFiscal] = useState(false);
+  const [notas, setNotas] = useState<ServiceInvoice[]>([]);
+  useEffect(() => {
+    api
+      .fiscal()
+      .then((f) => setFiscal(f.configured))
+      .catch(() => setFiscal(false));
+  }, []);
 
   useEffect(() => {
     Promise.all([api.cashbox(dia), api.charges({ status: 'open', to: dia })])
-      .then(([cx, ab]) => {
+      .then(async ([cx, ab]) => {
         setC(cx);
+        if (cx.items.length)
+          setNotas(await api.invoices(cx.items.map((i) => i.id)).catch(() => []));
         setAbertas(ab.filter((x) => x.dueDate >= addDays(dia, -60)));
       })
       .catch((e) => avisar(mensagem(e), 'erro'));
@@ -240,6 +253,29 @@ function Caixa({ versao, aoMudar }: { versao: number; aoMudar: () => void }) {
                 </span>
                 <span className="w-28 text-right font-semibold tabular-nums">
                   {dinheiro(x.amountCents)}
+                </span>
+                <span className="flex w-44 shrink-0 items-center justify-end gap-1">
+                  {fiscal && x.patientId ? (
+                    <BotaoNota
+                      chargeId={x.id}
+                      nota={
+                        notas.find((n) => n.chargeId === x.id && n.status !== 'cancelled') ??
+                        notas.find((n) => n.chargeId === x.id)
+                      }
+                      aoMudar={(n) => setNotas([n, ...notas.filter((y) => y.id !== n.id)])}
+                    />
+                  ) : null}
+                  {x.patientId ? (
+                    <button
+                      type="button"
+                      aria-label="Recibo"
+                      title="Recibo para reembolso"
+                      onClick={() => void abrirRecibo(x.id, avisar)}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-nevoa hover:bg-trilho hover:text-tinta"
+                    >
+                      <Icone nome="recibo" className="h-4 w-4" />
+                    </button>
+                  ) : null}
                 </span>
               </li>
             ))}

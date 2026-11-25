@@ -54,6 +54,9 @@ export const tenants = pgTable('tenants', {
   bookingHorizonDays: integer('booking_horizon_days').notNull().default(60),
   slotStepMinutes: integer('slot_step_minutes').notNull().default(15),
   bookingDepositCents: integer('booking_deposit_cents').notNull().default(0),
+  legalName: text('legal_name').notNull().default(''),
+  document: text('document').notNull().default(''),
+  insuranceEnabled: boolean('insurance_enabled').notNull().default(false),
   createdAt: createdAt(),
 });
 
@@ -235,6 +238,9 @@ export const appointments = pgTable('appointments', {
   cancelReason: text('cancel_reason'),
   manageTokenHash: text('manage_token_hash'),
   confirmedAt: ts('confirmed_at'),
+  insurerId: uuid('insurer_id'),
+  authorizationId: uuid('authorization_id'),
+  copayCents: integer('copay_cents'),
   createdBy: uuid('created_by'),
   createdAt: createdAt(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
@@ -625,4 +631,133 @@ export const purchaseOrders = pgTable('purchase_orders', {
     .default([]),
   createdBy: uuid('created_by'),
   createdAt: createdAt(),
+});
+
+// ---------------------------------------------------------------- convênios
+
+export const insurers = pgTable('insurers', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  name: text('name').notNull(),
+  ansCode: text('ans_code').notNull().default(''),
+  providerCode: text('provider_code').notNull().default(''),
+  paymentDays: smallint('payment_days').notNull().default(30),
+  showOnSite: boolean('show_on_site').notNull().default(true),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const insurerPrices = pgTable(
+  'insurer_prices',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    insurerId: uuid('insurer_id').notNull(),
+    serviceId: uuid('service_id').notNull(),
+    priceCents: integer('price_cents').notNull(),
+    copayCents: integer('copay_cents').notNull().default(0),
+    tussCode: text('tuss_code').notNull().default(''),
+    needsAuthorization: boolean('needs_authorization').notNull().default(false),
+  },
+  (t) => [primaryKey({ columns: [t.insurerId, t.serviceId] })],
+);
+
+export const insurerProfessionals = pgTable(
+  'insurer_professionals',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    insurerId: uuid('insurer_id').notNull(),
+    professionalId: uuid('professional_id').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.insurerId, t.professionalId] })],
+);
+
+export const patientInsurances = pgTable('patient_insurances', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  insurerId: uuid('insurer_id').notNull(),
+  cardNumber: text('card_number').notNull(),
+  planName: text('plan_name').notNull().default(''),
+  validUntil: date('valid_until'),
+  createdAt: createdAt(),
+});
+
+export const insuranceAuthorizations = pgTable('insurance_authorizations', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  insurerId: uuid('insurer_id').notNull(),
+  serviceId: uuid('service_id').notNull(),
+  guideNumber: text('guide_number').notNull(),
+  password: text('password').notNull().default(''),
+  validUntil: date('valid_until'),
+  sessions: smallint('sessions').notNull().default(1),
+  createdAt: createdAt(),
+});
+
+export const insuranceBatches = pgTable('insurance_batches', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  insurerId: uuid('insurer_id').notNull(),
+  number: integer('number').notNull(),
+  competence: text('competence').notNull(),
+  status: text('status', { enum: ['open', 'sent', 'paid'] })
+    .notNull()
+    .default('open'),
+  sentAt: ts('sent_at'),
+  paidAt: ts('paid_at'),
+  chargeId: uuid('charge_id'),
+  createdAt: createdAt(),
+});
+
+export const insuranceClaims = pgTable('insurance_claims', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  batchId: uuid('batch_id').notNull(),
+  appointmentId: uuid('appointment_id').notNull(),
+  billedCents: integer('billed_cents').notNull(),
+  paidCents: integer('paid_cents'),
+  glosaReason: text('glosa_reason').notNull().default(''),
+  rebillOf: uuid('rebill_of'),
+});
+
+// ---------------------------------------------------------------- NFS-e
+
+export const clinicFiscal = pgTable('clinic_fiscal', {
+  tenantId: uuid('tenant_id').primaryKey(),
+  environment: text('environment', { enum: ['homologacao', 'producao'] })
+    .notNull()
+    .default('homologacao'),
+  token: text('token').notNull(),
+  standard: text('standard', { enum: ['nacional', 'municipal'] })
+    .notNull()
+    .default('nacional'),
+  cnpj: text('cnpj').notNull(),
+  municipalRegistration: text('municipal_registration').notNull().default(''),
+  cityCode: text('city_code').notNull(),
+  serviceCode: text('service_code').notNull(),
+  municipalServiceCode: text('municipal_service_code').notNull().default(''),
+  issRate: numeric('iss_rate', { precision: 5, scale: 2, mode: 'number' }).notNull().default(0),
+  simplesOption: smallint('simples_option').notNull().default(3),
+  description: text('description').notNull().default('Serviços de saúde'),
+  autoEmit: boolean('auto_emit').notNull().default(false),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+export const nfseStatus = pgEnum('nfse_status', ['emitting', 'authorized', 'error', 'cancelled']);
+
+export const serviceInvoices = pgTable('service_invoices', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  chargeId: uuid('charge_id').notNull(),
+  ref: text('ref').notNull(),
+  environment: text('environment', { enum: ['homologacao', 'producao'] }).notNull(),
+  status: nfseStatus('status').notNull().default('emitting'),
+  amountCents: integer('amount_cents').notNull(),
+  number: text('number'),
+  verificationCode: text('verification_code'),
+  url: text('url'),
+  message: text('message'),
+  createdAt: createdAt(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
 });

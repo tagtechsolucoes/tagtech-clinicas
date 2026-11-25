@@ -64,6 +64,13 @@ const clinicSchema = nonEmpty({
   accentColor: color,
   displayFont: z.enum(DISPLAY_FONTS),
   bookingEnabled: z.boolean(),
+  legalName: z.string().trim().max(160),
+  // CNPJ da clínica ou CPF do profissional autônomo (só números).
+  document: z
+    .string()
+    .transform((v) => v.replace(/\D/g, ''))
+    .refine((v) => v === '' || v.length === 11 || v.length === 14, 'Informe CNPJ ou CPF'),
+  insuranceEnabled: z.boolean(),
   minNoticeMinutes: z.number().int().min(0).max(10080),
   horizonDays: z.number().int().min(1).max(365),
   slotStepMinutes: z.union([

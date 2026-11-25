@@ -29,6 +29,9 @@ import { PlansService } from './finance/plans.service';
 import { ResultsService } from './results/results.service';
 import { StockController } from './stock/stock.controller';
 import { StockService } from './stock/stock.service';
+import { InsuranceController } from './insurance/insurance.controller';
+import { InsuranceService } from './insurance/insurance.service';
+import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
 
 @Module({
   imports: [DbModule],
@@ -47,6 +50,7 @@ import { StockService } from './stock/stock.service';
     FinanceController,
     PublicFinanceController,
     StockController,
+    InsuranceController,
     MediaController,
   ],
   providers: [
@@ -67,6 +71,9 @@ import { StockService } from './stock/stock.service';
     PlansService,
     StockService,
     ResultsService,
+    InsuranceService,
+    NfseService,
+    { provide: FOCUS_HTTP, useValue: (...a: Parameters<typeof fetch>) => fetch(...a) },
     { provide: WHATSAPP_HTTP, useValue: (...a: Parameters<typeof fetch>) => fetch(...a) },
     { provide: MEDIA_DIR, useFactory: defaultMediaDir },
     {

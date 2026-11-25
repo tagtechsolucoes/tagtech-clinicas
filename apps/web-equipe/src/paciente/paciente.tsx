@@ -8,13 +8,14 @@ import { Avatar, Botao, Icone, STATUS_ESTILO } from '../ui';
 import { Fotos } from './fotos';
 import { Odontograma } from './odontograma';
 import { Orcamentos } from './orcamentos';
+import { Convenio } from './convenio';
 import { Prontuario } from './prontuario';
 
-type Aba = 'prontuario' | 'odontograma' | 'fotos' | 'orcamentos' | 'consultas';
+type Aba = 'prontuario' | 'odontograma' | 'fotos' | 'orcamentos' | 'convenio' | 'consultas';
 
 /** Página do paciente: dados, prontuário, odontograma, fotos e consultas. */
 export function PacienteTela({ id }: { id: string }) {
-  const { vinculo, professionals, avisar } = usePainel();
+  const { vinculo, professionals, avisar, clinic } = usePainel();
   const clinico = vinculo.role !== 'reception';
   const temOdonto = professionals.some((p) => p.recordKind === 'odonto');
   const abas: Array<[Aba, string]> = [
@@ -22,6 +23,7 @@ export function PacienteTela({ id }: { id: string }) {
     ...(clinico && temOdonto ? ([['odontograma', 'Odontograma']] as Array<[Aba, string]>) : []),
     ...(clinico ? ([['fotos', 'Fotos']] as Array<[Aba, string]>) : []),
     ['orcamentos', 'Orçamentos'],
+    ...(clinic.insuranceEnabled ? ([['convenio', 'Convênio']] as Array<[Aba, string]>) : []),
     ['consultas', 'Consultas'],
   ];
   const [aba, setAba] = useState<Aba>(abas[0]![0]);
@@ -103,6 +105,7 @@ export function PacienteTela({ id }: { id: string }) {
       {aba === 'prontuario' ? <Prontuario patientId={p.id} /> : null}
       {aba === 'odontograma' ? <Odontograma patientId={p.id} /> : null}
       {aba === 'fotos' ? <Fotos patientId={p.id} /> : null}
+      {aba === 'convenio' ? <Convenio patientId={p.id} /> : null}
       {aba === 'orcamentos' ? <Orcamentos patientId={p.id} telefone={p.phone} /> : null}
       {aba === 'consultas' ? (
         p.appointments?.length ? (

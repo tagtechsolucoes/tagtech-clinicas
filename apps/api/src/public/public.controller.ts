@@ -43,6 +43,13 @@ const bookSchema = z
       .optional(),
     birthDate: birthDateField.optional(),
     notes: z.string().trim().max(500).optional(),
+    insurance: z
+      .object({
+        insurerId: uuid,
+        cardNumber: z.string().trim().min(3, 'Informe o número da carteirinha').max(30),
+      })
+      .strict()
+      .optional(),
     // Aceite do uso dos dados para o agendamento (LGPD). Sem ele, não agenda.
     consent: z.literal(true, {
       errorMap: () => ({ message: 'Aceite o uso dos dados para agendar' }),

@@ -206,6 +206,12 @@ export class FinanceController {
     return this.finance.chargePix(ctx, validate(uuid, id));
   }
 
+  @Get('finance/charges/:id/receipt')
+  @Roles('owner', 'manager', 'reception')
+  receipt(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.finance.receipt(ctx, validate(uuid, id));
+  }
+
   @Get('finance/cashbox')
   @Roles('owner', 'manager', 'reception')
   cashbox(@CurrentTenant() ctx: TenantContext, @Query('day') day: string) {

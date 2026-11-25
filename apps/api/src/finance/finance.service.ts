@@ -15,6 +15,7 @@ import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
+import { NfseService } from '../nfse/nfse.service';
 import { fakePixAllowed, FakePix, MercadoPagoPix, PixProviderError, type PixProvider } from './pix';
 
 const {
@@ -87,7 +88,10 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger('Financeiro');
   private timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(@Inject(DbService) private readonly dbService: DbService) {}
+  constructor(
+    @Inject(DbService) private readonly dbService: DbService,
+    @Inject(NfseService) private readonly nfse: NfseService,
+  ) {}
 
   onModuleInit() {
     if (process.env.NODE_ENV === 'test') return;
@@ -179,8 +183,8 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Recebe (baixa) uma cobrança. */
-  payCharge(ctx: TenantContext, id: string, method: PayMethod, paidAt?: Date) {
-    return this.run(ctx, async (tx) => {
+  async payCharge(ctx: TenantContext, id: string, method: PayMethod, paidAt?: Date) {
+    const view = await this.run(ctx, async (tx) => {
       const [c] = await tx.select().from(charges).where(eq(charges.id, id)).for('update');
       if (!c) throw new NotFoundException('Cobrança não encontrada');
       if (c.status !== 'open') throw new ConflictException('Esta cobrança não está em aberto');
@@ -191,6 +195,8 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
         .returning();
       return chargeView(row!);
     });
+    this.nfse.autoEmit(ctx.tenantId, id);
+    return view;
   }
 
   cancelCharge(ctx: TenantContext, id: string) {
@@ -215,6 +221,57 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
         .returning();
       if (!row) throw new ConflictException('Só dá para estornar cobrança recebida');
       return chargeView(row);
+    });
+  }
+
+  /** Recibo de um recebimento (o paciente usa para pedir reembolso ao plano). */
+  receipt(ctx: TenantContext, id: string) {
+    return this.run(ctx, async (tx) => {
+      const [c] = await tx.select().from(charges).where(eq(charges.id, id));
+      if (!c) throw new NotFoundException('Cobrança não encontrada');
+      if (c.status !== 'paid') throw new ConflictException('Recibo só de valor recebido');
+      const [t] = await tx.select().from(tenants);
+      const [u] = await tx.select().from(units).orderBy(asc(units.createdAt)).limit(1);
+      const [p] = c.patientId
+        ? await tx.select().from(patients).where(eq(patients.id, c.patientId))
+        : [undefined];
+      let atendimento: {
+        date: string;
+        serviceName: string;
+        professionalName: string;
+        council: string;
+      } | null = null;
+      if (c.appointmentId) {
+        const [a] = await tx
+          .select({ a: appointments, s: schema.services.name, pr: schema.professionals })
+          .from(appointments)
+          .innerJoin(schema.services, eq(schema.services.id, appointments.serviceId))
+          .innerJoin(schema.professionals, eq(schema.professionals.id, appointments.professionalId))
+          .where(eq(appointments.id, c.appointmentId));
+        if (a)
+          atendimento = {
+            date: localClock(a.a.startsAt, u?.timezone ?? 'America/Sao_Paulo').ymd,
+            serviceName: a.s,
+            professionalName: a.pr.name,
+            council: a.pr.council,
+          };
+      }
+      return {
+        number: c.id.slice(0, 8).toUpperCase(),
+        clinic: {
+          name: t!.name,
+          legalName: t!.legalName,
+          document: t!.document,
+          address: u?.address ?? '',
+          phone: u?.phone ?? '',
+        },
+        patient: p ? { name: p.name, cpf: p.cpf } : null,
+        description: c.description,
+        amountCents: c.amountCents,
+        method: c.method,
+        paidAt: c.paidAt!.toISOString(),
+        appointment: atendimento,
+      };
     });
   }
 
@@ -490,7 +547,8 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
   async checkPix(pixId: string): Promise<{ status: string }> {
     const tenantId = await resolvePixPayment(this.dbService.db, pixId);
     if (!tenantId) throw new NotFoundException();
-    return withTenant(this.dbService.db, tenantId, async (tx) => {
+    let emitir = null as string | null;
+    const out = await withTenant(this.dbService.db, tenantId, async (tx) => {
       const [p] = await tx
         .select()
         .from(pixPayments)
@@ -510,13 +568,17 @@ export class FinanceService implements OnModuleInit, OnModuleDestroy {
         .set({ status: r.status, updatedAt: new Date() })
         .where(eq(pixPayments.id, pixId));
       if (r.status === 'approved') {
-        await tx
+        const baixou = await tx
           .update(charges)
           .set({ status: 'paid', method: 'pix', paidAt: new Date() })
-          .where(and(eq(charges.id, p.chargeId), eq(charges.status, 'open')));
+          .where(and(eq(charges.id, p.chargeId), eq(charges.status, 'open')))
+          .returning({ id: charges.id });
+        if (baixou.length) emitir = p.chargeId;
       }
       return { status: r.status };
     });
+    if (emitir) this.nfse.autoEmit(tenantId, emitir);
+    return out;
   }
 
   /** Pix de teste: aprova na hora (só fora de produção). */

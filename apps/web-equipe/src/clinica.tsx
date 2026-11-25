@@ -49,6 +49,9 @@ export function ClinicaTela() {
     minNoticeMinutes: clinic.booking.minNoticeMinutes,
     horizonDays: clinic.booking.horizonDays,
     slotStepMinutes: clinic.booking.slotStepMinutes,
+    legalName: clinic.legalName,
+    document: clinic.document,
+    insuranceEnabled: clinic.insuranceEnabled,
   });
   const [endereco, setEndereco] = useState(unidade?.address ?? '');
   const [sala, setSala] = useState('');
@@ -61,7 +64,10 @@ export function ClinicaTela() {
   async function salvar() {
     setSalvando(true);
     try {
-      setClinic({ ...(await api.updateClinic(d)), units: clinic.units });
+      setClinic({
+        ...(await api.updateClinic({ ...d, document: d.document.replace(/\D/g, '') })),
+        units: clinic.units,
+      });
       if (unidade && endereco !== unidade.address)
         await api.updateUnit(unidade.id, { address: endereco });
       await recarregar();
@@ -302,6 +308,34 @@ export function ClinicaTela() {
             </Seletor>
           </Campo>
         </div>
+      </Secao>
+
+      <Secao
+        titulo="Dados fiscais e convênios"
+        descricao="Razão social e CNPJ saem no recibo e na nota. Não aparecem no site."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo rotulo="Razão social (ou nome do profissional)">
+            <Entrada
+              value={d.legalName}
+              maxLength={160}
+              onChange={(e) => setD({ ...d, legalName: e.target.value })}
+            />
+          </Campo>
+          <Campo rotulo="CNPJ ou CPF">
+            <Entrada
+              inputMode="numeric"
+              value={d.document}
+              onChange={(e) => setD({ ...d, document: e.target.value })}
+            />
+          </Campo>
+        </div>
+        <Interruptor
+          ligado={d.insuranceEnabled}
+          aoMudar={(v) => setD({ ...d, insuranceEnabled: v })}
+          rotulo="Atende convênio"
+          descricao="Liga carteirinha, guias, tabela por plano e faturamento com XML TISS. Quem atende só particular deixa desligado."
+        />
       </Secao>
 
       <Secao
