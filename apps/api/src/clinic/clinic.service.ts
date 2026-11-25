@@ -9,6 +9,7 @@ import { DbService } from '../db/db.module';
 import { MediaService } from '../media/media.service';
 
 const {
+  memberships,
   tenants,
   units,
   rooms,
@@ -260,8 +261,19 @@ export class ClinicService {
     return this.run(ctx, (tx) => loadProfessionals(tx));
   }
 
+  /** O vínculo do profissional tem que ser de alguém desta clínica (o RLS não cobre a FK). */
+  private async assertMembership(tx: TenantTx, membershipId: string | null | undefined) {
+    if (!membershipId) return;
+    const [m] = await tx
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(eq(memberships.id, membershipId));
+    if (!m) throw new NotFoundException('Pessoa da equipe não encontrada');
+  }
+
   createProfessional(ctx: TenantContext, input: ProfessionalInput) {
     return this.run(ctx, async (tx) => {
+      await this.assertMembership(tx, input.membershipId);
       const [{ n } = { n: 0 }] = await tx
         .select({ n: professionals.position })
         .from(professionals)
@@ -288,6 +300,7 @@ export class ClinicService {
 
   updateProfessional(ctx: TenantContext, id: string, input: Patch<ProfessionalInput>) {
     return this.run(ctx, async (tx) => {
+      await this.assertMembership(tx, input.membershipId);
       const [row] = await tx
         .update(professionals)
         .set(defined({ ...input }))

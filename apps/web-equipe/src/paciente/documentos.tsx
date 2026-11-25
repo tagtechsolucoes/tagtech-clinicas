@@ -125,9 +125,11 @@ ${corpo(d)}
 <p class="local">${esc(d.clinic.city || '')}${d.clinic.city ? ', ' : ''}${extenso(dia)}.</p>
 <div class="ass"><strong>${esc(d.professional.name)}</strong><span>${esc(d.professional.council)}</span></div>
 <footer>${esc(d.clinic.legalName || d.clinic.name)}${d.clinic.address ? ` · ${esc(d.clinic.address)}` : ''}${d.clinic.phone ? ` · ${esc(formatPhoneBR(d.clinic.phone))}` : ''}</footer>
-<button onclick="print()">Imprimir ou salvar PDF</button>
+<button id="imprimir">Imprimir ou salvar PDF</button>
 </body></html>`);
     janela?.document.close();
+    // Sem onclick inline: a política de segurança do painel bloqueia script inline.
+    janela?.document.getElementById('imprimir')?.addEventListener('click', () => janela.print());
   } catch (e) {
     janela?.close();
     avisar(mensagem(e), 'erro');
@@ -214,7 +216,6 @@ function Emitir({
   aoEmitir: (d: ClinicalDocument) => void;
 }) {
   const { avisar, vinculo, professionals } = usePainel();
-  const [pro, setPro] = useState('');
   const [itens, setItens] = useState([{ name: '', dosage: '', instructions: '', quantity: '' }]);
   const [controlado, setControlado] = useState(false);
   const [dias, setDias] = useState(1);
@@ -286,7 +287,6 @@ function Emitir({
         await api.createDocument(patientId, {
           kind: tipo,
           content: content[tipo],
-          ...(pro ? { professionalId: pro } : {}),
         }),
       );
     } catch (e) {
@@ -307,20 +307,9 @@ function Emitir({
       }
     >
       <div className="space-y-5">
-        {vinculo.role !== 'professional' ? (
-          <Campo rotulo="Profissional que assina">
-            <Seletor value={pro} onChange={(e) => setPro(e.target.value)}>
-              <option value="">Escolha…</option>
-              {professionals
-                .filter((p) => p.active)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-            </Seletor>
-          </Campo>
-        ) : null}
+        <p className="rounded-xl bg-porcelana px-4 py-3 text-sm text-nevoa">
+          Sai assinado por você, com o seu conselho. Só quem tem cadastro de profissional emite.
+        </p>
 
         {tipo === 'prescription' ? (
           <>

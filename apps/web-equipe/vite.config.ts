@@ -10,6 +10,8 @@ const proxy = {
   '/api': {
     target: API_URL,
     changeOrigin: true,
+    // Manda o host original (a API confere a origem das escritas com sessão).
+    xfwd: true,
     ws: true,
     rewrite: (path: string) => path.replace(/^\/api/, ''),
   },

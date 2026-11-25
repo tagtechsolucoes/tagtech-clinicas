@@ -1,5 +1,6 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { createDb, type DbHandle } from '@tagtech/db';
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { OWNER_URL } from '../../../packages/db/test/urls';
 import { createTestApp, deleteAccounts, signupAccount, type Account } from './helpers';
@@ -76,10 +77,12 @@ describe('teleconsulta', () => {
 describe('plano alimentar', () => {
   it('vira documento clínico', async () => {
     const pro = (await call('POST', '/professionals', { name: 'Nutri Bia' })).json();
+    // A dona também atende: liga o cadastro de profissional à conta dela.
+    await owner.db.execute(sql`update professionals set membership_id =
+      (select id from memberships where user_id = ${a.userId}) where id = ${pro.id}`);
     const p = (await call('POST', '/patients', { name: 'Caio Reis', phone: '81966665555' })).json();
     const res = await call('POST', `/patients/${p.id}/documents`, {
       kind: 'meal_plan',
-      professionalId: pro.id,
       content: {
         meals: [
           {
@@ -93,5 +96,42 @@ describe('plano alimentar', () => {
     });
     expect(res.statusCode).toBe(201);
     expect(res.json().content.meals[0].items).toHaveLength(2);
+  });
+});
+
+describe('segurança', () => {
+  it('não liga profissional a pessoa de outra clínica', async () => {
+    const b = await signupAccount(app, 'EspOutra');
+    const [m] = (await owner.db.execute(
+      sql`select id from memberships where user_id = ${b.userId}`,
+    )) as unknown as Array<{ id: string }>;
+    const res = await call('POST', '/professionals', { name: 'Intruso', membershipId: m!.id });
+    expect(res.statusCode).toBe(404);
+    await deleteAccounts(owner.db, [b]);
+  });
+
+  it('escrita com sessão vinda de outra origem é barrada', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/patients',
+      headers: {
+        cookie: a.cookie,
+        origin: 'https://site.exemplo.com.br',
+        host: 'app.exemplo.com.br',
+      },
+      payload: { name: 'Teste Origem', phone: '81911112222' },
+    });
+    expect(res.statusCode).toBe(403);
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/patients',
+      headers: {
+        cookie: a.cookie,
+        origin: 'https://app.exemplo.com.br',
+        host: 'app.exemplo.com.br',
+      },
+      payload: { name: 'Teste Origem', phone: '81911112222' },
+    });
+    expect(ok.statusCode).toBe(201);
   });
 });

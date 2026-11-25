@@ -115,10 +115,10 @@ describe('documentos clínicos', () => {
   });
 
   it('atestado com CID só com autorização do paciente; conteúdo fechado', async () => {
-    const base = { kind: 'certificate', professionalId: ana.id };
+    const base = { kind: 'certificate' };
     expect(
       (
-        await as(a.cookie, 'POST', `/patients/${paciente}/documents`, {
+        await as(dra.cookie, 'POST', `/patients/${paciente}/documents`, {
           ...base,
           content: { days: 2, from: '2026-11-25', cid: 'K08.8' },
         })
@@ -126,7 +126,7 @@ describe('documentos clínicos', () => {
     ).toBe(400);
     expect(
       (
-        await as(a.cookie, 'POST', `/patients/${paciente}/documents`, {
+        await as(dra.cookie, 'POST', `/patients/${paciente}/documents`, {
           ...base,
           content: { days: 2, from: '2026-11-25', cid: 'K08.8', patientAllowedCid: true },
         })
@@ -134,12 +134,19 @@ describe('documentos clínicos', () => {
     ).toBe(201);
     expect(
       (
-        await as(a.cookie, 'POST', `/patients/${paciente}/documents`, {
+        await as(dra.cookie, 'POST', `/patients/${paciente}/documents`, {
           ...base,
           content: { days: 2, from: '2026-11-25', html: '<script>' },
         })
       ).statusCode,
     ).toBe(400);
+    // Dono sem cadastro de profissional não assina por ninguém.
+    const porOutro = await as(a.cookie, 'POST', `/patients/${paciente}/documents`, {
+      kind: 'declaration',
+      professionalId: ana.id,
+      content: { date: '2026-11-25', start: '08:00', end: '09:00' },
+    });
+    expect(porOutro.statusCode).toBe(400);
     const lista = (await as(a.cookie, 'GET', `/patients/${paciente}/documents`)).json();
     expect(lista.map((d: { kind: string }) => d.kind)).toEqual(['certificate', 'prescription']);
   });

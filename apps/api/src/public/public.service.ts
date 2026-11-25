@@ -314,9 +314,9 @@ export class PublicService {
         await tx
           .insert(patientInsurances)
           .values({ tenantId: tenant.id, patientId: patient.id, insurerId: plano.id, ...cartao })
-          .onConflictDoUpdate({
+          // Pelo site não se troca carteirinha já cadastrada (quem agenda não prova quem é).
+          .onConflictDoNothing({
             target: [patientInsurances.patientId, patientInsurances.insurerId],
-            set: { cardNumber: cartao.cardNumber },
           });
         await applyInsurance(tx, row!.id, plano.id, null);
       }

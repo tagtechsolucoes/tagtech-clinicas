@@ -399,6 +399,7 @@ export class RelationshipService implements OnModuleInit, OnModuleDestroy {
       if (o.expiresAt.getTime() <= Date.now())
         throw new ConflictException('O prazo para ficar com este horário acabou.');
       const [w] = await tx.select().from(waitlist).where(eq(waitlist.id, o.waitlistId));
+      if (!w) throw new GoneException('Este link não vale mais.');
       const [s] = await tx.select().from(services).where(eq(services.id, o.serviceId));
       const [src] = await tx
         .select()
