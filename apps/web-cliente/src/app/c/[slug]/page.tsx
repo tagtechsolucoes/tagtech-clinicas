@@ -203,7 +203,7 @@ export default async function Page({ params, searchParams }: Props) {
 
       {/* Abertura */}
       <section className="fundo-topo relative -mt-20 overflow-hidden pt-32 pb-14 sm:pt-36 lg:pb-20">
-        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[1.08fr_0.92fr]">
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-5 sm:px-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
           <div>
             <p className="flex flex-wrap items-center gap-3 text-[0.9rem] font-semibold text-marca">
               {unico ? (
@@ -466,7 +466,7 @@ export default async function Page({ params, searchParams }: Props) {
           className="absolute -top-40 -right-40 h-[30rem] w-[30rem] rounded-full border border-white/10"
           aria-hidden
         />
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+        <div className="relative mx-auto grid max-w-6xl gap-12 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
           <div className="lg:pt-4">
             <Titulo
               rotulo="Agendamento online"
@@ -566,7 +566,7 @@ export default async function Page({ params, searchParams }: Props) {
         <section id="equipe" className="scroll-mt-24 py-20 sm:py-28">
           <div className="mx-auto max-w-6xl px-5 sm:px-8">
             {unico ? (
-              <div className="grid items-stretch gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+              <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
                 <div className="arco relative aspect-[4/5] overflow-hidden lg:aspect-auto">
                   {unico.photoUrl ? (
                     <img
