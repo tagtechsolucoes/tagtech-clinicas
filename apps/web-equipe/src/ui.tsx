@@ -311,6 +311,8 @@ const PATHS: Record<string, string> = {
   recibo: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3',
   copiar: 'M9 9h10v11H9zM5 15V4h10',
   enviar: 'M21 3L10 14M21 3l-7 18-4-7-7-4z',
+  caixa: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8',
+  grafico: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
 };
 

@@ -1,3 +1,4 @@
+import { consumeForAppointment, returnForAppointment } from '../stock/stock.service';
 import {
   BadRequestException,
   ConflictException,
@@ -426,6 +427,10 @@ export class AgendaService {
         reason: reason?.trim() || null,
       });
       changed = true;
+      // Estoque: finalizar tira o material da ficha; desfazer devolve.
+      if (status === 'done') await consumeForAppointment(tx, ctx.tenantId, id, ctx.user.userId);
+      else if (before.status === 'done')
+        await returnForAppointment(tx, ctx.tenantId, id, ctx.user.userId);
       if (status === 'cancelled') {
         await recordAudit(tx, ctx, {
           unitId: before.unitId,

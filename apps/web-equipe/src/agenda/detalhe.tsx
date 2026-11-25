@@ -10,7 +10,9 @@ import {
   ApiError,
   linkPaciente,
   type Appointment,
+  type AppointmentMaterial,
   type HistoryEvent,
+  type StockItem,
   type SentMessage,
   type Patient,
   type WaitlistEntry,
@@ -89,8 +91,22 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
   const [ocupado, setOcupado] = useState(false);
   const [espera, setEspera] = useState<WaitlistEntry[] | null>(null);
   const [notas, setNotas] = useState(a.notes);
+  const [materiais, setMateriais] = useState<AppointmentMaterial[]>([]);
+  const [itens, setItens] = useState<StockItem[]>([]);
+  const [extra, setExtra] = useState({ itemId: '', qty: '1' });
+  const podeLancar = vinculo.role !== 'reception';
 
   useEffect(() => {
+    if (['arrived', 'in_progress', 'done'].includes(a.status)) {
+      api
+        .appointmentMaterials(a.id)
+        .then(setMateriais)
+        .catch(() => {});
+      api
+        .stock()
+        .then(setItens)
+        .catch(() => {});
+    } else setMateriais([]);
     api
       .history(a.id)
       .then(setHistorico)
@@ -281,6 +297,82 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
           </Botao>
         ) : null}
       </section>
+
+      {['arrived', 'in_progress', 'done'].includes(a.status) &&
+      (materiais.length || itens.length) ? (
+        <section>
+          <h3 className="mb-3 text-sm font-semibold text-nevoa">Materiais usados</h3>
+          {materiais.length ? (
+            <ul className="space-y-1.5 text-sm">
+              {materiais.map((m) => (
+                <li key={m.id} className="flex items-center gap-2">
+                  <span
+                    className={`w-16 text-right font-semibold tabular-nums ${m.qty > 0 ? 'text-ok' : ''}`}
+                  >
+                    {m.qty > 0 ? '+' : ''}
+                    {String(Math.abs(m.qty)).replace('.', ',')}
+                  </span>
+                  <span className="flex-1">
+                    {m.name} <span className="text-nevoa">{m.unit}</span>
+                    {m.qty > 0 ? <span className="text-nevoa"> · devolvido</span> : null}
+                  </span>
+                  {m.lot ? <span className="text-xs text-nevoa">lote {m.lot}</span> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-nevoa">
+              {a.status === 'done'
+                ? 'Nenhum material lançado.'
+                : 'Saem da ficha do serviço ao finalizar.'}
+            </p>
+          )}
+          {podeLancar && itens.length ? (
+            <div className="mt-3 flex gap-2">
+              <Seletor
+                aria-label="Material a mais"
+                value={extra.itemId}
+                onChange={(e) => setExtra({ ...extra, itemId: e.target.value })}
+              >
+                <option value="">Usou material a mais?</option>
+                {itens.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name} ({i.unit})
+                  </option>
+                ))}
+              </Seletor>
+              <span className="block w-20 shrink-0">
+                <Entrada
+                  aria-label="Quantidade"
+                  inputMode="decimal"
+                  value={extra.qty}
+                  onChange={(e) => setExtra({ ...extra, qty: e.target.value })}
+                  className="text-right"
+                />
+              </span>
+              <Botao
+                disabled={!extra.itemId}
+                onClick={async () => {
+                  try {
+                    setMateriais(
+                      await api.addAppointmentMaterial(
+                        a.id,
+                        extra.itemId,
+                        Number(extra.qty.replace(',', '.')) || 1,
+                      ),
+                    );
+                    setExtra({ itemId: '', qty: '1' });
+                  } catch (e) {
+                    avisar(mensagem(e), 'erro');
+                  }
+                }}
+              >
+                Lançar
+              </Botao>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {mensagens.length ? (
         <section>
