@@ -143,8 +143,8 @@ export function Agenda() {
   const titulo = visao === 'dia' ? diaLongo(dia) : `${diaCurto(dias[0]!)} a ${diaCurto(dias[6]!)}`;
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col">
-      <header className="border-b border-linha bg-folha/90 px-5 pt-6 pb-4 backdrop-blur lg:px-8">
+    <div className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col lg:h-dvh">
+      <header className="border-b border-linha bg-folha/90 px-4 pt-3 pb-3 backdrop-blur sm:px-5 sm:pt-6 sm:pb-4 lg:px-8">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <div className="flex items-center gap-1">
             <button
@@ -164,7 +164,7 @@ export function Agenda() {
               <Icone nome="direita" />
             </button>
           </div>
-          <h1 className="min-w-0 text-[1.9rem] leading-none font-medium first-letter:uppercase">
+          <h1 className="min-w-0 text-[1.45rem] leading-none font-medium first-letter:uppercase sm:text-[1.9rem]">
             {titulo}
           </h1>
           {dia !== hoje() ? (
@@ -172,7 +172,7 @@ export function Agenda() {
               Hoje
             </Botao>
           ) : null}
-          <label className="relative">
+          <label className="relative hidden sm:block">
             <span className="sr-only">Escolher data</span>
             <input
               type="date"
@@ -181,7 +181,7 @@ export function Agenda() {
               className="h-9 rounded-lg bg-porcelana px-2.5 text-sm text-nevoa ring-1 ring-linha"
             />
           </label>
-          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+          <div className="flex w-full items-center gap-2.5 sm:ml-auto sm:w-auto">
             <div role="group" aria-label="Visão" className="flex rounded-xl bg-trilho p-1">
               {(['dia', 'semana'] as const).map((v) => (
                 <button
@@ -212,17 +212,21 @@ export function Agenda() {
                 ))}
               </select>
             ) : null}
-            <Botao onClick={() => setBloquear(true)}>
+            <Botao onClick={() => setBloquear(true)} aria-label="Bloquear horário">
               <Icone nome="bloqueio" className="h-4 w-4" />
-              Bloquear
+              <span className="hidden sm:inline">Bloquear</span>
             </Botao>
-            <Botao variante="principal" onClick={() => setNovo({ dia })}>
+            <Botao
+              variante="principal"
+              className="ml-auto sm:ml-0"
+              onClick={() => setNovo({ dia })}
+            >
               <Icone nome="mais" className="h-4 w-4" />
               Agendar
             </Botao>
           </div>
         </div>
-        <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm sm:mt-4 sm:gap-x-6">
           <Numero rotulo={resumo.total === 1 ? 'consulta' : 'consultas'} valor={resumo.total} />
           <Numero rotulo="confirmadas" valor={resumo.confirmadas} cor="text-ok" />
           <Numero

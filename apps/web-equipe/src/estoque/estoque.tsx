@@ -67,16 +67,18 @@ export function EstoqueTela() {
       />
 
       {faltas.length ? (
-        <section className="mb-8 overflow-hidden rounded-3xl bg-alerta text-white">
+        <section className="mb-8 overflow-hidden rounded-3xl bg-alerta-fundo text-alerta ring-1 ring-alerta/20">
           <div className="flex flex-wrap items-center gap-4 px-6 py-5">
-            <Icone nome="alerta" className="h-6 w-6 shrink-0" />
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-alerta text-white">
+              <Icone nome="alerta" className="h-5 w-5" />
+            </span>
             <div className="min-w-0 flex-1">
               <p className="font-display text-xl">
                 {faltas.length === 1
                   ? '1 material vai faltar para a agenda'
                   : `${faltas.length} materiais vão faltar para a agenda`}
               </p>
-              <p className="mt-0.5 text-sm text-white/80">
+              <p className="mt-0.5 text-sm text-tinta/70">
                 {faltas
                   .slice(0, 3)
                   .map((f) => f.name)
@@ -84,7 +86,7 @@ export function EstoqueTela() {
                 {faltas.length > 3 ? ` e mais ${faltas.length - 3}` : ''}
               </p>
             </div>
-            <Botao variante="destaque" onClick={() => setAba('compras')}>
+            <Botao variante="principal" onClick={() => setAba('compras')}>
               Ver lista de compras
             </Botao>
           </div>

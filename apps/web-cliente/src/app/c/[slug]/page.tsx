@@ -76,10 +76,10 @@ export default async function Page({ params, searchParams }: Props) {
           <h1 className="mt-14 max-w-3xl text-[2.7rem] leading-[1.03] font-medium sm:text-[3.6rem]">
             {c.tagline || c.name}
           </h1>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap gap-2.5 sm:gap-3">
             <a
               href="#agendar"
-              className="inline-flex h-12 items-center rounded-2xl bg-destaque px-6 font-semibold text-sobre-destaque hover:bg-destaque-forte"
+              className="inline-flex h-12 items-center rounded-2xl bg-destaque px-5 font-semibold text-sobre-destaque hover:bg-destaque-forte"
             >
               Agendar horário
             </a>
@@ -88,7 +88,7 @@ export default async function Page({ params, searchParams }: Props) {
                 href={zap}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-12 items-center rounded-2xl px-5 font-semibold ring-1 ring-current/30 hover:ring-current/60"
+                className="inline-flex h-12 items-center rounded-2xl px-4 font-semibold sm:px-5 ring-1 ring-current/30 hover:ring-current/60"
               >
                 Falar no WhatsApp
               </a>
