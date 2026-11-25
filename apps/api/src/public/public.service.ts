@@ -23,7 +23,7 @@ import { mapBookingError } from '../agenda/agenda.service';
 import { hashToken } from '../common/token';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { clinicView } from '../clinic/clinic.service';
-import { loadProfessionals, loadServices } from '../clinic/clinic.service';
+import { loadProfessionals, loadServices, loadSitePhotos } from '../clinic/clinic.service';
 import { findOrCreatePatient } from '../patients/patients.service';
 import { FinanceService } from '../finance/finance.service';
 import { RelationshipService } from '../relationship/relationship.service';
@@ -112,6 +112,7 @@ export class PublicService {
         : [];
       return {
         ...view,
+        photos: await loadSitePhotos(tx),
         insurers: planos,
         booking: {
           enabled: booking.enabled,

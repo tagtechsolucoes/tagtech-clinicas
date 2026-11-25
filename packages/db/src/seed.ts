@@ -39,6 +39,98 @@ const DEMO_EMAIL = 'dono@demo.tagtech';
 const DEMO_PASSWORD_HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$1XGMDAnyNTnQDt1EUNZZRg$uoCQDV1EAfhZXjj+EPB4ghYTjgKVVHk9rcpORsB4aog';
 const SLUG = 'clinica-aurora';
+/** Conteúdo do site da demonstração. Depoimentos e nota só na clínica fictícia. */
+const SITE_BASE = {
+  stats: [
+    { value: '12 anos', label: 'de consultório' },
+    { value: '+2.400', label: 'pacientes atendidos' },
+    { value: '1 dentista', label: 'do início ao fim do tratamento' },
+  ],
+  highlights: [
+    {
+      title: 'Hora marcada de verdade',
+      text: 'Atrasos acima de 10 minutos são avisados pelo WhatsApp.',
+    },
+    {
+      title: 'Biossegurança completa',
+      text: 'Instrumentais esterilizados em autoclave, kits abertos na sua frente.',
+    },
+    { title: 'Orçamento por escrito', text: 'Você aprova cada etapa e o valor antes de começar.' },
+    {
+      title: 'Conforto do início ao fim',
+      text: 'Anestesia com gel tópico e pausas sempre que você precisar.',
+    },
+  ],
+  faq: [
+    {
+      question: 'Preciso marcar uma avaliação antes do tratamento?',
+      answer:
+        'Sim. Na avaliação a dentista examina, tira fotos e entrega o plano de tratamento com valores por escrito. Se você estiver com dor, o atendimento de urgência começa na mesma consulta.',
+    },
+    {
+      question: 'Vocês aceitam plano odontológico?',
+      answer:
+        'Sim, os planos aceitos estão na seção de pagamento. Para os demais, emitimos nota e relatório para pedir reembolso.',
+    },
+    {
+      question: 'O clareamento deixa os dentes sensíveis?',
+      answer:
+        'Pode haver uma sensibilidade leve nos primeiros dias. Usamos gel dessensibilizante antes e depois de cada sessão.',
+    },
+    {
+      question: 'Posso remarcar meu horário?',
+      answer:
+        'Pode, sem custo, com até 24 horas de antecedência, pelo próprio link que chega no WhatsApp.',
+    },
+    {
+      question: 'Quanto tempo dura cada consulta?',
+      answer:
+        'Depende do procedimento: a duração média aparece ao lado de cada serviço na lista de valores.',
+    },
+  ],
+  testimonials: [] as Array<{ name: string; text: string; service: string }>,
+  rating: null as { value: number; count: number } | null,
+  payments: {
+    pix: true,
+    credit: true,
+    debit: true,
+    cash: false,
+    pixDiscountPct: 5,
+    installments: 12,
+    note: 'Seu plano não está na lista? Emitimos nota e relatório para você pedir reembolso.',
+  },
+  hours: [
+    { days: 'Segunda a sexta', hours: '8h às 19h' },
+    { days: 'Sábado', hours: '8h às 12h' },
+  ],
+  arrival: [
+    'Estacionamento conveniado no prédio',
+    'Fácil acesso por ônibus e aplicativo',
+    'Prédio com acessibilidade',
+  ],
+};
+const SITE_DEMO = {
+  ...SITE_BASE,
+  rating: { value: 4.9, count: 312 },
+  testimonials: [
+    {
+      name: 'Mariana Costa',
+      text: 'Fiz o clareamento e o resultado ficou natural. A doutora mostrou a simulação antes e explicou cada etapa.',
+      service: 'Clareamento',
+    },
+    {
+      name: 'Rafael Nunes',
+      text: 'Tinha pavor de dentista e foi tranquilo. Atendimento no horário e retorno pelo WhatsApp no dia seguinte.',
+      service: 'Tratamento de canal',
+    },
+    {
+      name: 'Beatriz Almeida',
+      text: 'Consultório muito limpo e organizado. Recebi o orçamento por escrito e sem surpresa no final.',
+      service: 'Avaliação',
+    },
+  ],
+};
+
 const INTO = process.env.SEED_INTO?.trim() || '';
 // Na clínica de verdade, telefones de mentira (nunca de alguém): 55 81 90000-00NN.
 const fone = (real: string, i: number) =>
@@ -90,6 +182,9 @@ async function main() {
           tagline = coalesce(nullif(tagline, ''), 'Odontologia com hora marcada, sem sala de espera cheia'),
           about = coalesce(nullif(about, ''), 'Agenda enxuta, orçamento por escrito antes de começar e o mesmo profissional do começo ao fim do tratamento.')
         where id = ${tenantId}`);
+      await db.execute(
+        sql`update tenants set site = ${JSON.stringify(SITE_BASE)}::jsonb where id = ${tenantId} and site = '{}'::jsonb`,
+      );
       console.log(`Preenchendo "${t.name}" com dados de demonstração…`);
     } else {
       await db.delete(tenants).where(eq(tenants.slug, SLUG));
@@ -111,6 +206,7 @@ async function main() {
           brandPrimary: '#1d4e5f',
           brandAccent: '#e9a23b',
           displayFont: 'grotesca',
+          site: SITE_DEMO,
           bookingMinNoticeMinutes: 60,
           slotStepMinutes: 30,
         })

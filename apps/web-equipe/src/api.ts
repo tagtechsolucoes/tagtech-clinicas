@@ -5,6 +5,7 @@ import type {
   ClinicRole,
   RecordKind,
   ToothState,
+  SiteContent,
 } from '@tagtech/domain';
 
 export interface Membership {
@@ -40,6 +41,7 @@ export interface Clinic {
   instagram: string;
   logoUrl: string | null;
   coverUrl: string | null;
+  site: SiteContent;
   theme: BrandTheme;
   booking: {
     enabled: boolean;
@@ -51,6 +53,13 @@ export interface Clinic {
   legalName: string;
   document: string;
   insuranceEnabled: boolean;
+}
+
+export interface SitePhoto {
+  id: string;
+  url: string;
+  title: string;
+  caption: string;
 }
 
 export interface WorkHours {
@@ -909,6 +918,19 @@ export const api = {
   removeLogo: () => send<Clinic>('DELETE', '/clinic/logo'),
   setCover: (file: File) => imagem<Clinic>('/clinic/cover', file),
   removeCover: () => send<Clinic>('DELETE', '/clinic/cover'),
+  setSite: (site: SiteContent) => send<SiteContent>('PUT', '/clinic/site', site),
+  sitePhotos: () => send<SitePhoto[]>('GET', '/clinic/site-photos'),
+  addSitePhoto: async (file: File) => {
+    const corpo = await prepararImagem(file);
+    return request<SitePhoto[]>('/clinic/site-photos', {
+      method: 'POST',
+      body: corpo,
+      contentType: corpo.type,
+    });
+  },
+  updateSitePhoto: (id: string, patch: { title?: string; caption?: string; position?: number }) =>
+    send<SitePhoto[]>('PATCH', `/clinic/site-photos/${id}`, patch),
+  removeSitePhoto: (id: string) => send<SitePhoto[]>('DELETE', `/clinic/site-photos/${id}`),
   updateUnit: (id: string, patch: Partial<Omit<Unit, 'id'>>) =>
     send<Unit>('PATCH', `/units/${id}`, patch),
   rooms: () => request<Room[]>('/rooms'),

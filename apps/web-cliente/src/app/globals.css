@@ -88,3 +88,126 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------- site da clínica */
+
+/* Tons suaves da cor da clínica, para fundos e bordas. */
+:root {
+  --marca-nevoa: color-mix(in srgb, var(--color-marca) 7%, #f6f8f9);
+  --marca-borda: color-mix(in srgb, var(--color-marca) 22%, #dfe6ea);
+  --marca-grad: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-marca) 78%, white) 0%,
+    var(--color-marca) 55%,
+    var(--color-marca-fundo) 100%
+  );
+}
+
+/* Fundo do topo: linhas finas em elipse, como uma janela de consultório. */
+.fundo-topo {
+  background:
+    radial-gradient(
+      120% 80% at 85% 0%,
+      color-mix(in srgb, var(--color-marca) 12%, transparent),
+      transparent 60%
+    ),
+    var(--marca-nevoa);
+}
+.fundo-topo::after {
+  content: '';
+  position: absolute;
+  left: -12%;
+  bottom: 48px;
+  width: 72%;
+  height: 300px;
+  border: 1px solid var(--marca-borda);
+  border-radius: 50%;
+  transform: rotate(-6deg);
+  pointer-events: none;
+}
+
+.arco {
+  border-radius: 999px 999px 2rem 2rem;
+}
+
+/* Botão em pílula com o ícone num círculo branco. */
+.pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.45rem 0.45rem 0.45rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.pilula-cheia {
+  background: var(--marca-grad);
+  color: var(--color-sobre-marca);
+  box-shadow: 0 14px 28px -14px color-mix(in srgb, var(--color-marca-fundo) 80%, transparent);
+}
+.pilula-cheia:hover {
+  transform: translateY(-2px);
+}
+.pilula-vazia {
+  padding-right: 1.4rem;
+  background: rgb(255 255 255 / 0.75);
+  color: var(--color-marca);
+  box-shadow: inset 0 0 0 1px var(--marca-borda);
+}
+.pilula-vazia:hover {
+  background: white;
+}
+.pilula-icone {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 999px;
+  background: white;
+  color: var(--color-marca);
+}
+
+/* Faixa que corre com as especialidades. */
+@keyframes corre {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.faixa-corre {
+  animation: corre 40s linear infinite;
+}
+@keyframes gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.gira {
+  animation: gira 26s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .faixa-corre,
+  .gira {
+    animation: none;
+  }
+}
+
+.sem-barra {
+  scrollbar-width: none;
+}
+.sem-barra::-webkit-scrollbar {
+  display: none;
+}
+
+details.duvida > summary {
+  list-style: none;
+}
+details.duvida > summary::-webkit-details-marker {
+  display: none;
+}
+details.duvida[open] .duvida-icone {
+  transform: rotate(45deg);
+}

@@ -17,13 +17,15 @@ export function defaultMediaDir(): string {
   return process.env.MEDIA_DIR ?? join(repoRoot, '.data', 'media');
 }
 
-export type ImageKind = 'photo' | 'logo' | 'cover';
+export type ImageKind = 'photo' | 'logo' | 'cover' | 'space';
 
 const SIZES: Record<ImageKind, { width: number; height: number; fit: 'cover' | 'inside' }> = {
   // Foto de prato: quadrada, para a miniatura e o detalhe usarem o mesmo arquivo.
   photo: { width: 800, height: 800, fit: 'cover' },
   logo: { width: 512, height: 512, fit: 'cover' },
-  cover: { width: 1600, height: 900, fit: 'cover' },
+  // Capa e fotos do espaço mantêm o formato original; o site recorta conforme o lugar.
+  cover: { width: 1600, height: 1600, fit: 'inside' },
+  space: { width: 1200, height: 1200, fit: 'inside' },
 };
 
 /**

@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { pgError, schema, type TenantTx } from '@tagtech/db';
-import type { DisplayFont, RecordKind } from '@tagtech/domain';
+import { siteContent, type DisplayFont, type RecordKind, type SiteContent } from '@tagtech/domain';
 import { and, asc, eq, gt, inArray, lt } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { recordAudit } from '../audit/audit';
@@ -10,6 +10,7 @@ import { MediaService } from '../media/media.service';
 
 const {
   memberships,
+  sitePhotos,
   tenants,
   units,
   rooms,
@@ -33,6 +34,7 @@ export function clinicView(t: Tenant) {
     instagram: t.instagram,
     logoUrl: t.logoUrl,
     coverUrl: t.coverUrl,
+    site: siteContent(t.site),
     theme: { primaryColor: t.brandPrimary, accentColor: t.brandAccent, displayFont: t.displayFont },
     booking: {
       enabled: t.bookingEnabled,
@@ -191,6 +193,72 @@ export class ClinicService {
       await this.media.remove(url);
       throw error;
     }
+  }
+
+  // ------------------------------------------------------------ conteúdo do site
+
+  setSite(ctx: TenantContext, content: SiteContent) {
+    return this.run(ctx, async (tx) => {
+      const [tenant] = await tx
+        .update(tenants)
+        .set({ site: siteContent(content) as unknown as Record<string, unknown> })
+        .where(eq(tenants.id, ctx.tenantId))
+        .returning();
+      if (!tenant) throw new NotFoundException();
+      return clinicView(tenant).site;
+    });
+  }
+
+  listSitePhotos(ctx: TenantContext) {
+    return this.run(ctx, (tx) => loadSitePhotos(tx));
+  }
+
+  /** Foto nova do espaço; vai para o fim da lista. No máximo 12. */
+  async addSitePhoto(ctx: TenantContext, image: unknown) {
+    const url = await this.media.saveImage(image, 'space');
+    try {
+      return await this.run(ctx, async (tx) => {
+        const atuais = await tx.select({ position: sitePhotos.position }).from(sitePhotos);
+        if (atuais.length >= 12)
+          throw new ConflictException('O site mostra até 12 fotos do espaço');
+        const position = Math.max(-1, ...atuais.map((a) => a.position)) + 1;
+        await tx.insert(sitePhotos).values({ tenantId: ctx.tenantId, url, position });
+        return loadSitePhotos(tx);
+      });
+    } catch (error) {
+      await this.media.remove(url);
+      throw error;
+    }
+  }
+
+  updateSitePhoto(
+    ctx: TenantContext,
+    id: string,
+    patch: {
+      title?: string | undefined;
+      caption?: string | undefined;
+      position?: number | undefined;
+    },
+  ) {
+    return this.run(ctx, async (tx) => {
+      const [row] = await tx
+        .update(sitePhotos)
+        .set(defined({ ...patch }))
+        .where(eq(sitePhotos.id, id))
+        .returning({ id: sitePhotos.id });
+      if (!row) throw new NotFoundException('Foto não encontrada');
+      return loadSitePhotos(tx);
+    });
+  }
+
+  async removeSitePhoto(ctx: TenantContext, id: string) {
+    const { lista, url } = await this.run(ctx, async (tx) => {
+      const [row] = await tx.delete(sitePhotos).where(eq(sitePhotos.id, id)).returning();
+      if (!row) throw new NotFoundException('Foto não encontrada');
+      return { lista: await loadSitePhotos(tx), url: row.url };
+    });
+    await this.media.remove(url);
+    return lista;
   }
 
   // ------------------------------------------------------------ unidades e salas
@@ -598,4 +666,12 @@ export async function loadServices(tx: TenantTx, ids?: string[]) {
     active: s.active,
     professionalIds: links.filter((l) => l.serviceId === s.id).map((l) => l.professionalId),
   }));
+}
+
+export async function loadSitePhotos(tx: TenantTx) {
+  const rows = await tx
+    .select()
+    .from(sitePhotos)
+    .orderBy(asc(sitePhotos.position), asc(sitePhotos.createdAt));
+  return rows.map((r) => ({ id: r.id, url: r.url, title: r.title, caption: r.caption }));
 }
