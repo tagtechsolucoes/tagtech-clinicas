@@ -110,7 +110,7 @@ async function main() {
           instagram: 'clinica.aurora',
           brandPrimary: '#1d4e5f',
           brandAccent: '#e9a23b',
-          displayFont: 'serifada',
+          displayFont: 'grotesca',
           bookingMinNoticeMinutes: 60,
           slotStepMinutes: 30,
         })
