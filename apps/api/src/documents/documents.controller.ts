@@ -56,8 +56,32 @@ const examRequest = z
   })
   .strict();
 
+const mealPlan = z
+  .object({
+    meals: z
+      .array(
+        z
+          .object({
+            time: z
+              .string()
+              .regex(/^\d{2}:\d{2}$/, 'Horário inválido')
+              .or(z.literal(''))
+              .default(''),
+            name: texto(60).min(1, 'Dê um nome à refeição'),
+            items: z.array(texto(200).min(1)).min(1, 'Inclua ao menos um alimento').max(30),
+          })
+          .strict(),
+      )
+      .min(1, 'Inclua ao menos uma refeição')
+      .max(12),
+    water: texto(60).default(''),
+    notes: texto(1000).default(''),
+  })
+  .strict();
+
 const createSchema = z
   .discriminatedUnion('kind', [
+    z.object({ kind: z.literal('meal_plan'), content: mealPlan }),
     z.object({ kind: z.literal('prescription'), content: prescription }),
     z.object({ kind: z.literal('certificate'), content: certificate }),
     z.object({ kind: z.literal('declaration'), content: declaration }),

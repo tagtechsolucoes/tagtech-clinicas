@@ -60,6 +60,8 @@ const SECOES: Array<{
   icone: string;
   gerencia?: boolean;
   balcao?: boolean;
+  /** Só com 2 profissionais ou mais (modo consultório esconde). */
+  equipe?: boolean;
   convenio?: boolean;
 }> = [
   { id: 'agenda', nome: 'Agenda', icone: 'agenda' },
@@ -70,7 +72,7 @@ const SECOES: Array<{
   { id: 'estoque', nome: 'Estoque', icone: 'caixa', balcao: true },
   { id: 'convenios', nome: 'Convênios', icone: 'recibo', balcao: true, convenio: true },
   { id: 'resultado', nome: 'Resultado', icone: 'grafico', gerencia: true },
-  { id: 'relatorios', nome: 'Relatórios', icone: 'relatorio', gerencia: true },
+  { id: 'relatorios', nome: 'Relatórios', icone: 'relatorio', gerencia: true, equipe: true },
   { id: 'profissionais', nome: 'Profissionais', icone: 'estetoscopio', gerencia: true },
   { id: 'servicos', nome: 'Serviços', icone: 'lista', gerencia: true },
   { id: 'clinica', nome: 'Clínica e site', icone: 'clinica', gerencia: true },
@@ -256,7 +258,8 @@ function Casca({
     (s) =>
       (!s.gerencia || gerencia) &&
       (!s.balcao || vinculo.role !== 'professional') &&
-      (!s.convenio || painel.clinic.insuranceEnabled),
+      (!s.convenio || painel.clinic.insuranceEnabled) &&
+      (!s.equipe || painel.professionals.filter((p) => p.active).length > 1),
   );
   const atual = visiveis.some((s) => s.id === secao) ? secao : 'agenda';
 

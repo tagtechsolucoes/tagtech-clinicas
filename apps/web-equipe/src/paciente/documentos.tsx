@@ -10,6 +10,7 @@ const NOMES: Record<DocumentKind, string> = {
   certificate: 'Atestado',
   declaration: 'Declaração de comparecimento',
   exam_request: 'Pedido de exame',
+  meal_plan: 'Plano alimentar',
 };
 
 const esc = (s: unknown) =>
@@ -61,6 +62,18 @@ function corpo(d: PrintableDocument): string {
       return `<p class="para">Para: ${nome}</p><p class="uso-titulo">Solicito</p>
         <ol class="receita">${(c.exams as string[]).map((e) => `<li><p class="med">${esc(e)}</p></li>`).join('')}</ol>
         ${c.indication ? `<p class="obs"><strong>Indicação clínica:</strong> ${esc(c.indication)}</p>` : ''}`;
+    case 'meal_plan':
+      return `<p class="para">Para: ${nome}</p>
+        ${(c.meals as C[])
+          .map(
+            (
+              m,
+            ) => `<div class="refeicao"><p class="med">${m.time ? `<span>${esc(m.time)}</span>` : ''} ${esc(m.name)}</p>
+            <ul>${(m.items as string[]).map((i) => `<li>${esc(i)}</li>`).join('')}</ul></div>`,
+          )
+          .join('')}
+        ${c.water ? `<p class="obs"><strong>Água:</strong> ${esc(c.water)} por dia</p>` : ''}
+        ${c.notes ? `<p class="obs">${esc(c.notes)}</p>` : ''}`;
   }
 }
 
@@ -98,6 +111,7 @@ export async function abrirDocumento(
   .uso{margin:2px 0 0 22px;color:#3a4b53}
   .texto{font-size:16px;line-height:1.8;text-align:justify}
   .obs{margin-top:20px;color:#3a4b53}
+  .refeicao{padding:12px 0;border-bottom:1px dashed #dce3e6;break-inside:avoid} .refeicao ul{margin:4px 0 0 22px;padding:0;color:#3a4b53} .refeicao .med span{color:${cor};min-width:44px}
   .local{margin-top:40px}
   .ass{margin:84px auto 0;width:320px;border-top:1px solid #0f2028;padding-top:8px;text-align:center}
   .ass strong{display:block} .ass span{color:#56676f;font-size:13px}
@@ -122,7 +136,7 @@ ${corpo(d)}
 
 /** Aba "Documentos" do paciente. */
 export function Documentos({ patientId }: { patientId: string }) {
-  const { avisar } = usePainel();
+  const { avisar, professionals } = usePainel();
   const [lista, setLista] = useState<ClinicalDocument[] | null>(null);
   const [novo, setNovo] = useState<DocumentKind | null>(null);
   const carregar = () =>
@@ -139,15 +153,17 @@ export function Documentos({ patientId }: { patientId: string }) {
   return (
     <>
       <div className="mb-5 flex flex-wrap gap-2">
-        {(Object.keys(NOMES) as DocumentKind[]).map((k) => (
-          <Botao
-            key={k}
-            variante={k === 'prescription' ? 'principal' : 'contorno'}
-            onClick={() => setNovo(k)}
-          >
-            <Icone nome="mais" className="h-4 w-4" /> {NOMES[k]}
-          </Botao>
-        ))}
+        {(Object.keys(NOMES) as DocumentKind[])
+          .filter((k) => k !== 'meal_plan' || professionals.some((p) => p.recordKind === 'nutri'))
+          .map((k) => (
+            <Botao
+              key={k}
+              variante={k === 'prescription' ? 'principal' : 'contorno'}
+              onClick={() => setNovo(k)}
+            >
+              <Icone nome="mais" className="h-4 w-4" /> {NOMES[k]}
+            </Botao>
+          ))}
       </div>
       {lista.length ? (
         <ul className="divide-y divide-linha rounded-2xl bg-folha ring-1 ring-linha">
@@ -210,6 +226,12 @@ function Emitir({
   const [acomp, setAcomp] = useState('');
   const [exames, setExames] = useState('');
   const [obs, setObs] = useState('');
+  const [refeicoes, setRefeicoes] = useState([
+    { time: '07:00', name: 'Café da manhã', items: '' },
+    { time: '12:00', name: 'Almoço', items: '' },
+    { time: '19:30', name: 'Jantar', items: '' },
+  ]);
+  const [agua, setAgua] = useState('');
 
   useEffect(() => {
     if (!tipo) return;
@@ -237,6 +259,20 @@ function Emitir({
         notes: obs,
       },
       declaration: { date: data, start: ini, end: fim, companion: acomp },
+      meal_plan: {
+        meals: refeicoes
+          .map((m) => ({
+            time: m.time,
+            name: m.name.trim(),
+            items: m.items
+              .split('\n')
+              .map((x) => x.trim())
+              .filter(Boolean),
+          }))
+          .filter((m) => m.name && m.items.length),
+        water: agua,
+        notes: obs,
+      },
       exam_request: {
         exams: exames
           .split('\n')
@@ -400,6 +436,66 @@ function Emitir({
               placeholder={'Radiografia panorâmica\nHemograma completo'}
             />
           </Campo>
+        ) : null}
+
+        {tipo === 'meal_plan' ? (
+          <>
+            {refeicoes.map((m, i) => (
+              <div key={i} className="space-y-2 rounded-2xl bg-porcelana p-3.5 ring-1 ring-linha">
+                <div className="grid grid-cols-[6.5rem_1fr_auto] gap-2">
+                  <Entrada
+                    type="time"
+                    value={m.time}
+                    onChange={(e) =>
+                      setRefeicoes(
+                        refeicoes.map((x, j) => (j === i ? { ...x, time: e.target.value } : x)),
+                      )
+                    }
+                  />
+                  <Entrada
+                    value={m.name}
+                    onChange={(e) =>
+                      setRefeicoes(
+                        refeicoes.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)),
+                      )
+                    }
+                  />
+                  <button
+                    type="button"
+                    aria-label="Tirar refeição"
+                    onClick={() => setRefeicoes(refeicoes.filter((_, j) => j !== i))}
+                    className="grid h-11 w-11 place-items-center rounded-xl text-nevoa hover:text-alerta"
+                  >
+                    <Icone nome="x" className="h-4 w-4" />
+                  </button>
+                </div>
+                <Texto
+                  rows={3}
+                  placeholder={
+                    'Um alimento por linha, com a quantidade\n2 ovos mexidos\n1 fatia de pão integral'
+                  }
+                  value={m.items}
+                  onChange={(e) =>
+                    setRefeicoes(
+                      refeicoes.map((x, j) => (j === i ? { ...x, items: e.target.value } : x)),
+                    )
+                  }
+                />
+              </div>
+            ))}
+            <Botao
+              onClick={() => setRefeicoes([...refeicoes, { time: '', name: 'Lanche', items: '' }])}
+            >
+              <Icone nome="mais" className="h-4 w-4" /> Refeição
+            </Botao>
+            <Campo rotulo="Água por dia">
+              <Entrada
+                value={agua}
+                onChange={(e) => setAgua(e.target.value)}
+                placeholder="Ex.: 2,5 litros"
+              />
+            </Campo>
+          </>
         ) : null}
 
         {tipo && tipo !== 'declaration' ? (

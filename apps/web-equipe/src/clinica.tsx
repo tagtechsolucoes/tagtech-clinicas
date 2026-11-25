@@ -35,7 +35,7 @@ function Secao({
 }
 
 export function ClinicaTela() {
-  const { clinic, setClinic, avisar, rooms, recarregar, vinculo } = usePainel();
+  const { clinic, setClinic, avisar, rooms, recarregar, vinculo, professionals } = usePainel();
   const unidade = clinic.units[0];
   const [d, setD] = useState({
     name: clinic.name,
@@ -362,57 +362,59 @@ export function ClinicaTela() {
         <Relacionamento />
       </Secao>
 
-      <Secao
-        titulo="Salas"
-        descricao="Opcional. Com salas, a agenda não deixa marcar duas consultas na mesma sala ao mesmo tempo."
-      >
-        {rooms.length ? (
-          <ul className="divide-y divide-linha rounded-2xl ring-1 ring-linha">
-            {rooms.map((r) => (
-              <li key={r.id} className="flex items-center justify-between px-4 py-3">
-                <span className={r.active ? 'font-medium' : 'text-bruma line-through'}>
-                  {r.name}
-                </span>
-                <Botao
-                  tamanho="pequeno"
-                  variante="discreto"
-                  onClick={async () => {
-                    await api
-                      .updateRoom(r.id, { active: !r.active })
-                      .catch((e) => avisar(mensagem(e), 'erro'));
+      {professionals.filter((p) => p.active).length > 1 || rooms.length ? (
+        <Secao
+          titulo="Salas"
+          descricao="Opcional. Com salas, a agenda não deixa marcar duas consultas na mesma sala ao mesmo tempo."
+        >
+          {rooms.length ? (
+            <ul className="divide-y divide-linha rounded-2xl ring-1 ring-linha">
+              {rooms.map((r) => (
+                <li key={r.id} className="flex items-center justify-between px-4 py-3">
+                  <span className={r.active ? 'font-medium' : 'text-bruma line-through'}>
+                    {r.name}
+                  </span>
+                  <Botao
+                    tamanho="pequeno"
+                    variante="discreto"
+                    onClick={async () => {
+                      await api
+                        .updateRoom(r.id, { active: !r.active })
+                        .catch((e) => avisar(mensagem(e), 'erro'));
+                      await recarregar();
+                    }}
+                  >
+                    {r.active ? 'Desativar' : 'Reativar'}
+                  </Botao>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {unidade ? (
+            <div className="flex gap-2">
+              <Entrada
+                value={sala}
+                onChange={(e) => setSala(e.target.value)}
+                placeholder="Ex.: Consultório 2"
+              />
+              <Botao
+                disabled={!sala.trim()}
+                onClick={async () => {
+                  try {
+                    await api.createRoom(unidade.id, sala.trim());
+                    setSala('');
                     await recarregar();
-                  }}
-                >
-                  {r.active ? 'Desativar' : 'Reativar'}
-                </Botao>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {unidade ? (
-          <div className="flex gap-2">
-            <Entrada
-              value={sala}
-              onChange={(e) => setSala(e.target.value)}
-              placeholder="Ex.: Consultório 2"
-            />
-            <Botao
-              disabled={!sala.trim()}
-              onClick={async () => {
-                try {
-                  await api.createRoom(unidade.id, sala.trim());
-                  setSala('');
-                  await recarregar();
-                } catch (e) {
-                  avisar(mensagem(e), 'erro');
-                }
-              }}
-            >
-              Adicionar
-            </Botao>
-          </div>
-        ) : null}
-      </Secao>
+                  } catch (e) {
+                    avisar(mensagem(e), 'erro');
+                  }
+                }}
+              >
+                Adicionar
+              </Botao>
+            </div>
+          ) : null}
+        </Secao>
+      ) : null}
     </>
   );
 }

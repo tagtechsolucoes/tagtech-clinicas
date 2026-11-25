@@ -148,6 +148,7 @@ export class PublicService {
           category: s.category,
           durationMinutes: s.durationMinutes,
           priceCents: s.priceCents,
+          telehealth: s.telehealth,
           // Sem ninguém ligado ao serviço, qualquer profissional online atende.
           professionalIds: s.professionalIds.length
             ? s.professionalIds.filter((id) => proIds.has(id))
@@ -370,6 +371,8 @@ export class PublicService {
         a: appointments,
         serviceName: services.name,
         professionalName: professionals.name,
+        telehealth: services.telehealth,
+        telehealthUrl: professionals.telehealthUrl,
         patientName: patients.name,
         unit: units,
         tenant: tenants,
@@ -404,6 +407,21 @@ export class PublicService {
       status: a.status,
       canConfirm: future && canTransition(a.status, 'confirmed') && a.status === 'scheduled',
       canCancel: future && ['scheduled', 'confirmed'].includes(a.status),
+      // Teleconsulta: o link da sala só aparece de 15 min antes até o fim da consulta.
+      telehealth: row.telehealth
+        ? (() => {
+            const abre = a.startsAt.getTime() - 15 * 60_000;
+            const aberta =
+              Date.now() >= abre &&
+              Date.now() <= a.endsAt.getTime() &&
+              !['cancelled', 'no_show'].includes(a.status);
+            return {
+              opensAt: new Date(abre).toISOString(),
+              url: aberta && row.telehealthUrl ? row.telehealthUrl : null,
+              configured: Boolean(row.telehealthUrl),
+            };
+          })()
+        : null,
     };
   }
 

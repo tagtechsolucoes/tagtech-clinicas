@@ -52,6 +52,7 @@ export function Prontuario({ patientId }: { patientId: string }) {
         }}
       />
       <section>
+        {notas ? <EvolucaoNutri notas={notas} /> : null}
         {notas === null ? (
           <p className="text-nevoa">Carregando o prontuário…</p>
         ) : principais.length === 0 ? (
@@ -414,5 +415,78 @@ function Cartao({
         </footer>
       ) : null}
     </article>
+  );
+}
+
+/** Nutrição: peso, IMC e cintura ao longo das consultas (precisa de 2 medidas ou mais). */
+function EvolucaoNutri({ notas }: { notas: ClinicalNote[] }) {
+  const pontos = notas
+    .filter((n) => n.kind === 'nutri' && !n.hidden && Number(n.data.peso) > 0)
+    .map((n) => ({
+      dia: n.createdAt.slice(0, 10),
+      peso: Number(n.data.peso),
+      imc: Number(n.data.altura) > 0 ? bmi(Number(n.data.peso), Number(n.data.altura)) : null,
+      cintura: Number(n.data.cintura) > 0 ? Number(n.data.cintura) : null,
+    }))
+    .sort((a, b) => a.dia.localeCompare(b.dia));
+  if (pontos.length < 2) return null;
+  const W = 560;
+  const H = 150;
+  const min = Math.min(...pontos.map((p) => p.peso)) - 1;
+  const max = Math.max(...pontos.map((p) => p.peso)) + 1;
+  const x = (i: number) => 24 + (i * (W - 48)) / (pontos.length - 1);
+  const y = (v: number) => 16 + (1 - (v - min) / (max - min)) * (H - 40);
+  const linha = pontos.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p.peso)}`).join(' ');
+  const primeiro = pontos[0]!;
+  const ultimo = pontos[pontos.length - 1]!;
+  const dif = Math.round((ultimo.peso - primeiro.peso) * 10) / 10;
+  const fmt = (v: number) => String(v).replace('.', ',');
+  return (
+    <div className="mb-6 rounded-3xl bg-folha p-5 ring-1 ring-linha">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h3 className="font-display text-xl">Evolução</h3>
+        <p className="text-sm text-nevoa">
+          <strong className={`text-base ${dif <= 0 ? 'text-ok' : 'text-tinta'}`}>
+            {dif > 0 ? '+' : ''}
+            {fmt(dif)} kg
+          </strong>{' '}
+          desde{' '}
+          {new Date(`${primeiro.dia}T12:00:00Z`).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+          {ultimo.imc ? ` · IMC ${fmt(ultimo.imc)}` : ''}
+          {ultimo.cintura ? ` · cintura ${fmt(ultimo.cintura)} cm` : ''}
+        </p>
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="mt-3 w-full"
+        role="img"
+        aria-label="Peso ao longo das consultas"
+      >
+        <path d={linha} fill="none" stroke="#1d4e5f" strokeWidth="2.5" strokeLinejoin="round" />
+        {pontos.map((p, i) => (
+          <g key={i}>
+            <circle
+              cx={x(i)}
+              cy={y(p.peso)}
+              r="4.5"
+              fill="#fff"
+              stroke="#1d4e5f"
+              strokeWidth="2.5"
+            />
+            <text
+              x={x(i)}
+              y={y(p.peso) - 10}
+              textAnchor="middle"
+              className="fill-tinta text-[11px] font-semibold"
+            >
+              {fmt(p.peso)}
+            </text>
+            <text x={x(i)} y={H - 4} textAnchor="middle" className="fill-nevoa text-[10px]">
+              {p.dia.slice(8, 10)}/{p.dia.slice(5, 7)}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 }

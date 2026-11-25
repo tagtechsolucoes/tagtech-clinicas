@@ -106,6 +106,15 @@ const proFields = {
   active: z.boolean(),
   membershipId: uuid.nullable(),
   recordKind: z.enum(RECORD_KINDS),
+  telehealthUrl: z.union([
+    z.literal(''),
+    z
+      .string()
+      .trim()
+      .url('Link inválido')
+      .max(300)
+      .refine((u) => u.startsWith('https://'), 'Use um link https'),
+  ]),
 };
 const proCreate = z.object(proFields).partial().required({ name: true }).strict();
 const proPatch = nonEmpty(proFields);
@@ -130,6 +139,7 @@ const serviceFields = {
   durationMinutes: z.number().int().min(5).max(600),
   priceCents: z.number().int().min(0).max(100_000_000).nullable(),
   returnDays: z.number().int().min(7).max(730).nullable(),
+  telehealth: z.boolean(),
   color,
   onlineBooking: z.boolean(),
   active: z.boolean(),
