@@ -471,6 +471,7 @@ function Dados({
   aoOcupado: () => void;
 }) {
   const [d, setD] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '' });
+  const [plano, setPlano] = useState({ insurerId: '', cardNumber: '' });
   const [aceite, setAceite] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -491,6 +492,9 @@ function Dados({
             ...(d.email ? { email: d.email } : {}),
             ...(d.birthDate ? { birthDate: d.birthDate } : {}),
             ...(d.notes ? { notes: d.notes } : {}),
+            ...(plano.insurerId
+              ? { insurance: { insurerId: plano.insurerId, cardNumber: plano.cardNumber.trim() } }
+              : {}),
             consent: aceite,
           }),
         },
@@ -552,6 +556,39 @@ function Dados({
           />
         </label>
       </div>
+      {clinic.insurers.length ? (
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-semibold text-nevoa">
+            Como vai ser o atendimento?
+          </legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <select
+              aria-label="Particular ou convênio"
+              value={plano.insurerId}
+              onChange={(e) => setPlano({ ...plano, insurerId: e.target.value })}
+              className="h-12 w-full rounded-xl bg-folha px-4 ring-1 ring-linha focus:ring-2 focus:ring-marca focus:outline-none"
+            >
+              <option value="">Particular</option>
+              {clinic.insurers.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name}
+                </option>
+              ))}
+            </select>
+            {plano.insurerId ? (
+              <input
+                required
+                aria-label="Número da carteirinha"
+                placeholder="Número da carteirinha"
+                maxLength={30}
+                value={plano.cardNumber}
+                onChange={(e) => setPlano({ ...plano, cardNumber: e.target.value })}
+                className="h-12 w-full rounded-xl bg-folha px-4 ring-1 ring-linha focus:ring-2 focus:ring-marca focus:outline-none"
+              />
+            ) : null}
+          </div>
+        </fieldset>
+      ) : null}
       <label className="block">
         <span className="mb-1.5 block text-sm font-semibold text-nevoa">
           Quer avisar algo à clínica? (opcional)

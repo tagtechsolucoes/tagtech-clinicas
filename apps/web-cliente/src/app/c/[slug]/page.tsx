@@ -128,6 +128,22 @@ export default async function Page({ params }: Props) {
             </section>
           ) : null}
 
+          {c.insurers.length ? (
+            <section>
+              <h2 className="text-2xl font-medium">Convênios aceitos</h2>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {c.insurers.map((i) => (
+                  <li
+                    key={i.id}
+                    className="rounded-xl bg-folha px-3.5 py-2 text-sm font-semibold ring-1 ring-linha"
+                  >
+                    {i.name}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section className="rounded-3xl bg-folha p-6 ring-1 ring-linha">
             <h2 className="text-xl font-medium">Como chegar e contato</h2>
             <dl className="mt-4 space-y-3 text-sm">

@@ -48,6 +48,9 @@ export interface Clinic {
     slotStepMinutes: number;
   };
   units: Unit[];
+  legalName: string;
+  document: string;
+  insuranceEnabled: boolean;
 }
 
 export interface WorkHours {
@@ -128,6 +131,9 @@ export interface Appointment {
   status: AppointmentStatus;
   source: 'staff' | 'online';
   priceCents: number | null;
+  insurerId: string | null;
+  authorizationId: string | null;
+  copayCents: number | null;
   notes: string;
   cancelReason: string | null;
   confirmedAt: string | null;
@@ -611,6 +617,133 @@ export interface Results {
   previous: { noShowRate: number | null; generatedCents: number };
 }
 
+export interface Insurer {
+  id: string;
+  name: string;
+  ansCode: string;
+  providerCode: string;
+  paymentDays: number;
+  showOnSite: boolean;
+  active: boolean;
+  prices: Array<{
+    serviceId: string;
+    priceCents: number;
+    copayCents: number;
+    tussCode: string;
+    needsAuthorization: boolean;
+  }>;
+  professionalIds: string[];
+}
+
+export interface PatientInsurance {
+  cards: Array<{
+    insurerId: string;
+    insurerName: string;
+    cardNumber: string;
+    planName: string;
+    validUntil: string | null;
+  }>;
+  authorizations: Array<{
+    id: string;
+    insurerId: string;
+    insurerName: string;
+    serviceId: string;
+    serviceName: string;
+    guideNumber: string;
+    password: string;
+    validUntil: string | null;
+    sessions: number;
+    used: number;
+  }>;
+}
+
+export interface Billing {
+  competence: string;
+  pending: Array<{ insurerId: string; insurerName: string; count: number; totalCents: number }>;
+  batches: Array<{
+    id: string;
+    insurerId: string;
+    insurerName: string;
+    number: number;
+    status: 'open' | 'sent' | 'paid';
+    sentAt: string | null;
+    paidAt: string | null;
+    count: number;
+    billedCents: number;
+    paidCents: number | null;
+    glosaCents: number | null;
+  }>;
+}
+
+export interface Batch {
+  id: string;
+  insurerId: string;
+  insurerName: string;
+  number: number;
+  competence: string;
+  status: 'open' | 'sent' | 'paid';
+  sentAt: string | null;
+  paidAt: string | null;
+  billedCents: number;
+  claims: Array<{
+    id: string;
+    appointmentId: string;
+    date: string;
+    patientName: string;
+    cardNumber: string;
+    serviceName: string;
+    professionalName: string;
+    guideNumber: string | null;
+    tussCode: string;
+    billedCents: number;
+    paidCents: number | null;
+    glosaReason: string;
+  }>;
+}
+
+export interface FiscalSettings {
+  configured: boolean;
+  environment?: 'homologacao' | 'producao';
+  standard?: 'nacional' | 'municipal';
+  cnpj?: string;
+  municipalRegistration?: string;
+  cityCode?: string;
+  serviceCode?: string;
+  municipalServiceCode?: string;
+  issRate?: number;
+  simplesOption?: number;
+  description?: string;
+  autoEmit?: boolean;
+}
+
+export interface ServiceInvoice {
+  id: string;
+  chargeId: string;
+  environment: string;
+  status: 'emitting' | 'authorized' | 'error' | 'cancelled';
+  amountCents: number;
+  number: string | null;
+  url: string | null;
+  message: string | null;
+  createdAt: string;
+}
+
+export interface Receipt {
+  number: string;
+  clinic: { name: string; legalName: string; document: string; address: string; phone: string };
+  patient: { name: string; cpf: string | null } | null;
+  description: string;
+  amountCents: number;
+  method: string;
+  paidAt: string;
+  appointment: {
+    date: string;
+    serviceName: string;
+    professionalName: string;
+    council: string;
+  } | null;
+}
+
 const qs = (params: Record<string, string | number | undefined>) =>
   new URLSearchParams(
     Object.entries(params).flatMap(([k, v]) =>
@@ -922,6 +1055,68 @@ export const api = {
   addAppointmentMaterial: (id: string, itemId: string, qty: number) =>
     send<AppointmentMaterial[]>('POST', `/appointments/${id}/materials`, { itemId, qty }),
   results: (month: string) => request<Results>(`/results?month=${month}`),
+
+  // convênios
+  insurers: () => request<Insurer[]>('/insurers'),
+  createInsurer: (data: Partial<Insurer> & { name: string }) =>
+    send<Insurer>('POST', '/insurers', data),
+  updateInsurer: (id: string, data: Partial<Insurer>) =>
+    send<Insurer>('PATCH', `/insurers/${id}`, data),
+  setInsurerPrices: (id: string, prices: Insurer['prices']) =>
+    send<void>('PUT', `/insurers/${id}/prices`, prices),
+  setInsurerProfessionals: (id: string, ids: string[]) =>
+    send<void>('PUT', `/insurers/${id}/professionals`, ids),
+  patientInsurance: (id: string) => request<PatientInsurance>(`/patients/${id}/insurance`),
+  setCard: (
+    id: string,
+    insurerId: string,
+    data: { cardNumber: string; planName: string; validUntil: string | null },
+  ) => send<PatientInsurance>('PUT', `/patients/${id}/insurance/${insurerId}`, data),
+  removeCard: (id: string, insurerId: string) =>
+    send<PatientInsurance>('DELETE', `/patients/${id}/insurance/${insurerId}`),
+  addAuthorization: (id: string, data: Record<string, unknown>) =>
+    send<PatientInsurance>('POST', `/patients/${id}/authorizations`, data),
+  removeAuthorization: (id: string) => send<void>('DELETE', `/authorizations/${id}`),
+  setAppointmentInsurance: (id: string, insurerId: string | null, authorizationId: string | null) =>
+    send<{ warnings: string[]; appointment: Appointment }>('PUT', `/appointments/${id}/insurance`, {
+      insurerId,
+      authorizationId,
+    }),
+  billing: (competence: string) => request<Billing>(`/insurance/billing?competence=${competence}`),
+  createBatch: (insurerId: string, competence: string) =>
+    send<Batch>('POST', '/insurance/batches', { insurerId, competence }),
+  batch: (id: string) => request<Batch>(`/insurance/batches/${id}`),
+  tissUrl: (id: string) => `/api/insurance/batches/${id}/tiss`,
+  sendBatch: (id: string) => send<Batch>('POST', `/insurance/batches/${id}/send`),
+  receiveBatch: (
+    id: string,
+    items: Array<{ claimId: string; paidCents: number; glosaReason: string }>,
+  ) => send<Batch>('POST', `/insurance/batches/${id}/receive`, { items }),
+  rebill: (claimId: string) => send<Batch>('POST', `/insurance/claims/${claimId}/rebill`),
+  insuranceReport: () =>
+    request<
+      Array<{
+        insurerId: string;
+        name: string;
+        billedCents: number;
+        paidCents: number;
+        glosaCents: number;
+        receivableCents: number;
+      }>
+    >('/insurance/report'),
+
+  // nota fiscal
+  fiscal: () => request<FiscalSettings>('/nfse/settings'),
+  saveFiscal: (data: Record<string, unknown>) =>
+    send<FiscalSettings>('PUT', '/nfse/settings', data),
+  removeFiscal: () => send<FiscalSettings>('DELETE', '/nfse/settings'),
+  invoices: (chargeIds: string[]) =>
+    request<ServiceInvoice[]>(`/nfse${chargeIds.length ? `?charges=${chargeIds.join(',')}` : ''}`),
+  emitInvoice: (chargeId: string) => send<ServiceInvoice>('POST', '/nfse', { chargeId }),
+  refreshInvoice: (id: string) => send<ServiceInvoice>('POST', `/nfse/${id}/refresh`),
+  cancelInvoice: (id: string, reason: string) =>
+    send<ServiceInvoice>('POST', `/nfse/${id}/cancel`, { reason }),
+  receipt: (chargeId: string) => request<Receipt>(`/finance/charges/${chargeId}/receipt`),
 
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),

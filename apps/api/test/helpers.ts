@@ -9,6 +9,7 @@ import type { Db } from '@tagtech/db';
 import { APP_URL } from '../../../packages/db/test/urls';
 import { AppModule } from '../src/app.module';
 import { WHATSAPP_HTTP } from '../src/whatsapp/whatsapp.service';
+import { FOCUS_HTTP } from '../src/nfse/nfse.service';
 import { configureApp } from '../src/configure-app';
 import { MEDIA_DIR } from '../src/media/media.service';
 import { SignupLimiter } from '../src/auth/login-limiter';
@@ -19,11 +20,13 @@ import { DATABASE_URL } from '../src/db/db.module';
 export const TEST_MEDIA_DIR = join(tmpdir(), `tagtech-media-${process.pid}`);
 
 export async function createTestApp(
-  options: { whatsappHttp?: typeof fetch } = {},
+  options: { whatsappHttp?: typeof fetch; focusHttp?: typeof fetch } = {},
 ): Promise<NestFastifyApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(WHATSAPP_HTTP)
     .useValue(options.whatsappHttp ?? (async () => new Response('{}', { status: 500 })))
+    .overrideProvider(FOCUS_HTTP)
+    .useValue(options.focusHttp ?? (async () => new Response('{}', { status: 500 })))
     .overrideProvider(DATABASE_URL)
     .useValue(APP_URL)
     .overrideProvider(MEDIA_DIR)

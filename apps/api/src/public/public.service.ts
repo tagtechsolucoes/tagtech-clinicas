@@ -26,12 +26,15 @@ import { clinicView } from '../clinic/clinic.service';
 import { loadProfessionals, loadServices } from '../clinic/clinic.service';
 import { findOrCreatePatient } from '../patients/patients.service';
 import { FinanceService } from '../finance/finance.service';
+import { applyInsurance } from '../insurance/insurance.service';
 
 const {
   appointments,
   appointmentEvents,
   charges,
   galleryItems,
+  insurers,
+  patientInsurances,
   patients,
   professionals,
   services,
@@ -50,6 +53,7 @@ export interface PublicBooking {
   email?: string | undefined;
   birthDate?: string | null | undefined;
   notes?: string | undefined;
+  insurance?: { insurerId: string; cardNumber: string } | undefined;
 }
 
 /** Site de agendamento e link do paciente. Nada aqui precisa de login. */
@@ -97,8 +101,16 @@ export class PublicService {
         .select()
         .from(galleryItems)
         .orderBy(asc(galleryItems.position), desc(galleryItems.createdAt));
+      const planos = tenant.insuranceEnabled
+        ? await tx
+            .select({ id: insurers.id, name: insurers.name })
+            .from(insurers)
+            .where(and(eq(insurers.active, true), eq(insurers.showOnSite, true)))
+            .orderBy(asc(insurers.name))
+        : [];
       return {
         ...view,
+        insurers: planos,
         booking: { enabled: booking.enabled, horizonDays: booking.horizonDays },
         gallery: gallery.map((g) => ({
           id: g.id,
@@ -276,6 +288,31 @@ export class PublicService {
         toStatus: 'scheduled',
         actorKind: 'patient',
       });
+      // Pelo convênio: guarda a carteirinha e troca o preço pelo do plano.
+      if (input.insurance) {
+        if (!tenant.insuranceEnabled)
+          throw new BadRequestException('A clínica não atende convênio pelo site');
+        const [plano] = await tx
+          .select()
+          .from(insurers)
+          .where(
+            and(
+              eq(insurers.id, input.insurance.insurerId),
+              eq(insurers.active, true),
+              eq(insurers.showOnSite, true),
+            ),
+          );
+        if (!plano) throw new BadRequestException('Convênio não aceito pela clínica');
+        const cartao = { cardNumber: input.insurance.cardNumber, planName: '', validUntil: null };
+        await tx
+          .insert(patientInsurances)
+          .values({ tenantId: tenant.id, patientId: patient.id, insurerId: plano.id, ...cartao })
+          .onConflictDoUpdate({
+            target: [patientInsurances.patientId, patientInsurances.insurerId],
+            set: { cardNumber: cartao.cardNumber },
+          });
+        await applyInsurance(tx, row!.id, plano.id, null);
+      }
       // Sinal: só quando a clínica pede e tem como cobrar no Pix.
       let depositId: string | null = null;
       if (tenant.bookingDepositCents > 0 && (await this.finance.provider(tx))) {

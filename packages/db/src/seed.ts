@@ -3,6 +3,10 @@ import { createDb } from './client';
 import { requireEnv } from './env';
 import {
   appointments,
+  insuranceAuthorizations,
+  insurerPrices,
+  insurers,
+  patientInsurances,
   charges,
   serviceMaterials,
   stockItems,
@@ -747,6 +751,105 @@ async function main() {
       status: 'booked',
       bookedAppointmentId: ags[17]!.id,
     });
+
+    // Convênio: clínica aceita dois planos; a primeira consulta do dia foi pelo plano.
+    await db
+      .update(tenants)
+      .set({
+        insuranceEnabled: true,
+        legalName: 'Clínica Aurora Odontologia Ltda',
+        document: '11222333000181',
+      })
+      .where(eq(tenants.id, tenantId));
+    const [odontoMais, sorrisoPlus] = await db
+      .insert(insurers)
+      .values([
+        {
+          tenantId,
+          name: 'OdontoMais',
+          ansCode: '412345',
+          providerCode: 'AUR001',
+          paymentDays: 30,
+        },
+        {
+          tenantId,
+          name: 'Sorriso Plus',
+          ansCode: '398765',
+          providerCode: '7788',
+          paymentDays: 45,
+        },
+      ])
+      .returning();
+    await db.insert(insurerPrices).values([
+      {
+        tenantId,
+        insurerId: odontoMais!.id,
+        serviceId: aval.id,
+        priceCents: 6000,
+        tussCode: '81000065',
+      },
+      {
+        tenantId,
+        insurerId: odontoMais!.id,
+        serviceId: limpeza.id,
+        priceCents: 9000,
+        copayCents: 2000,
+        tussCode: '84000198',
+      },
+      {
+        tenantId,
+        insurerId: sorrisoPlus!.id,
+        serviceId: aval.id,
+        priceCents: 5500,
+        tussCode: '81000065',
+      },
+      {
+        tenantId,
+        insurerId: sorrisoPlus!.id,
+        serviceId: manutencao.id,
+        priceCents: 12000,
+        tussCode: '87000059',
+        needsAuthorization: true,
+      },
+    ]);
+    await db.insert(patientInsurances).values([
+      {
+        tenantId,
+        patientId: p(0),
+        insurerId: odontoMais!.id,
+        cardNumber: '0042 7781 5500 1',
+        planName: 'Clássico',
+        validUntil: dia(300),
+      },
+      {
+        tenantId,
+        patientId: p(7),
+        insurerId: sorrisoPlus!.id,
+        cardNumber: '998877665',
+        planName: 'Ouro',
+      },
+    ]);
+    const [guiaDemo] = await db
+      .insert(insuranceAuthorizations)
+      .values({
+        tenantId,
+        patientId: p(7),
+        insurerId: sorrisoPlus!.id,
+        serviceId: manutencao.id,
+        guideNumber: '20261144',
+        password: 'A7K2',
+        sessions: 4,
+        validUntil: dia(40),
+      })
+      .returning();
+    await db
+      .update(appointments)
+      .set({ insurerId: odontoMais!.id, priceCents: 9000, copayCents: 2000 })
+      .where(eq(appointments.id, ags[0]!.id));
+    await db
+      .update(appointments)
+      .set({ insurerId: sorrisoPlus!.id, authorizationId: guiaDemo!.id, priceCents: 12000 })
+      .where(eq(appointments.id, ags[7]!.id));
     console.log(
       `Clínica de demonstração pronta. Entre com ${DEMO_EMAIL} / demo-tagtech-123 · site /c/${SLUG}`,
     );

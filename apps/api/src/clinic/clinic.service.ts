@@ -42,7 +42,17 @@ export function clinicView(t: Tenant) {
   };
 }
 
+/** Dados para recibo e nota: só no painel, nunca no site público. */
+export const legalView = (t: Tenant) => ({
+  legalName: t.legalName,
+  document: t.document,
+  insuranceEnabled: t.insuranceEnabled,
+});
+
 export interface ClinicPatch {
+  legalName?: string | undefined;
+  document?: string | undefined;
+  insuranceEnabled?: boolean | undefined;
   name?: string | undefined;
   tagline?: string | undefined;
   about?: string | undefined;
@@ -122,7 +132,7 @@ export class ClinicService {
       const [tenant] = await tx.select().from(tenants);
       if (!tenant) throw new NotFoundException();
       const unitRows = await tx.select().from(units).orderBy(asc(units.createdAt));
-      return { ...clinicView(tenant), units: unitRows.map(unitView) };
+      return { ...clinicView(tenant), ...legalView(tenant), units: unitRows.map(unitView) };
     });
   }
 
@@ -144,12 +154,15 @@ export class ClinicService {
             bookingMinNoticeMinutes: patch.minNoticeMinutes,
             bookingHorizonDays: patch.horizonDays,
             slotStepMinutes: patch.slotStepMinutes,
+            legalName: patch.legalName,
+            document: patch.document,
+            insuranceEnabled: patch.insuranceEnabled,
           }),
         )
         .where(eq(tenants.id, ctx.tenantId))
         .returning();
       if (!tenant) throw new NotFoundException();
-      return clinicView(tenant);
+      return { ...clinicView(tenant), ...legalView(tenant) };
     });
   }
 
