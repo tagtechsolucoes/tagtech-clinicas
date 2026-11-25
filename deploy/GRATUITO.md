@@ -6,9 +6,9 @@ migre para o Lightsail (ver `README.md`); o processo é o mesmo.
 ## O que você ganha
 
 - **Servidor:** Oracle Cloud Always Free, máquina **Ampere A1 (ARM) com 2 OCPUs e 12 GB de
-  RAM** e até 200 GB de disco. Sobra para Postgres, API, cardápio e Caddy.
+  RAM** e até 200 GB de disco. Sobra para Postgres, API, site e Caddy.
 - **Endereço com HTTPS:** dois subdomínios grátis do **DuckDNS** (ex.:
-  `brasaepao-app.duckdns.org`), e o Caddy tira o certificado do Let's Encrypt sozinho.
+  `minhaclinica-app.duckdns.org`), e o Caddy tira o certificado do Let's Encrypt sozinho.
 
 ## Cuidados
 
@@ -18,10 +18,10 @@ migre para o Lightsail (ver `README.md`); o processo é o mesmo.
    outro horário ou outro _Availability Domain_. A região (home region) é escolhida no
    cadastro e não muda depois: São Paulo ou Vinhedo dão menos latência.
 3. **Máquina parada é recolhida:** a Oracle pode recolher instância gratuita que passa 7 dias
-   com CPU, rede e memória abaixo de 20%. Um restaurante pequeno fica bem abaixo disso.
+   com CPU, rede e memória abaixo de 20%. Uma clínica pequena fica bem abaixo disso.
    Para evitar, mude a conta para **Pay As You Go** (continua grátis dentro dos limites) e
    crie um **orçamento com alerta de R$ 1** em _Billing → Budgets_.
-4. **Backup:** o `backup.sh` guarda no próprio servidor. Num servidor gratuito, baixe uma
+4. **Backup:** o `backup.sh` criptografa e manda para um bucket (README, seção Backup); sem bucket, guarda só no próprio servidor. Num servidor gratuito, baixe uma
    cópia de vez em quando (`scp ubuntu@IP:/opt/tagtech/deploy/backups/* .`).
 
 ## Passo a passo
@@ -53,7 +53,7 @@ Rules**, origem `0.0.0.0/0`:
 ### 3. Endereços no DuckDNS
 
 Entre em duckdns.org (login com GitHub ou Google), crie **dois subdomínios**, por exemplo
-`brasaepao-cardapio` e `brasaepao-app`, e em cada um coloque o **IP público** da máquina em
+`minhaclinica-site` e `minhaclinica-app`, e em cada um coloque o **IP público** da máquina em
 _current ip_ → _update ip_.
 
 ### 4. Token do GitHub (o repositório é privado)
@@ -77,8 +77,8 @@ cd /opt/tagtech/deploy && ./deploy.sh
 O script pergunta os dois endereços do DuckDNS e o seu e-mail, e gera as senhas do banco.
 O primeiro build leva de 10 a 15 minutos na máquina ARM. Depois:
 
-- equipe: `https://brasaepao-app.duckdns.org/cadastro`
-- cardápio: `https://brasaepao-cardapio.duckdns.org` (os QR das mesas já saem com ele)
+- equipe: `https://minhaclinica-app.duckdns.org/cadastro`
+- site de agendamento: `https://minhaclinica-site.duckdns.org`
 
 ### 6. Agendar o backup
 

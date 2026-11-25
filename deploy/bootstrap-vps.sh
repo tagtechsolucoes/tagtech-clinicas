@@ -56,13 +56,13 @@ if [ ! -f .env ]; then
   senha() { openssl rand -base64 48 | tr -d '/+=\n' | head -c 32; }
   echo "IP público desta máquina: $IP"
   echo "Endereços: use os dois subdomínios que você criou no DuckDNS apontando para esse IP"
-  echo "(ex.: brasaepao-cardapio.duckdns.org e brasaepao-app.duckdns.org) ou o seu domínio."
-  read -r -p "Endereço do cardápio: " CARDAPIO
+  echo "(ex.: minhaclinica-site.duckdns.org e minhaclinica-app.duckdns.org) ou o seu domínio."
+  read -r -p "Endereço do site de agendamento: " SITE
   read -r -p "Endereço do app da equipe: " EQUIPE
   read -r -p "Seu e-mail (avisos do certificado HTTPS): " EMAIL
   cat > .env <<ENV
 # Quando trocar de endereço, edite aqui e rode ./deploy.sh de novo (e reimprima os QR).
-SITE_HOST=${CARDAPIO}
+SITE_HOST=${SITE}
 EQUIPE_HOST=${EQUIPE}
 ACME_EMAIL=${EMAIL}
 OWNER_DB_PASSWORD=$(senha)
@@ -79,4 +79,4 @@ fi
 echo
 echo "Pronto. Saia e entre de novo no SSH (para o grupo docker valer) e rode:"
 echo "  cd $DIR/deploy && ./deploy.sh"
-grep -E '^(CARDAPIO|EQUIPE)_HOST' .env | sed 's/^/  /'
+grep -E '^(SITE|EQUIPE)_HOST' .env | sed 's/^/  /'

@@ -56,21 +56,21 @@ if ssh_vm "test -f /opt/tagtech/deploy/.env" 2>/dev/null; then
   echo "A máquina já tem deploy/.env; mantendo endereços e senhas."
   ENV_NOVO=""
 else
-  echo "Use dois subdomínios do DuckDNS (ex.: brasaepao-app e brasaepao-cardapio) ou seu domínio."
-  read -r -p "Endereço do app da equipe (ex.: brasaepao-app.duckdns.org): " EQUIPE
-  read -r -p "Endereço do cardápio (ex.: brasaepao-cardapio.duckdns.org): " CARDAPIO
+  echo "Use dois subdomínios do DuckDNS (ex.: minhaclinica-app e minhaclinica-site) ou seu domínio."
+  read -r -p "Endereço do app da equipe (ex.: minhaclinica-app.duckdns.org): " EQUIPE
+  read -r -p "Endereço do site de agendamento (ex.: minhaclinica-site.duckdns.org): " SITE
   read -r -p "Seu e-mail (avisos do certificado HTTPS): " EMAIL
-  if [[ "$EQUIPE" == *.duckdns.org && "$CARDAPIO" == *.duckdns.org ]]; then
+  if [[ "$EQUIPE" == *.duckdns.org && "$SITE" == *.duckdns.org ]]; then
     read -r -s -p "Token do DuckDNS (aparece no topo de duckdns.org): " DUCK; echo
-    SUBS="${EQUIPE%.duckdns.org},${CARDAPIO%.duckdns.org}"
+    SUBS="${EQUIPE%.duckdns.org},${SITE%.duckdns.org}"
     R=$(curl -fsS "https://www.duckdns.org/update?domains=$SUBS&token=$DUCK&ip=$IP")
     [ "$R" = "OK" ] && echo "DuckDNS apontado para $IP" || { echo "DuckDNS respondeu: $R"; exit 1; }
   else
-    echo "Crie no seu DNS dois registros A para $IP: $EQUIPE e $CARDAPIO"
+    echo "Crie no seu DNS dois registros A para $IP: $EQUIPE e $SITE"
     read -r -p "Feito? [s/N] " ok; [ "$ok" = "s" ] || exit 1
   fi
   senha() { openssl rand -base64 48 | tr -d '/+=\n' | head -c 32; }
-  ENV_NOVO="SITE_HOST=$CARDAPIO
+  ENV_NOVO="SITE_HOST=$SITE
 EQUIPE_HOST=$EQUIPE
 ACME_EMAIL=$EMAIL
 OWNER_DB_PASSWORD=$(senha)
