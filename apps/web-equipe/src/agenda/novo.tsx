@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, ApiError, type Appointment, type PatientSummary, type Slots } from '../api';
+import {
+  api,
+  ApiError,
+  type Appointment,
+  type PatientSummary,
+  type SessionPackage,
+  type Slots,
+} from '../api';
 import { mensagem, usePainel } from '../contexto';
 import { diaLongo, dinheiro, duracao, hoje, instante, telefone } from '../formato';
 import { Avatar, Botao, Campo, Entrada, Gaveta, Icone, Seletor, Texto } from '../ui';
@@ -68,6 +75,10 @@ function Formulario({
   const [livres, setLivres] = useState<Slots[] | null>(null);
   const [roomId, setRoomId] = useState('');
   const [notas, setNotas] = useState('');
+  const [repetir, setRepetir] = useState(0); // 0 = não; 1 = toda semana; 2 = a cada 2 semanas
+  const [vezes, setVezes] = useState(8);
+  const [pacotes, setPacotes] = useState<SessionPackage[]>([]);
+  const [packageId, setPackageId] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [faltaMaterial, setFaltaMaterial] = useState<
@@ -99,6 +110,23 @@ function Formulario({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [livres]);
 
+  // Pacotes ativos do paciente para este serviço.
+  useEffect(() => {
+    setPackageId('');
+    if (!paciente) return setPacotes([]);
+    api
+      .packages(paciente.id)
+      .then((l) => {
+        const uteis = l.filter(
+          (p) => p.status === 'active' && p.serviceId === serviceId && p.free > 0,
+        );
+        setPacotes(uteis);
+        if (uteis[0]) setPackageId(uteis[0].id);
+      })
+      .catch(() => setPacotes([]));
+  }, [paciente, serviceId]);
+  const pacote = pacotes.find((p) => p.id === packageId);
+
   async function agendar() {
     if (!servico || !proEscolhido || !horaEscolhida) return;
     setErro(null);
@@ -112,8 +140,18 @@ function Formulario({
         ...(roomId ? { roomId } : {}),
         ...(notas.trim() ? { notes: notas.trim() } : {}),
         ...(encaixe ? { allowOutsideHours: true } : {}),
+        ...(packageId ? { packageId } : {}),
+        ...(repetir && (!pacote || pacote.free >= 2)
+          ? { repeat: { everyWeeks: repetir, count: Math.min(vezes, pacote?.free ?? 52) } }
+          : {}),
       });
-      avisar('Consulta agendada');
+      if (a.series) {
+        const pul = a.series.skipped.length;
+        avisar(
+          `${a.series.created} sessões agendadas${pul ? `; ${pul} ${pul === 1 ? 'ficou' : 'ficaram'} de fora (${a.series.skipped[0]!.reason.toLowerCase()})` : ''}`,
+          pul ? 'erro' : 'ok',
+        );
+      } else avisar('Consulta agendada');
       aoAgendar(a);
     } catch (e) {
       if (e instanceof ApiError && (e.reason === 'outside_hours' || e.reason === 'time_off'))
@@ -273,6 +311,55 @@ function Formulario({
                 ))}
             </Seletor>
           </Campo>
+        ) : null}
+        {pacotes.length ? (
+          <Campo
+            rotulo="Pacote"
+            ajuda={
+              pacote
+                ? `Sobram ${pacote.free} de ${pacote.totalSessions} sessões para marcar. A sessão sai sem cobrança.`
+                : 'Consulta avulsa, cobrada à parte.'
+            }
+          >
+            <Seletor value={packageId} onChange={(e) => setPackageId(e.target.value)}>
+              <option value="">Não usar pacote</option>
+              {pacotes.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title} · sobram {p.free}
+                </option>
+              ))}
+            </Seletor>
+          </Campo>
+        ) : null}
+        {!pacote || pacote.free >= 2 ? (
+          <div className={`grid items-end gap-3 ${repetir ? 'grid-cols-[1fr_auto]' : ''}`}>
+            <Campo rotulo="Repetir">
+              <Seletor value={repetir} onChange={(e) => setRepetir(Number(e.target.value))}>
+                <option value={0}>Não repetir</option>
+                <option value={1}>Toda semana, mesmo horário</option>
+                <option value={2}>A cada 2 semanas</option>
+                <option value={4}>A cada 4 semanas</option>
+              </Seletor>
+            </Campo>
+            {repetir ? (
+              <Campo rotulo="Vezes">
+                <Seletor
+                  value={Math.min(vezes, pacote ? pacote.free : 52)}
+                  onChange={(e) => setVezes(Number(e.target.value))}
+                  className="w-28"
+                >
+                  {Array.from(
+                    { length: (pacote ? Math.max(1, pacote.free) : 52) - 1 },
+                    (_, i) => i + 2,
+                  ).map((n) => (
+                    <option key={n} value={n}>
+                      {n}x
+                    </option>
+                  ))}
+                </Seletor>
+              </Campo>
+            ) : null}
+          </div>
         ) : null}
         <Campo rotulo="Observação (opcional)">
           <Texto

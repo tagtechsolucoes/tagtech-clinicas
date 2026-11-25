@@ -14,6 +14,7 @@ import {
   type Insurer,
   type PatientInsurance,
   type HistoryEvent,
+  type SessionPackage,
   type StockItem,
   type SentMessage,
   type Patient,
@@ -97,6 +98,14 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
   const [itens, setItens] = useState<StockItem[]>([]);
   const [extra, setExtra] = useState({ itemId: '', qty: '1' });
   const podeLancar = vinculo.role !== 'reception';
+  const [pacote, setPacote] = useState<SessionPackage | null>(null);
+  useEffect(() => {
+    if (!a.packageId) return setPacote(null);
+    api
+      .packages(a.patient.id)
+      .then((l) => setPacote(l.find((p) => p.id === a.packageId) ?? null))
+      .catch(() => setPacote(null));
+  }, [a.packageId, a.patient.id, a.status]);
 
   useEffect(() => {
     if (['arrived', 'in_progress', 'done'].includes(a.status)) {
@@ -164,6 +173,19 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
         {a.source === 'online' ? (
           <span className="rounded-lg bg-trilho px-2.5 py-1 text-sm font-medium text-nevoa">
             Agendado pelo site
+          </span>
+        ) : null}
+        {a.seriesId ? (
+          <span className="rounded-lg bg-trilho px-2.5 py-1 text-sm font-medium text-nevoa">
+            Sessão recorrente
+          </span>
+        ) : null}
+        {pacote ? (
+          <span
+            className={`rounded-lg px-2.5 py-1 text-sm font-semibold ${pacote.endingSoon ? 'bg-ambar-fundo text-ambar-tinta' : 'bg-agua text-petroleo'}`}
+          >
+            {pacote.title}: {pacote.used} de {pacote.totalSessions} feitas
+            {pacote.endingSoon ? ' · acabando' : ''}
           </span>
         ) : null}
         {a.cancelReason ? (
@@ -244,7 +266,22 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
             />
           ) : null}
           {modo === 'cancelar' ? (
-            <Cancelar aoCancelar={(motivo) => status('cancelled', motivo)} />
+            <Cancelar
+              aoCancelar={(motivo) => status('cancelled', motivo)}
+              aoCancelarSerie={
+                a.seriesId
+                  ? async (motivo) => {
+                      try {
+                        const r = await api.cancelSeries(a.id, motivo);
+                        avisar(`${r.cancelled} sessões canceladas`);
+                        aoMudar({ ...a, status: 'cancelled', cancelReason: motivo });
+                      } catch (e) {
+                        avisar(mensagem(e), 'erro');
+                      }
+                    }
+                  : undefined
+              }
+            />
           ) : null}
         </section>
       ) : null}
@@ -508,7 +545,13 @@ function Remarcar({
   );
 }
 
-function Cancelar({ aoCancelar }: { aoCancelar: (motivo: string) => void }) {
+function Cancelar({
+  aoCancelar,
+  aoCancelarSerie,
+}: {
+  aoCancelar: (motivo: string) => void;
+  aoCancelarSerie?: ((motivo: string) => void) | undefined;
+}) {
   const [motivo, setMotivo] = useState('');
   const sugestoes = ['Paciente desmarcou', 'Profissional indisponível', 'Remarcar depois'];
   return (
@@ -536,8 +579,18 @@ function Cancelar({ aoCancelar }: { aoCancelar: (motivo: string) => void }) {
         disabled={motivo.trim().length < 3}
         onClick={() => aoCancelar(motivo.trim())}
       >
-        Confirmar cancelamento
+        {aoCancelarSerie ? 'Cancelar só esta' : 'Confirmar cancelamento'}
       </Botao>
+      {aoCancelarSerie ? (
+        <Botao
+          variante="perigo"
+          className="w-full"
+          disabled={motivo.trim().length < 3}
+          onClick={() => aoCancelarSerie(motivo.trim())}
+        >
+          Cancelar esta e as próximas da série
+        </Botao>
+      ) : null}
     </div>
   );
 }

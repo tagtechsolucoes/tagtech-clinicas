@@ -239,6 +239,8 @@ export const appointments = pgTable('appointments', {
   status: appointmentStatus('status').notNull().default('scheduled'),
   source: appointmentSource('source').notNull().default('staff'),
   priceCents: integer('price_cents'),
+  packageId: uuid('package_id'),
+  seriesId: uuid('series_id'),
   notes: text('notes').notNull().default(''),
   cancelReason: text('cancel_reason'),
   manageTokenHash: text('manage_token_hash'),
@@ -463,6 +465,7 @@ export const charges = pgTable('charges', {
   tenantId: uuid('tenant_id').notNull(),
   patientId: uuid('patient_id'),
   planId: uuid('plan_id'),
+  packageId: uuid('package_id'),
   appointmentId: uuid('appointment_id'),
   description: text('description').notNull(),
   amountCents: integer('amount_cents').notNull(),
@@ -813,5 +816,23 @@ export const reviewRequests = pgTable('review_requests', {
   comment: text('comment').notNull().default(''),
   sentToGoogle: boolean('sent_to_google').notNull().default(false),
   answeredAt: ts('answered_at'),
+  createdAt: createdAt(),
+});
+
+export const sessionPackages = pgTable('session_packages', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  serviceId: uuid('service_id').notNull(),
+  title: text('title').notNull(),
+  totalSessions: smallint('total_sessions').notNull(),
+  priceCents: integer('price_cents').notNull().default(0),
+  noShowCounts: boolean('no_show_counts').notNull().default(true),
+  validUntil: date('valid_until'),
+  status: text('status', { enum: ['active', 'finished', 'cancelled'] })
+    .notNull()
+    .default('active'),
+  notes: text('notes').notNull().default(''),
+  createdBy: uuid('created_by'),
   createdAt: createdAt(),
 });

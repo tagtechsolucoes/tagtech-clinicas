@@ -2,6 +2,7 @@ import { consumeForAppointment, returnForAppointment } from '../stock/stock.serv
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Inject,
   Injectable,
   NotFoundException,
@@ -25,6 +26,8 @@ import { availability } from './availability';
 import { hashToken } from '../common/token';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { RelationshipService } from '../relationship/relationship.service';
+import { packageRoom, refreshPackage } from '../packages/packages.service';
+import { randomUUID } from 'node:crypto';
 
 const {
   appointments,
@@ -69,6 +72,8 @@ export async function loadAppointments(tx: TenantTx, where: ReturnType<typeof an
     insurerId: a.insurerId,
     authorizationId: a.authorizationId,
     copayCents: a.copayCents,
+    packageId: a.packageId,
+    seriesId: a.seriesId,
     notes: a.notes,
     cancelReason: a.cancelReason,
     confirmedAt: a.confirmedAt?.toISOString() ?? null,
@@ -93,6 +98,10 @@ export interface BookInput {
   notes?: string | undefined;
   /** Encaixe: aceita fora da semana de trabalho (conflito com outra consulta nunca). */
   allowOutsideHours?: boolean | undefined;
+  /** Sessão de um pacote do paciente (não cobra de novo). */
+  packageId?: string | undefined;
+  /** Série: repete no mesmo horário a cada `everyWeeks` semanas, `count` vezes ao todo. */
+  repeat?: { everyWeeks: number; count: number } | undefined;
 }
 
 export interface ReschedulePatch {
@@ -102,6 +111,14 @@ export interface ReschedulePatch {
   notes?: string | undefined;
   priceCents?: number | null | undefined;
   allowOutsideHours?: boolean | undefined;
+}
+
+/** Texto de um erro HTTP do Nest, para explicar a sessão pulada da série. */
+function mensagemDe(e: HttpException): string {
+  const r = e.getResponse();
+  if (typeof r === 'string') return r;
+  const m = (r as { message?: unknown }).message;
+  return typeof m === 'string' ? m : e.message;
 }
 
 /** Erro de horário ocupado (garantido pelo banco) vira 409 com mensagem clara. */
@@ -284,45 +301,124 @@ export class AgendaService {
         if (!p) throw new NotFoundException('Paciente não encontrado');
       }
 
-      const unitId = input.unitId ?? (await this.pickUnit(tx, pro.id, input.startsAt));
-      const endsAt = new Date(
-        input.startsAt.getTime() + (input.durationMinutes ?? service.durationMinutes) * 60_000,
-      );
-      if (input.roomId) await this.assertRoom(tx, input.roomId, unitId);
-      if (!input.allowOutsideHours)
-        await this.assertWithinHours(tx, pro.id, unitId, input.startsAt, endsAt);
+      // Pacote: limita a série ao que ainda dá para marcar.
+      let livres = Number.POSITIVE_INFINITY;
+      let validade: string | null = null;
+      if (input.packageId) {
+        const { pkg, free } = await packageRoom(tx, input.packageId, patientId, service.id);
+        if (free <= 0) throw new ConflictException('Este pacote não tem mais sessões para marcar');
+        livres = free;
+        validade = pkg.validUntil;
+      }
 
-      const token = generateToken();
-      const [row] = await tx
-        .insert(appointments)
-        .values({
-          tenantId: ctx.tenantId,
-          unitId,
-          professionalId: pro.id,
-          roomId: input.roomId ?? null,
-          serviceId: service.id,
-          patientId,
-          startsAt: input.startsAt,
-          endsAt,
-          source: 'staff',
-          priceCents: input.priceCents !== undefined ? input.priceCents : service.priceCents,
-          notes: input.notes ?? '',
-          manageTokenHash: hashToken(token),
-          createdBy: ctx.user.userId,
-        })
-        .returning()
-        .catch(mapBookingError);
-      await tx.insert(appointmentEvents).values({
-        tenantId: ctx.tenantId,
-        appointmentId: row!.id,
-        toStatus: 'scheduled',
-        actorUserId: ctx.user.userId,
-      });
-      const [view] = await loadAppointments(tx, eq(appointments.id, row!.id));
-      return { ...view!, manageToken: token };
+      const vezes = input.repeat ? input.repeat.count : 1;
+      const passo = (input.repeat?.everyWeeks ?? 1) * 7 * 86400_000;
+      const seriesId = vezes > 1 ? randomUUID() : null;
+      const criadas: Array<{ id: string; token: string }> = [];
+      const puladas: Array<{ startsAt: string; reason: string }> = [];
+
+      for (let i = 0; i < vezes; i++) {
+        const startsAt = new Date(input.startsAt.getTime() + i * passo);
+        if (criadas.length >= livres) {
+          puladas.push({
+            startsAt: startsAt.toISOString(),
+            reason: 'O pacote não tem mais sessões',
+          });
+          continue;
+        }
+        try {
+          // Cada sessão num savepoint: uma que bate com outra consulta não derruba a série.
+          const criada = await tx.transaction(async (sp) => {
+            const unitId = input.unitId ?? (await this.pickUnit(sp, pro.id, startsAt));
+            if (validade && localClock(startsAt, await this.unitTz(sp, unitId)).ymd > validade)
+              throw new ConflictException('Depois da validade do pacote');
+            const endsAt = new Date(
+              startsAt.getTime() + (input.durationMinutes ?? service.durationMinutes) * 60_000,
+            );
+            if (input.roomId) await this.assertRoom(sp, input.roomId, unitId);
+            if (!input.allowOutsideHours)
+              await this.assertWithinHours(sp, pro.id, unitId, startsAt, endsAt);
+            const token = generateToken();
+            const [row] = await sp
+              .insert(appointments)
+              .values({
+                tenantId: ctx.tenantId,
+                unitId,
+                professionalId: pro.id,
+                roomId: input.roomId ?? null,
+                serviceId: service.id,
+                patientId: patientId!,
+                startsAt,
+                endsAt,
+                source: 'staff',
+                // Sessão de pacote já está paga no pacote.
+                priceCents: input.packageId
+                  ? 0
+                  : input.priceCents !== undefined
+                    ? input.priceCents
+                    : service.priceCents,
+                notes: input.notes ?? '',
+                manageTokenHash: hashToken(token),
+                createdBy: ctx.user.userId,
+                packageId: input.packageId ?? null,
+                seriesId,
+              })
+              .returning()
+              .catch(mapBookingError);
+            await sp.insert(appointmentEvents).values({
+              tenantId: ctx.tenantId,
+              appointmentId: row!.id,
+              toStatus: 'scheduled',
+              actorUserId: ctx.user.userId,
+            });
+            return { id: row!.id, token };
+          });
+          criadas.push(criada);
+        } catch (e) {
+          // A primeira precisa dar certo; das seguintes, a que não couber é pulada.
+          if (i === 0 || !(e instanceof HttpException)) throw e;
+          puladas.push({ startsAt: startsAt.toISOString(), reason: mensagemDe(e) });
+        }
+      }
+
+      const [view] = await loadAppointments(tx, eq(appointments.id, criadas[0]!.id));
+      return {
+        ...view!,
+        manageToken: criadas[0]!.token,
+        ...(seriesId
+          ? { series: { id: seriesId, created: criadas.length, skipped: puladas } }
+          : {}),
+      };
     });
+    // Aviso só da primeira: a série inteira vira uma mensagem por consulta no lembrete.
     this.whatsapp.appointmentEvent(ctx.tenantId, booked.id, 'booked', booked.manageToken);
     return booked;
+  }
+
+  private async unitTz(tx: TenantTx, unitId: string) {
+    const [u] = await tx.select({ tz: units.timezone }).from(units).where(eq(units.id, unitId));
+    return u?.tz ?? 'America/Recife';
+  }
+
+  /** Cancela esta consulta e as próximas da mesma série. */
+  async cancelSeries(ctx: TenantContext, id: string, reason: string) {
+    const ids = await this.run(ctx, async (tx) => {
+      const a = await this.current(tx, id);
+      if (!a.seriesId) throw new BadRequestException('Esta consulta não faz parte de uma série');
+      const rows = await tx
+        .select({ id: appointments.id })
+        .from(appointments)
+        .where(
+          and(
+            eq(appointments.seriesId, a.seriesId),
+            gte(appointments.startsAt, a.startsAt),
+            inArray(appointments.status, ['scheduled', 'confirmed']),
+          ),
+        );
+      return rows.map((r) => r.id);
+    });
+    for (const x of ids) await this.setStatus(ctx, x, 'cancelled', reason);
+    return { cancelled: ids.length };
   }
 
   private async assertRoom(tx: TenantTx, roomId: string, unitId: string) {
@@ -432,6 +528,7 @@ export class AgendaService {
         reason: reason?.trim() || null,
       });
       changed = true;
+      await refreshPackage(tx, before.packageId);
       // Estoque: finalizar tira o material da ficha; desfazer devolve.
       if (status === 'done') await consumeForAppointment(tx, ctx.tenantId, id, ctx.user.userId);
       else if (before.status === 'done')
