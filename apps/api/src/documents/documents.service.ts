@@ -16,7 +16,8 @@ const {
   units,
 } = schema;
 
-export type DocumentKind = 'prescription' | 'certificate' | 'declaration' | 'exam_request';
+export type DocumentKind =
+  'prescription' | 'certificate' | 'declaration' | 'exam_request' | 'meal_plan';
 
 export interface DocumentInput {
   kind: DocumentKind;

@@ -37,6 +37,7 @@ export interface PublicClinic {
     category: string;
     durationMinutes: number;
     priceCents: number | null;
+    telehealth?: boolean;
     professionalIds: string[];
   }>;
 }
@@ -62,6 +63,7 @@ export interface ManageView {
   canConfirm: boolean;
   canCancel: boolean;
   deposit: { amountCents: number; status: 'open' | 'paid' | 'cancelled' } | null;
+  telehealth: { opensAt: string; url: string | null; configured: boolean } | null;
 }
 
 export interface Pix {

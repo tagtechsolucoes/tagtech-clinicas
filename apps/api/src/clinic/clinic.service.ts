@@ -85,6 +85,7 @@ export interface ProfessionalInput {
   active?: boolean | undefined;
   membershipId?: string | null | undefined;
   recordKind?: RecordKind | undefined;
+  telehealthUrl?: string | undefined;
 }
 
 export interface HoursInput {
@@ -101,6 +102,7 @@ export interface ServiceInput {
   durationMinutes: number;
   priceCents?: number | null | undefined;
   returnDays?: number | null | undefined;
+  telehealth?: boolean | undefined;
   color?: string | undefined;
   onlineBooking?: boolean | undefined;
   active?: boolean | undefined;
@@ -540,6 +542,7 @@ export async function loadProfessionals(tx: TenantTx, ids?: string[]) {
     active: p.active,
     membershipId: p.membershipId,
     recordKind: p.recordKind,
+    telehealthUrl: p.telehealthUrl,
     hours: hours
       .filter((h) => h.professionalId === p.id)
       .map((h) => ({
@@ -576,6 +579,7 @@ export async function loadServices(tx: TenantTx, ids?: string[]) {
     durationMinutes: s.durationMinutes,
     priceCents: s.priceCents,
     returnDays: s.returnDays,
+    telehealth: s.telehealth,
     color: s.color,
     onlineBooking: s.onlineBooking,
     active: s.active,

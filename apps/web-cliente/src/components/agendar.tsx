@@ -163,6 +163,7 @@ export function Agendar({
                 </span>
                 <span className="mt-1 block text-sm text-nevoa">
                   {duracao(s.durationMinutes)}
+                  {s.telehealth ? ' · online, por vídeo' : ''}
                   {s.description ? ` · ${s.description}` : ''}
                 </span>
               </button>

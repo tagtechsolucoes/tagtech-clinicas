@@ -118,6 +118,26 @@ export function Gerenciar({ token, inicial }: { token: string; inicial: ManageVi
             ) : null}
           </dl>
 
+          {v.telehealth && !cancelada ? (
+            <div className="mt-6 rounded-2xl bg-porcelana p-5">
+              <p className="font-semibold">Consulta online</p>
+              {v.telehealth.url ? (
+                <a
+                  href={v.telehealth.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 flex h-13 w-full items-center justify-center rounded-2xl bg-destaque text-[1.05rem] font-semibold text-sobre-destaque hover:bg-destaque-forte"
+                >
+                  Entrar na sala de vídeo
+                </a>
+              ) : (
+                <p className="mt-1 text-sm text-nevoa">
+                  O botão para entrar aparece aqui às {hora(v.telehealth.opensAt)} do dia da
+                  consulta. Use fone e um lugar reservado.
+                </p>
+              )}
+            </div>
+          ) : null}
           {v.deposit?.status === 'open' && !cancelada ? (
             <div className="mt-6">
               <PixSinal

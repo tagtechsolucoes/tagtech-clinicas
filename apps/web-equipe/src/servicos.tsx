@@ -130,6 +130,7 @@ function Formulario({ s, aoFechar }: { s: Service | null; aoFechar: () => void }
     durationMinutes: s?.durationMinutes ?? 30,
     preco: s?.priceCents != null ? centsToInput(s.priceCents) : '',
     returnDays: s?.returnDays ?? null,
+    telehealth: s?.telehealth ?? false,
     color: s?.color ?? CORES[0]!,
     onlineBooking: s?.onlineBooking ?? true,
     active: s?.active ?? true,
@@ -404,6 +405,12 @@ function Formulario({ s, aoFechar }: { s: Service | null; aoFechar: () => void }
         ligado={dados.onlineBooking}
         aoMudar={(v) => setDados({ ...dados, onlineBooking: v })}
         rotulo="Agendável pelo site"
+      />
+      <Interruptor
+        ligado={dados.telehealth}
+        aoMudar={(v) => setDados({ ...dados, telehealth: v })}
+        rotulo="Atendimento online (teleconsulta)"
+        descricao="O paciente entra pela sala de vídeo do profissional, pelo link da consulta."
       />
       {s ? (
         <Interruptor

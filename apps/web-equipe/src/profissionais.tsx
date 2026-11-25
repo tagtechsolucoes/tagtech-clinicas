@@ -152,6 +152,7 @@ function Formulario({ pro, aoFechar }: { pro: Professional | null; aoFechar: () 
     onlineBooking: pro?.onlineBooking ?? true,
     active: pro?.active ?? true,
     recordKind: pro?.recordKind ?? ('geral' as RecordKind),
+    telehealthUrl: pro?.telehealthUrl ?? '',
   });
   const [horas, setHoras] = useState<WorkHours[]>(
     pro?.hours ??
@@ -251,6 +252,17 @@ function Formulario({ pro, aoFechar }: { pro: Professional | null; aoFechar: () 
               </option>
             ))}
           </Seletor>
+        </Campo>
+        <Campo
+          rotulo="Sala de teleconsulta (opcional)"
+          ajuda="Link fixo do Google Meet, Zoom ou Jitsi. O paciente vê o botão para entrar 15 minutos antes da consulta online."
+        >
+          <Entrada
+            inputMode="url"
+            value={dados.telehealthUrl}
+            onChange={(e) => setDados({ ...dados, telehealthUrl: e.target.value.trim() })}
+            placeholder="https://meet.google.com/…"
+          />
         </Campo>
         <Campo rotulo="Apresentação no site">
           <Texto

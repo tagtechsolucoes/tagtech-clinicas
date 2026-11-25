@@ -72,6 +72,7 @@ export interface Professional {
   active: boolean;
   membershipId: string | null;
   recordKind: RecordKind;
+  telehealthUrl?: string;
   hours: WorkHours[];
   serviceIds: string[];
 }
@@ -84,6 +85,7 @@ export interface Service {
   durationMinutes: number;
   priceCents: number | null;
   returnDays?: number | null;
+  telehealth?: boolean;
   color: string;
   onlineBooking: boolean;
   active: boolean;
@@ -793,7 +795,8 @@ export interface SessionPackage {
   createdAt: string;
 }
 
-export type DocumentKind = 'prescription' | 'certificate' | 'declaration' | 'exam_request';
+export type DocumentKind =
+  'prescription' | 'certificate' | 'declaration' | 'exam_request' | 'meal_plan';
 export interface ClinicalDocument {
   id: string;
   kind: DocumentKind;
