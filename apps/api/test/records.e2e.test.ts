@@ -136,6 +136,11 @@ describe('evoluções', () => {
     expect(daAutora.find((n: { kind: string }) => n.kind === 'psico').data).toEqual({
       registro: 'Conteúdo da sessão',
     });
+    // Nem a exportação (LGPD) nem a da clínica abrem a evolução sigilosa para o dono.
+    const exp = await as(a.cookie, 'GET', `/patients/${patientId}/export`);
+    expect(exp.body).not.toContain('Conteúdo da sessão');
+    const tudo = await as(a.cookie, 'GET', '/clinic/export');
+    expect(tudo.body).not.toContain('Conteúdo da sessão');
   });
 
   it('outra clínica não lê nem escreve', async () => {

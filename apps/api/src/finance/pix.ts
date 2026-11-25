@@ -135,4 +135,7 @@ export class FakePix implements PixProvider {
   }
 }
 
-export const fakePixAllowed = () => process.env.NODE_ENV !== 'production';
+/** Pix de teste: nunca em produção, e fora dos testes só com PIX_FAKE=1. */
+export const fakePixAllowed = () =>
+  process.env.NODE_ENV !== 'production' &&
+  (process.env.NODE_ENV === 'test' || process.env.PIX_FAKE === '1');

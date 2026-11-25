@@ -152,10 +152,12 @@ export class LgpdService {
           observacoes: c.a.notes,
           motivoCancelamento: c.a.cancelReason,
         })),
+        // Evolução sigilosa (ex.: psicologia) só sai com o conteúdo para quem escreveu.
         prontuario: notas.map((n) => ({
           tipo: n.kind,
-          campos: n.data,
-          texto: n.text,
+          ...(n.private && n.authorUserId !== ctx.user.userId
+            ? { campos: {}, texto: null, conteudo: 'Sigiloso: peça ao profissional que escreveu' }
+            : { campos: n.data, texto: n.text }),
           sigiloso: n.private,
           finalizadoEm: iso(n.lockedAt),
           escritoEm: iso(n.createdAt),
@@ -405,7 +407,12 @@ export class LgpdService {
         consultas: await tabela(tx.select().from(s.appointments), 'manageTokenHash'),
         historicoDasConsultas: await tabela(tx.select().from(s.appointmentEvents)),
         listaDeEspera: await tabela(tx.select().from(s.waitlist)),
-        prontuario: await tabela(tx.select().from(s.clinicalNotes)),
+        // Evoluções sigilosas de outros profissionais saem sem o conteúdo (sigilo profissional).
+        prontuario: (await tabela(tx.select().from(s.clinicalNotes))).map((n) =>
+          n.private && n.authorUserId !== ctx.user.userId
+            ? { ...n, data: {}, text: null, sigiloso: true }
+            : n,
+        ),
         odontograma: await tabela(tx.select().from(s.toothChart)),
         fotos: await tabela(tx.select().from(s.patientPhotos)),
         autorizacoesDeImagem: await tabela(tx.select().from(s.imageConsents)),

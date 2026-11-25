@@ -48,9 +48,11 @@ export async function abrirRecibo(
 </div>
 <p style="margin-top:24px;color:#56676f">${esc(r.clinic.address)}${r.clinic.phone ? ` · ${esc(r.clinic.phone)}` : ''}</p>
 <div class="ass">${esc(r.appointment?.professionalName ?? r.clinic.legalName ?? r.clinic.name)}</div>
-<button onclick="print()" style="margin-top:32px;padding:10px 18px;border-radius:12px;border:0;background:#1d4e5f;color:#fff;font-weight:600">Imprimir ou salvar PDF</button>
+<button id="imprimir" style="margin-top:32px;padding:10px 18px;border-radius:12px;border:0;background:#1d4e5f;color:#fff;font-weight:600">Imprimir ou salvar PDF</button>
 </body></html>`);
     janela?.document.close();
+    // Sem onclick inline: a política de segurança do painel bloqueia script inline.
+    janela?.document.getElementById('imprimir')?.addEventListener('click', () => janela.print());
   } catch (e) {
     janela?.close();
     avisar(mensagem(e), 'erro');
@@ -106,7 +108,7 @@ export function BotaoNota({
         {nota?.status === 'error' ? 'Tentar nota de novo' : 'Emitir nota'}
       </Botao>
     );
-  if (nota.status === 'authorized' && nota.url)
+  if (nota.status === 'authorized' && nota.url && /^https:\/\//.test(nota.url))
     return (
       <a
         href={nota.url}

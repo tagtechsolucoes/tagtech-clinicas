@@ -255,7 +255,7 @@ function Formulario({ pro, aoFechar }: { pro: Professional | null; aoFechar: () 
         </Campo>
         <Campo
           rotulo="Sala de teleconsulta (opcional)"
-          ajuda="Link fixo do Google Meet, Zoom ou Jitsi. O paciente vê o botão para entrar 15 minutos antes da consulta online."
+          ajuda="Link fixo do Google Meet, Zoom ou Jitsi. O paciente vê o botão para entrar 15 minutos antes. Ligue a sala de espera do Meet ou Zoom: o link é sempre o mesmo, e é você quem deixa cada paciente entrar."
         >
           <Entrada
             inputMode="url"

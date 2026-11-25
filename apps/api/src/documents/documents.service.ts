@@ -99,16 +99,17 @@ export class DocumentsService {
         .from(patients)
         .where(eq(patients.id, patientId));
       if (!p) throw new NotFoundException('Paciente não encontrado');
-      // Quem é profissional assina pelo próprio cadastro; dono e gerente escolhem.
       const [meu] = await tx
         .select({ id: professionals.id })
         .from(professionals)
         .innerJoin(memberships, eq(memberships.id, professionals.membershipId))
         .where(eq(memberships.userId, ctx.user.userId));
-      const professionalId =
-        ctx.membership.role === 'professional' ? meu?.id : (input.professionalId ?? meu?.id);
+      // Documento sai sempre em nome de quem está logado: ninguém assina por outro profissional.
+      const professionalId = meu?.id;
       if (!professionalId)
-        throw new BadRequestException('Escolha o profissional que assina o documento');
+        throw new BadRequestException(
+          'Só o profissional emite documentos. Ligue seu usuário a um cadastro de profissional.',
+        );
       const [pro] = await tx
         .select({ id: professionals.id })
         .from(professionals)
