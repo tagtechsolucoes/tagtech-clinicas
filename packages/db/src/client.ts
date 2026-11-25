@@ -135,3 +135,11 @@ export async function resolveReviewToken(db: Db, tokenHash: string): Promise<Pai
   );
   return rows[0] ? { tenantId: rows[0].tenant_id, id: rows[0].review_id } : null;
 }
+
+/** Link da TV da recepção -> clínica. */
+export async function resolveTvToken(db: Db, tokenHash: string): Promise<string | null> {
+  const rows = await db.execute<{ tenant_id: string }>(
+    sql`select tenant_id from resolve_tv_token(${tokenHash})`,
+  );
+  return rows[0]?.tenant_id ?? null;
+}

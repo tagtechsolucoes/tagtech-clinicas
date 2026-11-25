@@ -313,6 +313,9 @@ const PATHS: Record<string, string> = {
   enviar: 'M21 3L10 14M21 3l-7 18-4-7-7-4z',
   caixa: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8',
   grafico: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  tv: 'M3 5h18v12H3zM8 21h8M12 17v4',
+  fila: 'M7 7a3 3 0 1 0 0-.01M17 7a3 3 0 1 0 0-.01M3 20c0-3 2-5 4-5s4 2 4 5M13 20c0-3 2-5 4-5s4 2 4 5',
+  relatorio: 'M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h5',
   qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
 };
 

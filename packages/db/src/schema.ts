@@ -57,6 +57,7 @@ export const tenants = pgTable('tenants', {
   legalName: text('legal_name').notNull().default(''),
   document: text('document').notNull().default(''),
   insuranceEnabled: boolean('insurance_enabled').notNull().default(false),
+  tvTokenHash: text('tv_token_hash'),
   waitlistAutoOffer: boolean('waitlist_auto_offer').notNull().default(true),
   reactivationDays: integer('reactivation_days').notNull().default(0),
   googleReviewUrl: text('google_review_url').notNull().default(''),
@@ -119,6 +120,7 @@ export const professionals = pgTable('professionals', {
   membershipId: uuid('membership_id'),
   name: text('name').notNull(),
   specialty: text('specialty').notNull().default(''),
+  commissionPct: numeric('commission_pct', { precision: 5, scale: 2 }).notNull().default('0'),
   council: text('council').notNull().default(''),
   bio: text('bio').notNull().default(''),
   photoUrl: text('photo_url'),
@@ -834,5 +836,37 @@ export const sessionPackages = pgTable('session_packages', {
     .default('active'),
   notes: text('notes').notNull().default(''),
   createdBy: uuid('created_by'),
+  createdAt: createdAt(),
+});
+
+export const commissionRules = pgTable('commission_rules', {
+  tenantId: uuid('tenant_id').notNull(),
+  professionalId: uuid('professional_id').notNull(),
+  serviceId: uuid('service_id').notNull(),
+  pct: numeric('pct', { precision: 5, scale: 2 }),
+  fixedCents: integer('fixed_cents'),
+});
+
+export const clinicalDocuments = pgTable('clinical_documents', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  professionalId: uuid('professional_id').notNull(),
+  appointmentId: uuid('appointment_id'),
+  authorUserId: uuid('author_user_id'),
+  kind: text('kind', {
+    enum: ['prescription', 'certificate', 'declaration', 'exam_request'],
+  }).notNull(),
+  content: jsonb('content').$type<Record<string, unknown>>().notNull(),
+  createdAt: createdAt(),
+});
+
+export const patientCalls = pgTable('patient_calls', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  appointmentId: uuid('appointment_id').notNull(),
+  displayName: text('display_name').notNull(),
+  destination: text('destination').notNull(),
+  calledBy: uuid('called_by'),
   createdAt: createdAt(),
 });
