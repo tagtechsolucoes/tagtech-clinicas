@@ -111,7 +111,11 @@ export class PublicService {
       return {
         ...view,
         insurers: planos,
-        booking: { enabled: booking.enabled, horizonDays: booking.horizonDays },
+        booking: {
+          enabled: booking.enabled,
+          horizonDays: booking.horizonDays,
+          depositCents: tenant.bookingDepositCents,
+        },
         gallery: gallery.map((g) => ({
           id: g.id,
           title: g.title,

@@ -198,6 +198,7 @@ export const patients = pgTable('patients', {
   notes: text('notes').notNull().default(''),
   source: patientSource('source').notNull().default('staff'),
   consentAt: ts('consent_at'),
+  contactErasedAt: ts('contact_erased_at'),
   createdAt: createdAt(),
 });
 
@@ -206,7 +207,7 @@ export const patientAccessLog = pgTable('patient_access_log', {
   tenantId: uuid('tenant_id').notNull(),
   patientId: uuid('patient_id').notNull(),
   actorUserId: uuid('actor_user_id'),
-  action: text('action', { enum: ['view', 'create', 'update'] }).notNull(),
+  action: text('action', { enum: ['view', 'create', 'update', 'export', 'erase'] }).notNull(),
   createdAt: createdAt(),
 });
 

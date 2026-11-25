@@ -4,7 +4,7 @@ import { api, type Patient } from '../api';
 import { mensagem, usePainel } from '../contexto';
 import { dataHora, idade, telefone } from '../formato';
 import { Ficha } from '../pacientes';
-import { Avatar, Botao, Icone, STATUS_ESTILO } from '../ui';
+import { Avatar, Botao, Gaveta, Icone, STATUS_ESTILO } from '../ui';
 import { Fotos } from './fotos';
 import { Odontograma } from './odontograma';
 import { Orcamentos } from './orcamentos';
@@ -15,7 +15,7 @@ type Aba = 'prontuario' | 'odontograma' | 'fotos' | 'orcamentos' | 'convenio' | 
 
 /** Página do paciente: dados, prontuário, odontograma, fotos e consultas. */
 export function PacienteTela({ id }: { id: string }) {
-  const { vinculo, professionals, avisar, clinic } = usePainel();
+  const { vinculo, professionals, avisar, clinic, gerencia } = usePainel();
   const clinico = vinculo.role !== 'reception';
   const temOdonto = professionals.some((p) => p.recordKind === 'odonto');
   const abas: Array<[Aba, string]> = [
@@ -29,6 +29,8 @@ export function PacienteTela({ id }: { id: string }) {
   const [aba, setAba] = useState<Aba>(abas[0]![0]);
   const [p, setP] = useState<Patient | null>(null);
   const [editando, setEditando] = useState(false);
+  const [privacidade, setPrivacidade] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
 
   const carregar = () =>
     api
@@ -64,10 +66,85 @@ export function PacienteTela({ id }: { id: string }) {
               .join(' · ') || 'Sem dados de contato'}
           </p>
         </div>
-        <Botao onClick={() => setEditando(true)}>
-          <Icone nome="editar" className="h-4 w-4" /> Dados do paciente
-        </Botao>
+        <div className="flex gap-2">
+          {gerencia ? (
+            <Botao variante="discreto" onClick={() => setPrivacidade(true)}>
+              Privacidade
+            </Botao>
+          ) : null}
+          <Botao onClick={() => setEditando(true)}>
+            <Icone nome="editar" className="h-4 w-4" /> Dados do paciente
+          </Botao>
+        </div>
       </header>
+
+      {p.contactErasedAt ? (
+        <p className="mb-6 rounded-2xl bg-trilho px-4 py-3 text-sm text-nevoa">
+          O paciente pediu a exclusão dos dados em {dataHora(p.contactErasedAt)}. O contato foi
+          apagado e ele não recebe mensagens; o prontuário fica guardado pelo prazo legal.
+        </p>
+      ) : null}
+
+      <Gaveta
+        aberta={privacidade}
+        aoFechar={() => setPrivacidade(false)}
+        titulo="Privacidade do paciente"
+        subtitulo="Pedidos do titular pela LGPD. Tudo fica no registro de acesso."
+      >
+        <div className="space-y-6">
+          <section className="rounded-2xl bg-porcelana p-5 ring-1 ring-linha">
+            <h3 className="font-semibold">Cópia dos dados</h3>
+            <p className="mt-1 text-sm text-nevoa">
+              Arquivo com cadastro, consultas, prontuário, orçamentos, financeiro e convênio. As
+              fotos clínicas vão à parte.
+            </p>
+            <a
+              href={api.exportPatientUrl(p.id)}
+              className="mt-3 inline-flex h-11 items-center gap-2 rounded-xl bg-petroleo px-4 font-semibold text-white"
+            >
+              <Icone nome="upload" className="h-4 w-4 rotate-180" /> Baixar dados
+            </a>
+          </section>
+          <section className="rounded-2xl p-5 ring-1 ring-alerta/40">
+            <h3 className="font-semibold text-alerta">Pedido de exclusão</h3>
+            <p className="mt-1 text-sm text-nevoa">
+              Sem histórico clínico ou financeiro, o cadastro é apagado de vez. Com histórico, o
+              contato é apagado, as consultas futuras são canceladas, a foto sai do site e o
+              prontuário fica guardado pelo prazo legal (20 anos).
+            </p>
+            {confirmando ? (
+              <div className="mt-3 flex gap-2">
+                <Botao onClick={() => setConfirmando(false)}>Voltar</Botao>
+                <Botao
+                  variante="perigo"
+                  onClick={async () => {
+                    try {
+                      const r = await api.erasePatient(p.id);
+                      setPrivacidade(false);
+                      setConfirmando(false);
+                      if (r.mode === 'deleted') {
+                        avisar('Cadastro apagado');
+                        location.hash = '#pacientes';
+                      } else {
+                        avisar('Contato apagado; prontuário guardado');
+                        void carregar();
+                      }
+                    } catch (e) {
+                      avisar(mensagem(e), 'erro');
+                    }
+                  }}
+                >
+                  Confirmar exclusão
+                </Botao>
+              </div>
+            ) : (
+              <Botao className="mt-3" variante="perigo" onClick={() => setConfirmando(true)}>
+                Atender pedido de exclusão
+              </Botao>
+            )}
+          </section>
+        </div>
+      </Gaveta>
 
       {p.allergies || p.medications ? (
         <div className="mb-6 flex flex-wrap gap-2.5">

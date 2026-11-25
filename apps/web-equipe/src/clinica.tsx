@@ -34,7 +34,7 @@ function Secao({
 }
 
 export function ClinicaTela() {
-  const { clinic, setClinic, avisar, rooms, recarregar } = usePainel();
+  const { clinic, setClinic, avisar, rooms, recarregar, vinculo } = usePainel();
   const unidade = clinic.units[0];
   const [d, setD] = useState({
     name: clinic.name,
@@ -330,6 +330,15 @@ export function ClinicaTela() {
             />
           </Campo>
         </div>
+        {vinculo.role === 'owner' ? (
+          <p className="text-sm text-nevoa">
+            Quer levar tudo para outro sistema?{' '}
+            <a href={api.exportClinicUrl()} className="font-semibold text-petroleo underline">
+              Baixar todos os dados da clínica
+            </a>{' '}
+            (sem senhas e credenciais).
+          </p>
+        ) : null}
         <Interruptor
           ligado={d.insuranceEnabled}
           aoMudar={(v) => setD({ ...d, insuranceEnabled: v })}

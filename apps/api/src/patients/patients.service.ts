@@ -42,6 +42,7 @@ export function patientView(p: PatientRow) {
     notes: p.notes,
     source: p.source,
     consentAt: p.consentAt?.toISOString() ?? null,
+    contactErasedAt: p.contactErasedAt?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -187,7 +188,11 @@ export class PatientsService {
     return inClinic(this.dbService.db, ctx, async (tx) => {
       const [row] = await tx
         .update(patients)
-        .set(defined({ ...input }))
+        // Voltou a dar contato: o pedido de exclusão anterior deixa de valer.
+        .set({
+          ...defined({ ...input }),
+          ...(input.phone || input.email ? { contactErasedAt: null } : {}),
+        })
         .where(eq(patients.id, id))
         .returning()
         .catch((e) => this.mapError(e));
