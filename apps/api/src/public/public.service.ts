@@ -25,10 +25,12 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { clinicView } from '../clinic/clinic.service';
 import { loadProfessionals, loadServices } from '../clinic/clinic.service';
 import { findOrCreatePatient } from '../patients/patients.service';
+import { FinanceService } from '../finance/finance.service';
 
 const {
   appointments,
   appointmentEvents,
+  charges,
   galleryItems,
   patients,
   professionals,
@@ -63,6 +65,7 @@ export class PublicService {
   constructor(
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(WhatsAppService) private readonly whatsapp: WhatsAppService,
+    @Inject(FinanceService) private readonly finance: FinanceService,
   ) {}
 
   private async clinic<T>(
@@ -273,11 +276,41 @@ export class PublicService {
         toStatus: 'scheduled',
         actorKind: 'patient',
       });
-      return { token, tenantId: tenant.id, id: row!.id, view: await this.manageView(tx, row!.id) };
+      // Sinal: só quando a clínica pede e tem como cobrar no Pix.
+      let depositId: string | null = null;
+      if (tenant.bookingDepositCents > 0 && (await this.finance.provider(tx))) {
+        const [c] = await tx
+          .insert(charges)
+          .values({
+            tenantId: tenant.id,
+            patientId: patient.id,
+            appointmentId: row!.id,
+            description: `Sinal: ${service!.name}`.slice(0, 160),
+            amountCents: tenant.bookingDepositCents,
+            dueDate: input.date,
+            isDeposit: true,
+          })
+          .returning();
+        depositId = c!.id;
+      }
+      return { token, tenantId: tenant.id, id: row!.id, depositId };
     });
     this.bookingLimiter.recordFailure(ip, slug);
+    let pix = null;
+    if (result.depositId) {
+      pix = await this.finance.pixForCharge(result.tenantId, result.depositId).catch(async () => {
+        // Sem Pix agora, não segura o horário do paciente: a consulta fica sem sinal.
+        await withTenant(this.dbService.db, result.tenantId, (tx) =>
+          tx.update(charges).set({ status: 'cancelled' }).where(eq(charges.id, result.depositId!)),
+        );
+        return null;
+      });
+    }
+    const view = await withTenant(this.dbService.db, result.tenantId, (tx) =>
+      this.manageView(tx, result.id),
+    );
     this.whatsapp.appointmentEvent(result.tenantId, result.id, 'booked', result.token);
-    return { token: result.token, appointment: result.view };
+    return { token: result.token, appointment: view, pix };
   }
 
   // ------------------------------------------------------------ link do paciente
@@ -309,8 +342,15 @@ export class PublicService {
     const { a, tenant, unit } = row;
     const future = a.startsAt.getTime() > Date.now();
     const { booking: _b, about: _a, ...brand } = clinicView(tenant);
+    const [deposit] = await tx
+      .select()
+      .from(charges)
+      .where(and(eq(charges.appointmentId, appointmentId), eq(charges.isDeposit, true)))
+      .orderBy(desc(charges.createdAt))
+      .limit(1);
     return {
       clinic: brand,
+      deposit: deposit ? { amountCents: deposit.amountCents, status: deposit.status } : null,
       unit: { name: unit.name, address: unit.address, phone: unit.phone, timezone: unit.timezone },
       serviceName: row.serviceName,
       professionalName: row.professionalName,
@@ -326,6 +366,26 @@ export class PublicService {
 
   manage(token: string) {
     return this.byToken(token, (tx, id) => this.manageView(tx, id));
+  }
+
+  /** Pix do sinal (gera de novo se o anterior venceu). */
+  async depositPix(token: string) {
+    const found = await resolveAppointmentToken(this.dbService.db, hashToken(token));
+    if (!found) throw new GoneException('Este link não vale mais. Fale com a clínica.');
+    const [c] = await withTenant(this.dbService.db, found.tenantId, (tx) =>
+      tx
+        .select()
+        .from(charges)
+        .where(
+          and(
+            eq(charges.appointmentId, found.appointmentId),
+            eq(charges.isDeposit, true),
+            eq(charges.status, 'open'),
+          ),
+        ),
+    );
+    if (!c) throw new NotFoundException('Não há sinal em aberto para esta consulta');
+    return this.finance.pixForCharge(found.tenantId, c.id);
   }
 
   confirm(token: string) {

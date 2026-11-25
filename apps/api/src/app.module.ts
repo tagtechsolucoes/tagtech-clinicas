@@ -23,6 +23,9 @@ import { RecordsService } from './records/records.service';
 import { WhatsAppController } from './whatsapp/whatsapp.controller';
 import { WHATSAPP_HTTP, WhatsAppService } from './whatsapp/whatsapp.service';
 import { TeamService } from './team/team.service';
+import { FinanceController, PublicFinanceController } from './finance/finance.controller';
+import { FinanceService } from './finance/finance.service';
+import { PlansService } from './finance/plans.service';
 
 @Module({
   imports: [DbModule],
@@ -38,6 +41,8 @@ import { TeamService } from './team/team.service';
     PublicController,
     WhatsAppController,
     RecordsController,
+    FinanceController,
+    PublicFinanceController,
     MediaController,
   ],
   providers: [
@@ -54,6 +59,8 @@ import { TeamService } from './team/team.service';
     PublicService,
     WhatsAppService,
     RecordsService,
+    FinanceService,
+    PlansService,
     { provide: WHATSAPP_HTTP, useValue: (...a: Parameters<typeof fetch>) => fetch(...a) },
     { provide: MEDIA_DIR, useFactory: defaultMediaDir },
     {

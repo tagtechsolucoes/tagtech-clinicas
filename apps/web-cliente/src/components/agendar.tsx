@@ -9,7 +9,8 @@ import {
   WEEKDAYS_SHORT,
   weekdayOf,
 } from '@tagtech/domain';
-import { chamar, ApiError, type ManageView, type PublicClinic } from '@/lib/api';
+import { chamar, ApiError, type ManageView, type Pix, type PublicClinic } from '@/lib/api';
+import { PixSinal } from './pix';
 import { imagem } from '@/lib/tema';
 
 type Slots = Array<{ professionalId: string; unitId: string; timezone: string; times: string[] }>;
@@ -49,7 +50,11 @@ export function Agendar({ clinic }: { clinic: PublicClinic }) {
   const [dia, setDia] = useState<string | null>(null);
   const [slots, setSlots] = useState<Slots | null>(null);
   const [hora, setHora] = useState<string | null>(null);
-  const [feito, setFeito] = useState<{ token: string; appointment: ManageView } | null>(null);
+  const [feito, setFeito] = useState<{
+    token: string;
+    appointment: ManageView;
+    pix: Pix | null;
+  } | null>(null);
   const [recarga, setRecarga] = useState(0);
   // Depois de agendar, leva a pessoa para o recado de sucesso.
   useEffect(() => {
@@ -462,7 +467,7 @@ function Dados({
 }: {
   clinic: PublicClinic;
   pedido: { serviceId: string; professionalId?: string; date: string; time: string };
-  aoAgendar: (f: { token: string; appointment: ManageView }) => void;
+  aoAgendar: (f: { token: string; appointment: ManageView; pix: Pix | null }) => void;
   aoOcupado: () => void;
 }) {
   const [d, setD] = useState({ name: '', phone: '', email: '', birthDate: '', notes: '' });
@@ -475,7 +480,7 @@ function Dados({
     setErro(null);
     setEnviando(true);
     try {
-      const r = await chamar<{ token: string; appointment: ManageView }>(
+      const r = await chamar<{ token: string; appointment: ManageView; pix: Pix | null }>(
         `/public/clinics/${clinic.slug}/appointments`,
         {
           method: 'POST',
@@ -595,9 +600,11 @@ function Feito({
   feito,
 }: {
   clinic: PublicClinic;
-  feito: { token: string; appointment: ManageView };
+  feito: { token: string; appointment: ManageView; pix: Pix | null };
 }) {
+  const [pago, setPago] = useState(false);
   const a = feito.appointment;
+  const sinal = a.deposit?.status === 'open' && !pago;
   const tz = a.unit.timezone;
   const hora = new Intl.DateTimeFormat('pt-BR', {
     timeZone: tz,
@@ -615,8 +622,19 @@ function Feito({
         <h2 className="mt-4 text-[1.9rem] leading-tight font-medium">
           Consulta marcada, {a.patientFirstName}!
         </h2>
-        <p className="mt-2 text-nevoa">A clínica vai te mandar a confirmação pelo WhatsApp.</p>
+        <p className="mt-2 text-nevoa">
+          {sinal
+            ? 'Falta só o sinal no Pix para garantir o horário.'
+            : pago
+              ? 'Sinal recebido. Horário garantido.'
+              : 'A clínica vai te mandar a confirmação pelo WhatsApp.'}
+        </p>
       </div>
+      {sinal ? (
+        <div className="mt-6">
+          <PixSinal token={feito.token} inicial={feito.pix} aoPagar={() => setPago(true)} />
+        </div>
+      ) : null}
       <dl className="mt-6 grid gap-4 rounded-2xl bg-porcelana p-5 sm:grid-cols-2">
         <div>
           <dt className="text-xs font-semibold text-nevoa">Quando</dt>

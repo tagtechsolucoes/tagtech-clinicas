@@ -60,6 +60,40 @@ export interface ManageView {
   status: AppointmentStatus;
   canConfirm: boolean;
   canCancel: boolean;
+  deposit: { amountCents: number; status: 'open' | 'paid' | 'cancelled' } | null;
+}
+
+export interface Pix {
+  id: string;
+  status: 'pending' | 'approved' | 'cancelled' | 'expired';
+  amountCents: number;
+  pixCode: string;
+  qrBase64: string;
+  expiresAt: string;
+  test: boolean;
+}
+
+export interface PlanView {
+  clinic: ManageView['clinic'];
+  patientFirstName: string;
+  title: string;
+  professionalName: string | null;
+  status: 'draft' | 'sent' | 'approved' | 'declined' | 'cancelled';
+  discountCents: number;
+  cashDiscountPct: number;
+  maxInstallments: number;
+  notes: string;
+  validUntil: string | null;
+  chosenInstallments: number | null;
+  subtotal: number;
+  total: number;
+  cashTotal: number;
+  items: Array<{
+    description: string;
+    tooth: number | null;
+    quantity: number;
+    unitPriceCents: number;
+  }>;
 }
 
 export class ApiError extends Error {

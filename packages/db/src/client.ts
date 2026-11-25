@@ -72,3 +72,34 @@ export async function dueReminders(
   );
   return rows.map((r) => ({ tenantId: r.tenant_id, appointmentId: r.appointment_id }));
 }
+
+/** Link de aprovação do orçamento (hash do token) -> clínica e orçamento. */
+export async function resolvePlanToken(
+  db: Db,
+  tokenHash: string,
+): Promise<{ tenantId: string; planId: string } | null> {
+  const rows = await db.execute<{ tenant_id: string; plan_id: string }>(
+    sql`select tenant_id, plan_id from resolve_plan_token(${tokenHash})`,
+  );
+  const r = rows[0];
+  return r ? { tenantId: r.tenant_id, planId: r.plan_id } : null;
+}
+
+/** Aviso do provedor de Pix -> clínica do pagamento. */
+export async function resolvePixPayment(db: Db, id: string): Promise<string | null> {
+  const rows = await db.execute<{ tenant_id: string }>(
+    sql`select tenant_id from resolve_pix_payment(${id}::uuid)`,
+  );
+  return rows[0]?.tenant_id ?? null;
+}
+
+/** Sinais de agendamento que venceram sem pagamento (todas as clínicas). */
+export async function expiredDeposits(
+  db: Db,
+  now: Date,
+): Promise<Array<{ tenantId: string; chargeId: string }>> {
+  const rows = await db.execute<{ tenant_id: string; charge_id: string }>(
+    sql`select tenant_id, charge_id from expired_deposits(${now.toISOString()}::timestamptz)`,
+  );
+  return rows.map((r) => ({ tenantId: r.tenant_id, chargeId: r.charge_id }));
+}

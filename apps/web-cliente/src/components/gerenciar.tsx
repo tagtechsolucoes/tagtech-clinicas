@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { formatPhoneBR, localClock, STATUS_LABELS, whatsappLink } from '@tagtech/domain';
 import { chamar, type ManageView } from '@/lib/api';
 import { imagem } from '@/lib/tema';
+import { PixSinal } from './pix';
 
 const diaLongo = (ymd: string) =>
   new Intl.DateTimeFormat('pt-BR', {
@@ -116,6 +117,20 @@ export function Gerenciar({ token, inicial }: { token: string; inicial: ManageVi
               </div>
             ) : null}
           </dl>
+
+          {v.deposit?.status === 'open' && !cancelada ? (
+            <div className="mt-6">
+              <PixSinal
+                token={token}
+                aoPagar={() => setV({ ...v, deposit: { ...v.deposit!, status: 'paid' } })}
+              />
+            </div>
+          ) : null}
+          {v.deposit?.status === 'paid' ? (
+            <p className="mt-5 rounded-xl bg-ok-fundo px-4 py-3 text-sm font-semibold text-ok">
+              Sinal recebido. Horário garantido.
+            </p>
+          ) : null}
 
           {erro ? (
             <p

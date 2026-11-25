@@ -7,9 +7,10 @@ import { Ficha } from '../pacientes';
 import { Avatar, Botao, Icone, STATUS_ESTILO } from '../ui';
 import { Fotos } from './fotos';
 import { Odontograma } from './odontograma';
+import { Orcamentos } from './orcamentos';
 import { Prontuario } from './prontuario';
 
-type Aba = 'prontuario' | 'odontograma' | 'fotos' | 'consultas';
+type Aba = 'prontuario' | 'odontograma' | 'fotos' | 'orcamentos' | 'consultas';
 
 /** Página do paciente: dados, prontuário, odontograma, fotos e consultas. */
 export function PacienteTela({ id }: { id: string }) {
@@ -20,6 +21,7 @@ export function PacienteTela({ id }: { id: string }) {
     ...(clinico ? ([['prontuario', 'Prontuário']] as Array<[Aba, string]>) : []),
     ...(clinico && temOdonto ? ([['odontograma', 'Odontograma']] as Array<[Aba, string]>) : []),
     ...(clinico ? ([['fotos', 'Fotos']] as Array<[Aba, string]>) : []),
+    ['orcamentos', 'Orçamentos'],
     ['consultas', 'Consultas'],
   ];
   const [aba, setAba] = useState<Aba>(abas[0]![0]);
@@ -101,6 +103,7 @@ export function PacienteTela({ id }: { id: string }) {
       {aba === 'prontuario' ? <Prontuario patientId={p.id} /> : null}
       {aba === 'odontograma' ? <Odontograma patientId={p.id} /> : null}
       {aba === 'fotos' ? <Fotos patientId={p.id} /> : null}
+      {aba === 'orcamentos' ? <Orcamentos patientId={p.id} telefone={p.phone} /> : null}
       {aba === 'consultas' ? (
         p.appointments?.length ? (
           <ul className="divide-y divide-linha rounded-2xl bg-folha ring-1 ring-linha">

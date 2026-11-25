@@ -1,4 +1,5 @@
 import type {
+  PayMethod,
   AppointmentStatus,
   BrandTheme,
   ClinicRole,
@@ -358,6 +359,116 @@ const imagem = async <T>(path: string, file: File) => {
   return request<T>(path, { method: 'PUT', body: corpo, contentType: corpo.type });
 };
 
+export interface PlanItem {
+  id?: string;
+  serviceId?: string | undefined;
+  description: string;
+  tooth?: number | null;
+  quantity: number;
+  unitPriceCents: number;
+  appointmentId?: string | null;
+}
+
+export type PlanStatus = 'draft' | 'sent' | 'approved' | 'declined' | 'cancelled';
+
+export interface Charge {
+  id: string;
+  patientId: string | null;
+  patientName: string | null;
+  planId: string | null;
+  appointmentId: string | null;
+  description: string;
+  amountCents: number;
+  dueDate: string;
+  installment: number;
+  installments: number;
+  isDeposit: boolean;
+  status: 'open' | 'paid' | 'cancelled';
+  method: PayMethod | null;
+  paidAt: string | null;
+}
+
+export interface Plan {
+  id: string;
+  patientId: string;
+  professionalId: string | null;
+  professionalName: string | null;
+  title: string;
+  status: PlanStatus;
+  discountCents: number;
+  cashDiscountPct: number;
+  maxInstallments: number;
+  notes: string;
+  validUntil: string | null;
+  chosenInstallments: number | null;
+  sentAt: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  subtotal: number;
+  total: number;
+  cashTotal: number;
+  items: PlanItem[];
+  charges?: Charge[];
+}
+
+export interface PlanInput {
+  title: string;
+  professionalId: string | null;
+  discountCents: number;
+  cashDiscountPct: number;
+  maxInstallments: number;
+  notes: string;
+  validUntil: string | null;
+  items: PlanItem[];
+}
+
+export interface Expense {
+  id: string;
+  description: string;
+  category: string;
+  supplier: string;
+  amountCents: number;
+  dueDate: string;
+  status: 'open' | 'paid' | 'cancelled';
+  method: PayMethod | null;
+  paidAt: string | null;
+}
+
+export interface Pix {
+  id: string;
+  status: 'pending' | 'approved' | 'cancelled' | 'expired';
+  amountCents: number;
+  pixCode: string;
+  qrBase64: string;
+  expiresAt: string;
+  test: boolean;
+}
+
+export interface FinanceSummary {
+  month: string;
+  receivedCents: number;
+  toReceiveCents: number;
+  overdueCents: number;
+  paidCents: number;
+  toPayCents: number;
+  resultCents: number;
+  byMethod: Partial<Record<PayMethod, number>>;
+  byCategory: Record<string, number>;
+}
+
+export interface Cashbox {
+  day: string;
+  totalCents: number;
+  byMethod: Partial<Record<PayMethod, number>>;
+  items: Charge[];
+}
+
+export interface PixSettings {
+  configured: boolean;
+  depositCents: number;
+  testMode: boolean;
+}
+
 const qs = (params: Record<string, string | number | undefined>) =>
   new URLSearchParams(
     Object.entries(params).flatMap(([k, v]) =>
@@ -561,6 +672,59 @@ export const api = {
   }) => send<GalleryItem>('POST', '/gallery', data),
   unpublish: (id: string) => send<void>('DELETE', `/gallery/${id}`),
 
+  // orçamentos
+  plans: (patientId: string) => request<Plan[]>(`/patients/${patientId}/plans`),
+  plan: (id: string) => request<Plan>(`/plans/${id}`),
+  createPlan: (patientId: string, data: PlanInput) =>
+    send<Plan>('POST', `/patients/${patientId}/plans`, data),
+  updatePlan: (id: string, data: PlanInput) => send<Plan>('PUT', `/plans/${id}`, data),
+  sendPlan: (id: string) =>
+    send<{ token: string; plan: Plan; patientPhone: string }>('POST', `/plans/${id}/send`),
+  approvePlan: (id: string, installments: number, firstDueDate?: string) =>
+    send<Plan>('POST', `/plans/${id}/approve`, {
+      installments,
+      ...(firstDueDate ? { firstDueDate } : {}),
+    }),
+  declinePlan: (id: string) => send<Plan>('POST', `/plans/${id}/decline`),
+  cancelPlan: (id: string) => send<Plan>('POST', `/plans/${id}/cancel`),
+
+  // financeiro
+  charges: (q: { status?: string; from?: string; to?: string; patientId?: string } = {}) =>
+    request<Charge[]>(`/finance/charges?${qs(q)}`),
+  createCharge: (data: {
+    patientId?: string;
+    description: string;
+    amountCents: number;
+    dueDate: string;
+  }) => send<Charge>('POST', '/finance/charges', data),
+  payCharge: (id: string, method: PayMethod) =>
+    send<Charge>('POST', `/finance/charges/${id}/pay`, { method }),
+  cancelCharge: (id: string) => send<Charge>('POST', `/finance/charges/${id}/cancel`),
+  reopenCharge: (id: string) => send<Charge>('POST', `/finance/charges/${id}/reopen`),
+  chargePix: (id: string) => send<Pix>('POST', `/finance/charges/${id}/pix`),
+  pixStatus: (id: string) => request<{ status: Pix['status'] }>(`/public/pix/${id}`),
+  fakeApprovePix: (id: string) =>
+    send<{ status: string }>('POST', `/public/pix/${id}/fake-approve`),
+  cashbox: (day: string) => request<Cashbox>(`/finance/cashbox?day=${day}`),
+  expenses: (from: string, to: string) =>
+    request<Expense[]>(`/finance/expenses?${qs({ from, to })}`),
+  createExpense: (data: {
+    description: string;
+    category: string;
+    supplier: string;
+    amountCents: number;
+    dueDate: string;
+    paid?: { method: PayMethod };
+  }) => send<Expense>('POST', '/finance/expenses', data),
+  payExpense: (id: string, method: PayMethod) =>
+    send<Expense>('POST', `/finance/expenses/${id}/pay`, { method }),
+  deleteExpense: (id: string) => send<void>('DELETE', `/finance/expenses/${id}`),
+  summary: (month: string) => request<FinanceSummary>(`/finance/summary?month=${month}`),
+  pixSettings: () => request<PixSettings>('/finance/pix'),
+  savePix: (data: { accessToken?: string; depositCents?: number }) =>
+    send<PixSettings>('PUT', '/finance/pix', data),
+  removePix: () => send<PixSettings>('DELETE', '/finance/pix'),
+
   // equipe
   team: () => request<{ you: string; members: TeamMember[]; invites: Invite[] }>('/team'),
   createInvite: (name: string, role: ClinicRole) =>
@@ -581,3 +745,4 @@ export const siteBase = () =>
   'http://localhost:3001';
 export const siteUrl = (slug: string) => `${siteBase()}/c/${slug}`;
 export const linkPaciente = (token: string) => `${siteBase()}/a/${token}`;
+export const linkOrcamento = (token: string) => `${siteBase()}/o/${token}`;

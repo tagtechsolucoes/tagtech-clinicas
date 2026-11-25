@@ -82,6 +82,11 @@ export class PublicController {
     return this.service.manage(validate(token, value));
   }
 
+  @Get('appointments/:token/pix')
+  depositPix(@Param('token') value: string) {
+    return this.service.depositPix(validate(token, value));
+  }
+
   @Post('appointments/:token/confirm')
   @HttpCode(200)
   confirm(@Param('token') value: string) {

@@ -52,6 +52,7 @@ export const tenants = pgTable('tenants', {
   bookingMinNoticeMinutes: integer('booking_min_notice_minutes').notNull().default(120),
   bookingHorizonDays: integer('booking_horizon_days').notNull().default(60),
   slotStepMinutes: integer('slot_step_minutes').notNull().default(15),
+  bookingDepositCents: integer('booking_deposit_cents').notNull().default(0),
   createdAt: createdAt(),
 });
 
@@ -390,4 +391,115 @@ export const galleryItems = pgTable('gallery_items', {
   serviceId: uuid('service_id'),
   position: integer('position').notNull().default(0),
   createdAt: createdAt(),
+});
+
+// ---------------------------------------------------------------- orçamento e financeiro
+
+export const planStatus = pgEnum('plan_status', [
+  'draft',
+  'sent',
+  'approved',
+  'declined',
+  'cancelled',
+]);
+export const payMethod = pgEnum('pay_method', [
+  'pix',
+  'cash',
+  'debit',
+  'credit',
+  'transfer',
+  'other',
+]);
+export const chargeStatus = pgEnum('charge_status', ['open', 'paid', 'cancelled']);
+export const pixStatus = pgEnum('pix_status', ['pending', 'approved', 'cancelled', 'expired']);
+
+export const treatmentPlans = pgTable('treatment_plans', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id').notNull(),
+  professionalId: uuid('professional_id'),
+  title: text('title').notNull(),
+  status: planStatus('status').notNull().default('draft'),
+  discountCents: integer('discount_cents').notNull().default(0),
+  cashDiscountPct: smallint('cash_discount_pct').notNull().default(0),
+  maxInstallments: smallint('max_installments').notNull().default(1),
+  notes: text('notes').notNull().default(''),
+  validUntil: date('valid_until'),
+  approveTokenHash: text('approve_token_hash'),
+  chosenInstallments: smallint('chosen_installments'),
+  sentAt: ts('sent_at'),
+  decidedAt: ts('decided_at'),
+  createdBy: uuid('created_by'),
+  createdAt: createdAt(),
+});
+
+export const treatmentPlanItems = pgTable('treatment_plan_items', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  planId: uuid('plan_id').notNull(),
+  serviceId: uuid('service_id'),
+  description: text('description').notNull(),
+  tooth: smallint('tooth'),
+  quantity: smallint('quantity').notNull().default(1),
+  unitPriceCents: integer('unit_price_cents').notNull(),
+  position: integer('position').notNull().default(0),
+  appointmentId: uuid('appointment_id'),
+});
+
+export const charges = pgTable('charges', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  patientId: uuid('patient_id'),
+  planId: uuid('plan_id'),
+  appointmentId: uuid('appointment_id'),
+  description: text('description').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  dueDate: date('due_date').notNull(),
+  installment: smallint('installment').notNull().default(1),
+  installments: smallint('installments').notNull().default(1),
+  isDeposit: boolean('is_deposit').notNull().default(false),
+  status: chargeStatus('status').notNull().default('open'),
+  method: payMethod('method'),
+  paidAt: ts('paid_at'),
+  createdBy: uuid('created_by'),
+  createdAt: createdAt(),
+});
+
+export const expenses = pgTable('expenses', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  description: text('description').notNull(),
+  category: text('category').notNull().default(''),
+  supplier: text('supplier').notNull().default(''),
+  amountCents: integer('amount_cents').notNull(),
+  dueDate: date('due_date').notNull(),
+  status: chargeStatus('status').notNull().default('open'),
+  method: payMethod('method'),
+  paidAt: ts('paid_at'),
+  createdBy: uuid('created_by'),
+  createdAt: createdAt(),
+});
+
+export const clinicPaymentCredentials = pgTable('clinic_payment_credentials', {
+  tenantId: uuid('tenant_id').primaryKey(),
+  provider: text('provider', { enum: ['mercadopago'] })
+    .notNull()
+    .default('mercadopago'),
+  accessToken: text('access_token').notNull(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+export const pixPayments = pgTable('pix_payments', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  chargeId: uuid('charge_id').notNull(),
+  provider: text('provider', { enum: ['mercadopago', 'fake'] }).notNull(),
+  providerPaymentId: text('provider_payment_id').notNull(),
+  status: pixStatus('status').notNull().default('pending'),
+  amountCents: integer('amount_cents').notNull(),
+  pixCode: text('pix_code').notNull(),
+  pixQrBase64: text('pix_qr_base64').notNull().default(''),
+  expiresAt: ts('expires_at').notNull(),
+  createdAt: createdAt(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
 });
