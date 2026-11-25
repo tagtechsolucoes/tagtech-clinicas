@@ -12,13 +12,55 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { DISPLAY_FONTS, normalizePhoneBR, RECORD_KINDS } from '@tagtech/domain';
+import { DISPLAY_FONTS, normalizePhoneBR, RECORD_KINDS, SITE_LIMITS } from '@tagtech/domain';
 import { z } from 'zod';
 import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/auth.guard';
 import { validate } from '../common/validate';
 import { ClinicService } from './clinic.service';
 
 const uuid = z.string().uuid('Identificador inválido');
+const linha = (max: number) => z.string().trim().max(max);
+const siteSchema = z
+  .object({
+    stats: z
+      .array(z.object({ value: linha(12).min(1), label: linha(40) }).strict())
+      .max(SITE_LIMITS.stats),
+    highlights: z
+      .array(z.object({ title: linha(40).min(1), text: linha(140) }).strict())
+      .max(SITE_LIMITS.highlights),
+    faq: z
+      .array(z.object({ question: linha(160).min(1), answer: linha(600).min(1) }).strict())
+      .max(SITE_LIMITS.faq),
+    testimonials: z
+      .array(
+        z.object({ name: linha(60).min(1), text: linha(400).min(1), service: linha(60) }).strict(),
+      )
+      .max(SITE_LIMITS.testimonials),
+    rating: z
+      .object({ value: z.number().min(1).max(5), count: z.number().int().min(0).max(1_000_000) })
+      .strict()
+      .nullable(),
+    payments: z
+      .object({
+        pix: z.boolean(),
+        credit: z.boolean(),
+        debit: z.boolean(),
+        cash: z.boolean(),
+        pixDiscountPct: z.number().int().min(0).max(30),
+        installments: z.number().int().min(1).max(24),
+        note: linha(200),
+      })
+      .strict(),
+    hours: z
+      .array(z.object({ days: linha(30).min(1), hours: linha(40) }).strict())
+      .max(SITE_LIMITS.hours),
+    arrival: z.array(linha(80).min(1)).max(SITE_LIMITS.arrival),
+  })
+  .strict();
+const sitePhotoPatch = z
+  .object({ title: linha(40), caption: linha(80), position: z.number().int().min(0).max(100) })
+  .partial()
+  .strict();
 const color = z
   .string()
   .trim()
@@ -207,6 +249,41 @@ export class ClinicController {
   @Roles('owner', 'manager')
   removeCover(@CurrentTenant() ctx: TenantContext) {
     return this.service.setBrandImage(ctx, 'cover', null);
+  }
+
+  // ------------------------------------------------------------ conteúdo do site
+
+  @Put('clinic/site')
+  @Roles('owner', 'manager')
+  setSite(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
+    return this.service.setSite(ctx, validate(siteSchema, body));
+  }
+
+  @Get('clinic/site-photos')
+  listSitePhotos(@CurrentTenant() ctx: TenantContext) {
+    return this.service.listSitePhotos(ctx);
+  }
+
+  @Post('clinic/site-photos')
+  @Roles('owner', 'manager')
+  addSitePhoto(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
+    return this.service.addSitePhoto(ctx, body);
+  }
+
+  @Patch('clinic/site-photos/:id')
+  @Roles('owner', 'manager')
+  updateSitePhoto(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.updateSitePhoto(ctx, validate(uuid, id), validate(sitePhotoPatch, body));
+  }
+
+  @Delete('clinic/site-photos/:id')
+  @Roles('owner', 'manager')
+  removeSitePhoto(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    return this.service.removeSitePhoto(ctx, validate(uuid, id));
   }
 
   // ------------------------------------------------------------ unidades e salas

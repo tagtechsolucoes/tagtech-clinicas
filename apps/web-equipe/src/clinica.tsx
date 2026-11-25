@@ -1,10 +1,17 @@
 import { useState, type ReactNode } from 'react';
-import { DISPLAY_FONTS, isHexColor, themeTokens, type DisplayFont } from '@tagtech/domain';
+import {
+  DISPLAY_FONTS,
+  isHexColor,
+  siteContent,
+  themeTokens,
+  type DisplayFont,
+} from '@tagtech/domain';
 import { api, siteUrl } from './api';
 import { mensagem, usePainel } from './contexto';
 import { telefone } from './formato';
 import { WhatsAppConfig } from './whatsapp';
 import { Relacionamento } from './relacionamento';
+import { ConteudoDoSite } from './site-conteudo';
 import { Botao, Cabecalho, Campo, Entrada, Icone, Interruptor, Seletor, Texto } from './ui';
 
 const FONTES: Record<DisplayFont, { nome: string; css: string }> = {
@@ -54,6 +61,7 @@ export function ClinicaTela() {
     document: clinic.document,
     insuranceEnabled: clinic.insuranceEnabled,
   });
+  const [site, setSite] = useState(() => siteContent(clinic.site));
   const [endereco, setEndereco] = useState(unidade?.address ?? '');
   const [sala, setSala] = useState('');
   const [salvando, setSalvando] = useState(false);
@@ -69,6 +77,11 @@ export function ClinicaTela() {
         ...(await api.updateClinic({ ...d, document: d.document.replace(/\D/g, '') })),
         units: clinic.units,
       });
+      const limpo = siteContent(site);
+      if (JSON.stringify(limpo) !== JSON.stringify(siteContent(clinic.site))) {
+        const gravado = await api.setSite(limpo);
+        setSite(gravado);
+      }
       if (unidade && endereco !== unidade.address)
         await api.updateUnit(unidade.id, { address: endereco });
       await recarregar();
@@ -162,7 +175,7 @@ export function ClinicaTela() {
             aoEscolher={(f) => imagem('logo', f)}
           />
           <Imagem
-            rotulo="Foto de capa"
+            rotulo="Foto de capa (vertical fica melhor)"
             url={clinic.coverUrl}
             aoEscolher={(f) => imagem('cover', f)}
           />
@@ -256,6 +269,8 @@ export function ClinicaTela() {
           </Campo>
         ) : null}
       </Secao>
+
+      <ConteudoDoSite valor={site} aoMudar={setSite} Secao={Secao} />
 
       <Secao
         titulo="Agendamento pelo site"

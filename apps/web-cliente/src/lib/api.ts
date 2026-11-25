@@ -1,3 +1,4 @@
+import type { SiteContent } from '@tagtech/domain';
 import type { AppointmentStatus, BrandTheme } from '@tagtech/domain';
 
 export interface PublicClinic {
@@ -10,6 +11,8 @@ export interface PublicClinic {
   instagram: string;
   logoUrl: string | null;
   coverUrl: string | null;
+  site: SiteContent;
+  photos: Array<{ id: string; url: string; title: string; caption: string }>;
   theme: BrandTheme;
   booking: { enabled: boolean; horizonDays: number; depositCents: number };
   insurers: Array<{ id: string; name: string }>;

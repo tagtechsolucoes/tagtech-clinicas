@@ -49,6 +49,7 @@ export const tenants = pgTable('tenants', {
   instagram: text('instagram').notNull().default(''),
   logoUrl: text('logo_url'),
   coverUrl: text('cover_url'),
+  site: jsonb('site').$type<Record<string, unknown>>().notNull().default({}),
   bookingEnabled: boolean('booking_enabled').notNull().default(true),
   bookingMinNoticeMinutes: integer('booking_min_notice_minutes').notNull().default(120),
   bookingHorizonDays: integer('booking_horizon_days').notNull().default(60),
@@ -394,6 +395,16 @@ export const imageConsents = pgTable('image_consents', {
   signedOn: date('signed_on').notNull(),
   recordedBy: uuid('recorded_by'),
   revokedAt: ts('revoked_at'),
+  createdAt: createdAt(),
+});
+
+export const sitePhotos = pgTable('site_photos', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  url: text('url').notNull(),
+  title: text('title').notNull().default(''),
+  caption: text('caption').notNull().default(''),
+  position: integer('position').notNull().default(0),
   createdAt: createdAt(),
 });
 

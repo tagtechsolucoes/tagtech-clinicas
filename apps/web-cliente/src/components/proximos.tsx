@@ -93,15 +93,23 @@ export function Proximos({
 /** Linha da tabela de serviços que já abre o agendamento com o serviço escolhido. */
 export function EscolherServico({
   serviceId,
+  data,
+  hora,
   children,
   className,
 }: {
   serviceId: string;
+  data?: string;
+  hora?: string;
   children: React.ReactNode;
   className?: string;
 }) {
+  const ir = () =>
+    escolher(
+      data && hora ? { serviceId, professionalId: null, date: data, time: hora } : { serviceId },
+    );
   return (
-    <button type="button" onClick={() => escolher({ serviceId })} className={className}>
+    <button type="button" onClick={ir} className={className}>
       {children}
     </button>
   );
