@@ -41,6 +41,8 @@ const DEMO_PASSWORD_HASH =
 const SLUG = 'clinica-aurora';
 /** Conteúdo do site da demonstração. Depoimentos e nota só na clínica fictícia. */
 const SITE_BASE = {
+  // Demonstração é odontologia: sem preço nem forma de pagamento anunciados (CFO, art. 44).
+  prices: 'hide' as const,
   stats: [
     { value: '12 anos', label: 'de consultório' },
     { value: '+2.400', label: 'pacientes atendidos' },
@@ -91,12 +93,12 @@ const SITE_BASE = {
   testimonials: [] as Array<{ name: string; text: string; service: string }>,
   rating: null as { value: number; count: number } | null,
   payments: {
-    pix: true,
-    credit: true,
-    debit: true,
+    pix: false,
+    credit: false,
+    debit: false,
     cash: false,
-    pixDiscountPct: 5,
-    installments: 12,
+    pixDiscountPct: 0,
+    installments: 1,
     note: 'Seu plano não está na lista? Emitimos nota e relatório para você pedir reembolso.',
   },
   hours: [
@@ -132,6 +134,10 @@ const SITE_DEMO = {
 };
 
 const INTO = process.env.SEED_INTO?.trim() || '';
+// SEED_DONO="email": a clínica de demonstração fica com uma conta que já existe (a sua), sem
+// criar a conta dono@demo.tagtech, cuja senha está neste arquivo. Em servidor é obrigatório.
+const DONO = process.env.SEED_DONO?.trim().toLowerCase() || '';
+const LOCAL = /@(localhost|127\.0\.0\.1)(:\d+)?\//.test(process.env.DATABASE_OWNER_URL ?? '');
 // Na clínica de verdade, telefones de mentira (nunca de alguém): 55 81 90000-00NN.
 const fone = (real: string, i: number) =>
   INTO ? `558190000${String(i + 1).padStart(4, '0')}` : real;
@@ -187,12 +193,20 @@ async function main() {
       );
       console.log(`Preenchendo "${t.name}" com dados de demonstração…`);
     } else {
+      if (!DONO && !LOCAL)
+        throw new Error(
+          'Fora do computador local, informe SEED_DONO=<seu e-mail já cadastrado>: a conta dono@demo.tagtech tem senha pública.',
+        );
       await db.delete(tenants).where(eq(tenants.slug, SLUG));
       await db.execute(sql`delete from users where email = ${DEMO_EMAIL}`);
 
-      const [user] = await db.execute<{ id: string }>(
-        sql`insert into users (email, name, password_hash) values (${DEMO_EMAIL}, 'Marina Duarte', ${DEMO_PASSWORD_HASH}) returning id`,
-      );
+      const [user] = DONO
+        ? await db.execute<{ id: string }>(sql`select id from users where lower(email) = ${DONO}`)
+        : await db.execute<{ id: string }>(
+            sql`insert into users (email, name, password_hash) values (${DEMO_EMAIL}, 'Marina Duarte', ${DEMO_PASSWORD_HASH}) returning id`,
+          );
+      if (!user)
+        throw new Error(`Nenhuma conta com o e-mail ${DONO}. Crie a conta no painel antes.`);
       const [novo] = await db
         .insert(tenants)
         .values({
@@ -999,7 +1013,9 @@ async function main() {
     console.log(
       INTO
         ? 'Pronto. Apague os pacientes de demonstração antes de ligar o WhatsApp.'
-        : `Clínica de demonstração pronta. Entre com ${DEMO_EMAIL} / demo-tagtech-123 · site /c/${SLUG}`,
+        : DONO
+          ? `Clínica de demonstração pronta na conta ${DONO} · site /c/${SLUG}`
+          : `Clínica de demonstração pronta. Entre com ${DEMO_EMAIL} / demo-tagtech-123 · site /c/${SLUG}`,
     );
   } finally {
     await close();

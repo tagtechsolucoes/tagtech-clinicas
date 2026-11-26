@@ -1,4 +1,4 @@
-# TagTech Clínicas
+# TagClin (TagTech Clínicas)
 
 Sistema para clínicas (odonto, estética, fisio, psicologia, nutrição, medicina) que enche a
 agenda: agendamento online pelo site da clínica, confirmação pelo WhatsApp, lista de espera

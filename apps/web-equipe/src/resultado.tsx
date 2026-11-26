@@ -116,7 +116,7 @@ export function ResultadoTela() {
               ))}
             </svg>
             <p className="relative text-white/75">
-              Em {nomeMes(mes, false)}, a TagTech trouxe para a {clinic.name}
+              Em {nomeMes(mes, false)}, o TagClin trouxe para a {clinic.name}
             </p>
             <p className="relative mt-2 font-display text-[3.6rem] leading-none tabular-nums sm:text-[4.6rem]">
               {dinheiro(r.generatedCents)}
