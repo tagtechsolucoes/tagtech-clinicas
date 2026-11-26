@@ -162,7 +162,8 @@ const ESPACO: Array<[string, string, string]> = [
   ['espaco-6.webp', 'Cuidado em casa', 'Orientação de higiene para levar para casa'],
 ];
 
-// SEED_ADMIN="email": conta da TagTech, que entra como gerente da clínica de demonstração.
+// SEED_ADMIN="email": conta da TagTech (administração), criada se ainda não existir; não
+// entra na clínica.
 const ADMIN = process.env.SEED_ADMIN?.trim().toLowerCase() || '';
 const senhas: string[] = [];
 
@@ -310,9 +311,6 @@ async function main() {
         })
         .returning();
       await db.insert(memberships).values({ tenantId, userId: user!.id, role: 'owner' });
-      // A TagTech entra como gerente: vê a Aurora e, pelo PLATFORM_ADMINS, a tela TagTech.
-      if (admin && admin.id !== user!.id)
-        await db.insert(memberships).values({ tenantId, userId: admin.id, role: 'manager' });
       senhas.push(
         ...[dono, admin].filter((c) => c?.senha).map((c) => `${c!.email}  senha: ${c!.senha}`),
       );

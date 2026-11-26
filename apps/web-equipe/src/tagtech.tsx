@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatBRL, PLAN_INFO, PLANS, subscriptionState, type Plan } from '@tagtech/domain';
 import { api, type PlatformPayment, type PlatformTenant } from './api';
-import { mensagem, usePainel } from './contexto';
+import { mensagem, useAvisar } from './contexto';
 import { dataCurta, hoje } from './formato';
 import {
   Botao,
@@ -31,7 +31,7 @@ const estado = (t: PlatformTenant) =>
 
 /** Equipe TagTech: todas as clínicas, plano, vencimento e pagamentos. */
 export function TagTechTela() {
-  const { avisar } = usePainel();
+  const avisar = useAvisar();
   const [lista, setLista] = useState<PlatformTenant[] | null>(null);
   const [aberta, setAberta] = useState<PlatformTenant | null>(null);
   const [filtro, setFiltro] = useState<'todas' | 'atencao'>('todas');
@@ -188,7 +188,7 @@ function Editar({
   aoFechar: () => void;
   aoSalvar: () => void;
 }) {
-  const { avisar } = usePainel();
+  const avisar = useAvisar();
   const [f, setF] = useState<PlatformTenant | null>(null);
   const [pagamentos, setPagamentos] = useState<PlatformPayment[]>([]);
   const [pg, setPg] = useState({
