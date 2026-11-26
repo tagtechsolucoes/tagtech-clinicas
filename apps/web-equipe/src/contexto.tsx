@@ -34,6 +34,18 @@ export interface Painel {
 
 export const PainelContexto = createContext<Painel | null>(null);
 
+/** Recado fora do painel (administração da TagTech, que não abre nenhuma clínica). */
+export const AvisoContexto = createContext<Painel['avisar'] | null>(null);
+
+/** O recado do painel, ou o da administração quando não há clínica aberta. */
+export function useAvisar(): Painel['avisar'] {
+  const painel = useContext(PainelContexto);
+  const avulso = useContext(AvisoContexto);
+  const avisar = painel?.avisar ?? avulso;
+  if (!avisar) throw new Error('useAvisar fora do painel');
+  return avisar;
+}
+
 export function usePainel(): Painel {
   const ctx = useContext(PainelContexto);
   if (!ctx) throw new Error('usePainel fora do painel');

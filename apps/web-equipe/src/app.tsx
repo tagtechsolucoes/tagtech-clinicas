@@ -38,6 +38,7 @@ import { PacienteTela } from './paciente/paciente';
 import { ProfissionaisTela } from './profissionais';
 import { ServicosTela } from './servicos';
 import { InstalarApp } from './instalar';
+import { Plataforma } from './plataforma';
 import { Avatar, Gaveta, Icone, Recado } from './ui';
 
 type Estado =
@@ -45,6 +46,7 @@ type Estado =
   | { fase: 'entrada'; modo?: ModoEntrada }
   | { fase: 'convite'; token: string; me: Me | null }
   | { fase: 'erro'; mensagem: string }
+  | { fase: 'plataforma'; me: Me }
   | { fase: 'pronto'; me: Me; vinculo: Membership };
 
 export type Secao =
@@ -134,10 +136,24 @@ const lerPaciente = () => /^#paciente\/([0-9a-f-]{36})$/.exec(location.hash)?.[1
 export function App() {
   const [estado, setEstado] = useState<Estado>({ fase: 'carregando' });
 
-  const entrar = useCallback((me: Me) => {
-    let salvo: string | null = null;
+  const entrar = useCallback(async (me: Me, escolhida?: string) => {
+    // Equipe TagTech: entra na administração, fora de qualquer clínica (a não ser que tenha
+    // escolhido abrir uma).
+    if (!escolhida) {
+      const admin = await api.platformMe().then(
+        (r) => r.admin,
+        () => false,
+      );
+      if (admin) {
+        setTenant(null);
+        if (location.pathname !== '/') history.replaceState(null, '', '/');
+        setEstado({ fase: 'plataforma', me });
+        return;
+      }
+    }
+    let salvo: string | null = escolhida ?? null;
     try {
-      salvo = localStorage.getItem(ESCOLHA);
+      salvo ??= localStorage.getItem(ESCOLHA);
     } catch {
       /* navegador sem armazenamento */
     }
@@ -195,6 +211,19 @@ export function App() {
           </div>
         </div>
       );
+    case 'plataforma': {
+      const me = estado.me;
+      return (
+        <Plataforma
+          me={me}
+          aoAbrirClinica={(tenantId) => void entrar(me, tenantId)}
+          aoSair={async () => {
+            await api.logout().catch(() => {});
+            setEstado({ fase: 'entrada', modo: { tipo: 'login' } });
+          }}
+        />
+      );
+    }
     case 'pronto':
       return (
         <Casca
