@@ -36,6 +36,16 @@ const settingsSchema = z
   })
   .strict();
 
+const prefsSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    reminderHours: z.number().int().min(2).max(72).optional(),
+    soonMinutes: z
+      .union([z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.null()])
+      .optional(),
+  })
+  .strict();
+
 /** WhatsApp da clínica (QR code ou Meta) e mensagens automáticas. Só o dono conecta. */
 @Controller()
 @UseGuards(TenantGuard)
@@ -57,10 +67,7 @@ export class WhatsAppController {
   @Patch('whatsapp')
   @Roles('owner')
   enabled(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
-    return this.service.setEnabled(
-      ctx,
-      validate(z.object({ enabled: z.boolean() }).strict(), body).enabled,
-    );
+    return this.service.setPrefs(ctx, validate(prefsSchema, body));
   }
 
   @Delete('whatsapp')

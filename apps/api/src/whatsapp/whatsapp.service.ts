@@ -8,21 +8,30 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
-import { dueReminders, generateToken, schema, withTenant, type TenantTx } from '@tagtech/db';
+import {
+  dueReminders,
+  dueSoonReminders,
+  generateToken,
+  schema,
+  withTenant,
+  type TenantTx,
+} from '@tagtech/db';
 import {
   canonicalPhone,
   fillTemplate,
   messagePreview,
   messageSentence,
   normalizePhoneBR,
+  parseReply,
   RELATIONSHIP_TEMPLATES,
+  REPLY_HINT,
   whenText,
   WHATSAPP_TEMPLATE_BODY,
   type MessageEvent,
   type RelationshipTemplate,
 } from '@tagtech/domain';
 import { randomBytes } from 'node:crypto';
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
@@ -31,6 +40,7 @@ import { SubscriptionService } from '../subscription/subscription.service';
 import { Evolution, EvolutionError, evolutionConfig, type QrCode } from './evolution';
 
 const {
+  appointmentEvents,
   appointmentMessages,
   appointments,
   clinicWhatsapp,
@@ -59,6 +69,17 @@ export interface WhatsAppSettingsInput {
   reminderHours: number;
   enabled: boolean;
 }
+
+/** O que dá para mudar sem reconectar: liga/desliga e quando saem os lembretes. */
+export interface WhatsAppPrefs {
+  enabled?: boolean | undefined;
+  reminderHours?: number | undefined;
+  soonMinutes?: number | null | undefined;
+}
+
+/** O telefone pode estar gravado com ou sem 55 e nono dígito: compara os 8 últimos. */
+export const mesmoNumero = (coluna: typeof patients.phone, phone: string) =>
+  sql`right(regexp_replace(${coluna}, '\\D', '', 'g'), 8) = ${phone.slice(-8)}`;
 
 /** Uma mensagem para gravar na conversa do paciente. */
 export interface Registro {
@@ -188,11 +209,13 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     this.track(this.send(tenantId, appointmentId, event, token));
   }
 
-  /** Manda os lembretes que já estão na hora, de todas as clínicas. */
+  /** Manda os lembretes que já estão na hora (véspera e do dia), de todas as clínicas. */
   async sweepReminders(now: Date): Promise<number> {
     const due = await dueReminders(this.dbService.db, now);
     for (const d of due) await this.send(d.tenantId, d.appointmentId, 'reminder', undefined, now);
-    return due.length;
+    const soon = await dueSoonReminders(this.dbService.db, now);
+    for (const d of soon) await this.send(d.tenantId, d.appointmentId, 'soon', undefined, now);
+    return due.length + soon.length;
   }
 
   private async send(
@@ -212,7 +235,9 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
           a: appointments,
           patient: patients,
           serviceName: services.name,
+          telehealth: services.telehealth,
           tz: units.timezone,
+          address: units.address,
         })
         .from(appointments)
         .innerJoin(patients, eq(patients.id, appointments.patientId))
@@ -240,22 +265,35 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         }
         link = `${siteBase()}/a/${t}`;
       }
+      const onde = row.telehealth ? 'por vídeo' : row.address.trim().replace(/[.\s]+$/, '');
+      // Pelo QR code, o paciente confirma respondendo 1 ali mesmo.
+      const pedeResposta =
+        event === 'reminder' || (event === 'soon' && row.a.status === 'scheduled');
       return {
         cfg,
         claimId: claim.id,
         nome: row.patient.name,
         to: row.patient.phone,
+        rodape: pedeResposta ? REPLY_HINT : '',
         params: [
           row.patient.name.split(' ')[0]!,
           row.serviceName,
           tenant!.name,
-          messageSentence(event, whenText(row.a.startsAt, row.tz, now)),
+          messageSentence(event, whenText(row.a.startsAt, row.tz, now), onde),
           link,
         ],
       };
     });
     if (!job) return;
-    const result = await this.deliver(tenantId, job.cfg, job.to, job.params, undefined, job.nome);
+    const result = await this.deliver(
+      tenantId,
+      job.cfg,
+      job.to,
+      job.params,
+      undefined,
+      job.nome,
+      job.rodape,
+    );
     await withTenant(db, tenantId, (tx) =>
       tx
         .update(appointmentMessages)
@@ -288,7 +326,8 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /**
    * Manda uma mensagem automática pelo provedor da clínica: o texto do modelo pelo QR code,
    * ou o modelo aprovado pela Meta. Com `tenantId`, a mensagem entra na conversa do paciente.
-   * `name` padrão: o aviso de consulta da clínica.
+   * `name` padrão: o aviso de consulta da clínica. `rodape` só vai pelo QR code (o modelo da
+   * Meta tem texto fixo).
    */
   async deliver(
     tenantId: string | null,
@@ -297,9 +336,11 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     params: string[],
     name: string = cfg.templateName,
     contato = '',
+    rodape = '',
   ): Promise<SendResult> {
     const corpo = corpoDoModelo(cfg, name);
-    const texto = corpo ? fillTemplate(corpo, params) : params.join(' ');
+    let texto = corpo ? fillTemplate(corpo, params) : params.join(' ');
+    if (rodape && cfg.provider === 'evolution') texto += `\n\n${rodape}`;
     let r: SendResult;
     if (cfg.provider === 'evolution') {
       const evo = this.evolution();
@@ -400,6 +441,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       templateName: cfg?.templateName ?? 'consulta_aviso',
       templateLang: cfg?.templateLang ?? 'pt_BR',
       reminderHours: cfg?.reminderHours ?? 24,
+      soonMinutes: cfg ? cfg.soonMinutes : 60,
     };
   }
 
@@ -464,11 +506,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  setEnabled(ctx: TenantContext, enabled: boolean) {
+  setPrefs(ctx: TenantContext, prefs: WhatsAppPrefs) {
     return inClinic(this.dbService.db, ctx, async (tx) => {
       const [cfg] = await tx
         .update(clinicWhatsapp)
-        .set({ enabled, updatedAt: new Date() })
+        .set({
+          ...(prefs.enabled !== undefined ? { enabled: prefs.enabled } : {}),
+          ...(prefs.reminderHours !== undefined ? { reminderHours: prefs.reminderHours } : {}),
+          ...(prefs.soonMinutes !== undefined ? { soonMinutes: prefs.soonMinutes } : {}),
+          updatedAt: new Date(),
+        })
         .returning();
       if (!cfg) throw new NotFoundException('Configure o WhatsApp primeiro');
       return this.view(cfg);
@@ -587,6 +634,105 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
           : `A Meta recusou a mensagem: ${result.error}`,
       );
     return { sent: true };
+  }
+
+  /**
+   * O paciente respondeu no WhatsApp (QR code). Se for 1 ou 2 logo depois de um lembrete,
+   * confirma a consulta ou avisa que a recepção vai remarcar, e responde sozinho.
+   * Devolve o que fez; qualquer outra mensagem fica só na conversa.
+   */
+  async patientReply(
+    tenantId: string,
+    phone: string,
+    body: string,
+    now = new Date(),
+  ): Promise<'confirmed' | 'reschedule' | null> {
+    const intent = parseReply(body);
+    if (!intent) return null;
+    const db = this.dbService.db;
+    const job = await withTenant(db, tenantId, async (tx) => {
+      const [cfg] = await tx.select().from(clinicWhatsapp);
+      if (cfg?.provider !== 'evolution' || !cfg.enabled) return null;
+      // A consulta do último lembrete que pediu resposta, ainda por vir.
+      const [row] = await tx
+        .select({
+          a: appointments,
+          patientName: patients.name,
+          serviceName: services.name,
+          tz: units.timezone,
+        })
+        .from(appointmentMessages)
+        .innerJoin(appointments, eq(appointments.id, appointmentMessages.appointmentId))
+        .innerJoin(patients, eq(patients.id, appointments.patientId))
+        .innerJoin(services, eq(services.id, appointments.serviceId))
+        .innerJoin(units, eq(units.id, appointments.unitId))
+        .where(
+          and(
+            inArray(appointmentMessages.event, ['reminder', 'soon']),
+            eq(appointmentMessages.status, 'sent'),
+            eq(appointmentMessages.forStartsAt, appointments.startsAt),
+            gt(appointmentMessages.createdAt, new Date(now.getTime() - 4 * 86_400_000)),
+            gt(appointments.startsAt, now),
+            inArray(appointments.status, ['scheduled', 'confirmed']),
+            mesmoNumero(patients.phone, phone),
+          ),
+        )
+        .orderBy(desc(appointmentMessages.createdAt))
+        .limit(1);
+      if (!row) return null;
+      const nome = row.patientName.split(' ')[0]!;
+      const quando = whenText(row.a.startsAt, row.tz, now);
+      if (intent === 'reschedule') {
+        return {
+          cfg,
+          nome: row.patientName,
+          texto: `Sem problema, ${nome}! A recepção vai falar com você aqui para combinar outro horário para ${row.serviceName}.`,
+          result: 'reschedule' as const,
+        };
+      }
+      if (row.a.status === 'scheduled') {
+        await tx
+          .update(appointments)
+          .set({ status: 'confirmed', confirmedAt: now, updatedAt: now })
+          .where(eq(appointments.id, row.a.id));
+        await tx.insert(appointmentEvents).values({
+          tenantId,
+          appointmentId: row.a.id,
+          fromStatus: 'scheduled',
+          toStatus: 'confirmed',
+          actorKind: 'patient',
+          reason: 'Confirmou pelo WhatsApp',
+        });
+      }
+      return {
+        cfg,
+        nome: row.patientName,
+        texto: `Confirmado, ${nome}! Sua consulta de ${row.serviceName} é ${quando}. Até lá!`,
+        result: 'confirmed' as const,
+      };
+    });
+    if (!job) return null;
+    const r = await this.sendText(job.cfg, phone, job.texto);
+    await withTenant(db, tenantId, async (tx) => {
+      const { conversation } = await registrar(tx, {
+        tenantId,
+        phone,
+        name: job.nome,
+        direction: 'out',
+        kind: 'auto',
+        body: job.texto,
+        status: r.ok ? 'sent' : 'failed',
+        externalId: r.ok ? r.id : null,
+        error: r.ok ? null : r.error,
+      });
+      // Confirmou sozinho: a recepção não precisa ler o "1". Remarcar fica para ela ver.
+      if (job.result === 'confirmed')
+        await tx
+          .update(waConversations)
+          .set({ unread: sql`greatest(${waConversations.unread} - 1, 0)` })
+          .where(eq(waConversations.id, conversation.id));
+    }).catch((e: unknown) => this.log.warn(`Resposta automática não gravada: ${String(e)}`));
+    return job.result;
   }
 
   /** Mensagens de uma consulta, para o histórico no painel. */

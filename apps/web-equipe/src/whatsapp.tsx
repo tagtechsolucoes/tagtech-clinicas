@@ -221,6 +221,7 @@ export function WhatsAppConfig() {
             }}
             rotulo="Mandar mensagens automáticas"
           />
+          <Lembretes cfg={cfg} aoMudar={setCfg} />
           <div className="flex gap-2">
             <Entrada
               inputMode="tel"
@@ -251,6 +252,85 @@ export function WhatsAppConfig() {
           para quem nunca falou com a clínica: o WhatsApp bloqueia números que fazem isso.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+const ANTES_HORAS = [2, 4, 12, 24, 48];
+const NO_DIA = [
+  { v: 30, rotulo: '30 minutos antes' },
+  { v: 60, rotulo: '1 hora antes' },
+  { v: 120, rotulo: '2 horas antes' },
+  { v: 180, rotulo: '3 horas antes' },
+];
+
+/**
+ * Quando saem os dois lembretes: o da véspera (pede confirmação) e o do dia, perto da hora,
+ * com o endereço. Pelo QR code, o paciente confirma respondendo 1.
+ */
+function Lembretes({
+  cfg,
+  aoMudar,
+}: {
+  cfg: WhatsAppSettings;
+  aoMudar: (c: WhatsAppSettings) => void;
+}) {
+  const { avisar } = usePainel();
+  async function salvar(prefs: { reminderHours?: number; soonMinutes?: number | null }) {
+    try {
+      aoMudar(await api.whatsappPrefs(prefs));
+      avisar('Lembretes salvos');
+    } catch (e) {
+      avisar(mensagem(e), 'erro');
+    }
+  }
+  const qr = cfg.provider === 'evolution';
+  return (
+    <div className="rounded-2xl bg-folha p-4 ring-1 ring-linha sm:p-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo rotulo="Lembrete com confirmação">
+          <Seletor
+            value={cfg.reminderHours}
+            onChange={(e) => void salvar({ reminderHours: Number(e.target.value) })}
+          >
+            {ANTES_HORAS.map((h) => (
+              <option key={h} value={h}>
+                {h} horas antes
+              </option>
+            ))}
+          </Seletor>
+        </Campo>
+        <Campo rotulo="Lembrete do dia, com o endereço">
+          <Seletor
+            value={cfg.soonMinutes ?? ''}
+            onChange={(e) =>
+              void salvar({ soonMinutes: e.target.value ? Number(e.target.value) : null })
+            }
+          >
+            <option value="">Não mandar</option>
+            {NO_DIA.filter((o) => o.v < cfg.reminderHours * 60).map((o) => (
+              <option key={o.v} value={o.v}>
+                {o.rotulo}
+              </option>
+            ))}
+          </Seletor>
+        </Campo>
+      </div>
+      <p className="mt-3 flex gap-2 text-sm leading-relaxed text-nevoa">
+        <Icone nome="whatsapp" className="mt-0.5 h-4 w-4 shrink-0 text-petroleo" />
+        {qr ? (
+          <span>
+            O paciente confirma respondendo <b className="text-tinta">1</b>, e a consulta fica
+            confirmada na agenda na hora. Se responder <b className="text-tinta">2</b>, a conversa
+            fica marcada para a recepção combinar outro horário.
+          </span>
+        ) : (
+          <span>
+            Pela API oficial, o paciente confirma pelo link da mensagem. Para confirmar respondendo
+            1, conecte o número por QR code.
+          </span>
+        )}
+      </p>
     </div>
   );
 }
@@ -381,18 +461,6 @@ function FormMeta({
             value={form.templateName}
             onChange={(e) => setForm({ ...form, templateName: e.target.value })}
           />
-        </Campo>
-        <Campo rotulo="Lembrete">
-          <Seletor
-            value={form.reminderHours}
-            onChange={(e) => setForm({ ...form, reminderHours: Number(e.target.value) })}
-          >
-            {[2, 4, 12, 24, 48].map((h) => (
-              <option key={h} value={h}>
-                {h} horas antes
-              </option>
-            ))}
-          </Seletor>
         </Campo>
       </div>
       <details className="rounded-2xl bg-porcelana px-4 py-3 text-sm">

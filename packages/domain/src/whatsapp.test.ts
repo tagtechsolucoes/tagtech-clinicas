@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalPhone, fillTemplate, messagePreview } from './whatsapp';
+import { parseReply } from './mensagens';
 
 describe('canonicalPhone', () => {
   it('põe o nono dígito no celular que o WhatsApp guardou sem ele', () => {
@@ -29,5 +30,18 @@ describe('messagePreview', () => {
   it('junta as linhas e corta textos longos', () => {
     expect(messagePreview('oi\n\ntudo bem?')).toBe('oi tudo bem?');
     expect(messagePreview('a'.repeat(10), 5)).toBe('aaaa…');
+  });
+});
+
+describe('resposta ao lembrete', () => {
+  it('1, sim e confirmo confirmam; 2 e remarcar pedem outro horário', () => {
+    for (const t of ['1', ' 1 ', '*1*', 'Sim', 'sim!', 'Confirmo 👍', 'confirmado.', '1 - sim'])
+      expect(parseReply(t), t).toBe('confirm');
+    for (const t of ['2', '2.', 'Remarcar', 'preciso remarcar', 'Desmarcar'])
+      expect(parseReply(t), t).toBe('reschedule');
+  });
+  it('qualquer outra coisa é conversa', () => {
+    for (const t of ['12', 'Posso ir mais cedo?', 'sim, mas chego 10 min atrasada', 'oi', ''])
+      expect(parseReply(t), t).toBeNull();
   });
 });

@@ -1,10 +1,11 @@
 /** Mensagens automáticas para o paciente no WhatsApp (modelo aprovado na Meta). */
 
-export type MessageEvent = 'booked' | 'reminder' | 'rescheduled' | 'cancelled';
+export type MessageEvent = 'booked' | 'reminder' | 'soon' | 'rescheduled' | 'cancelled';
 
 export const MESSAGE_LABELS: Record<MessageEvent, string> = {
   booked: 'Aviso de agendamento',
   reminder: 'Lembrete',
+  soon: 'Lembrete do dia',
   rescheduled: 'Aviso de remarcação',
   cancelled: 'Aviso de cancelamento',
 };
@@ -16,18 +17,44 @@ export const MESSAGE_LABELS: Record<MessageEvent, string> = {
 export const WHATSAPP_TEMPLATE_BODY =
   'Olá, {{1}}! Sua consulta de {{2}} na {{3}} {{4}} Para confirmar ou desmarcar, use o link: {{5}}';
 
-/** A frase do {{4}}. `quando` já vem pronta: "quarta, 25/11, às 09:00". */
-export function messageSentence(event: MessageEvent, quando: string): string {
+/**
+ * A frase do {{4}}. `quando` já vem pronta: "quarta, 25/11, às 09:00". `onde` só entra no
+ * lembrete do dia: o endereço da unidade, ou "por vídeo" na teleconsulta.
+ */
+export function messageSentence(event: MessageEvent, quando: string, onde = ''): string {
   switch (event) {
     case 'booked':
       return `está marcada para ${quando}.`;
     case 'reminder':
       return `é ${quando}. Podemos contar com você?`;
+    case 'soon':
+      return onde ? `é ${quando}, ${onde}. Até já!` : `é ${quando}. Até já!`;
     case 'rescheduled':
       return `foi remarcada para ${quando}.`;
     case 'cancelled':
       return `de ${quando} foi cancelada. Se quiser outro horário, é só agendar.`;
   }
+}
+
+/** Rodapé do lembrete pelo QR code: o paciente responde ali mesmo. */
+export const REPLY_HINT = 'Responda *1* para confirmar ou *2* se precisar remarcar.';
+
+/**
+ * O que o paciente respondeu ao lembrete: 1 (ou "sim", "confirmo") confirma; 2 (ou "remarcar",
+ * "desmarcar") pede outro horário. Qualquer outra coisa é conversa e fica para a recepção.
+ */
+export function parseReply(texto: string): 'confirm' | 'reschedule' | null {
+  const t = texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  if (/^(1|sim|confirmo|confirmado|confirmada|confirmar|sim confirmo|1 sim|1 confirmo)$/.test(t))
+    return 'confirm';
+  if (/^(2|remarcar|desmarcar|quero remarcar|preciso remarcar|2 remarcar)$/.test(t))
+    return 'reschedule';
+  return null;
 }
 
 /** "quarta, 25/11, às 09:00" no fuso da clínica; "amanhã" e "hoje" quando couber. */

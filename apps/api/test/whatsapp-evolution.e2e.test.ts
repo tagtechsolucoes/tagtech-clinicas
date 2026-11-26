@@ -168,14 +168,48 @@ describe('WhatsApp da clínica pelo QR code', () => {
     expect(t.conversation.unread).toBe(0);
   });
 
+  it('o lembrete pede 1 ou 2; "1" confirma na agenda e responde sozinho', async () => {
+    const wa = app.get(WhatsAppService);
+    await wa.sweepReminders(new Date(Date.now() + 30 * 3600_000));
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]!.text).toMatch(/Podemos contar com você\?/);
+    expect(enviados[0]!.text).toMatch(/Responda \*1\* para confirmar ou \*2\*/);
+    const antes = (await conversas()).conversations[0]!.unread;
+    await recebida('R1', 'Sim 👍');
+    expect(enviados).toHaveLength(2);
+    expect(enviados[1]!.text).toMatch(/^Confirmado, Bruna! Sua consulta de Limpeza é /);
+    const [c] = (await conversas()).conversations;
+    // O "sim" foi resolvido sozinho: não fica para a recepção ler.
+    expect(c!.unread).toBe(antes);
+    const t = (await call('GET', `/conversations/${c!.id}`)).json();
+    expect(t.appointments[0].status).toBe('confirmed');
+    // Respondeu de novo: não confirma duas vezes, só repete que está confirmada.
+    await recebida('R2', '1');
+    expect(enviados).toHaveLength(3);
+  });
+
+  it('"2" avisa que a recepção vai remarcar; outra mensagem é só conversa', async () => {
+    await recebida('R3', '2');
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]!.text).toMatch(/^Sem problema, Bruna! A recepção vai falar com você/);
+    const [c] = (await conversas()).conversations;
+    expect(c!.unread).toBeGreaterThan(0);
+    await recebida('R4', 'Tem estacionamento?');
+    expect(enviados).toHaveLength(1);
+    // Número sem lembrete recente: "1" é só uma mensagem.
+    await recebida('R5', '1', '558177776666@s.whatsapp.net');
+    expect(enviados).toHaveLength(1);
+  });
+
   it('segredo errado: ignorado', async () => {
+    const antes = (await conversas()).conversations.length;
     const r = await app.inject({
       method: 'POST',
       url: `/whatsapp/hook/${'x'.repeat(43)}`,
       payload: {},
     });
     expect(r.statusCode).toBe(200);
-    expect((await conversas()).conversations).toHaveLength(1);
+    expect((await conversas()).conversations).toHaveLength(antes);
   });
 
   it('celular desconectou: não deixa responder', async () => {
