@@ -23,9 +23,10 @@ import {
   Vazio,
 } from '../ui';
 import { Receber } from './receber';
+import { VisaoGeral } from './visao';
 import { abrirRecibo, BotaoNota, NotaConfig } from './nota';
 
-type Aba = 'caixa' | 'receber' | 'pagar';
+type Aba = 'visao' | 'caixa' | 'receber' | 'pagar' | 'config';
 
 const fimDoMes = (mes: string) => {
   const [y, m] = mes.split('-').map(Number) as [number, number];
@@ -43,15 +44,19 @@ const nomeMes = (mes: string) =>
 /** Financeiro: caixa do dia, contas a receber e a pagar, resultado do mês. */
 export function FinanceiroTela() {
   const { gerencia, vinculo } = usePainel();
-  const [aba, setAba] = useState<Aba>('caixa');
+  const [aba, setAba] = useState<Aba>(gerencia ? 'visao' : 'caixa');
   const [mes, setMes] = useState(hoje().slice(0, 7));
   const [versao, setVersao] = useState(0);
   const mudou = useCallback(() => setVersao((v) => v + 1), []);
 
   const abas: Array<[Aba, string]> = [
+    ...(gerencia ? ([['visao', 'Visão geral']] as Array<[Aba, string]>) : []),
     ['caixa', 'Caixa do dia'],
     ['receber', 'A receber'],
     ...(gerencia ? ([['pagar', 'A pagar']] as Array<[Aba, string]>) : []),
+    ...(vinculo.role === 'owner'
+      ? ([['config', 'Pix e nota fiscal']] as Array<[Aba, string]>)
+      : []),
   ];
 
   return (
@@ -60,7 +65,7 @@ export function FinanceiroTela() {
         titulo="Financeiro"
         descricao="O que entrou, o que falta receber e o que a clínica tem a pagar."
         acoes={
-          aba !== 'caixa' ? (
+          aba !== 'caixa' && aba !== 'config' ? (
             <div className="flex items-center gap-1 rounded-xl bg-folha p-1 ring-1 ring-linha">
               <button
                 type="button"
@@ -86,9 +91,14 @@ export function FinanceiroTela() {
         }
       />
 
-      {gerencia ? <Resultado mes={mes} versao={versao} /> : null}
+      {gerencia && aba !== 'visao' && aba !== 'config' ? (
+        <Resultado mes={mes} versao={versao} />
+      ) : null}
 
-      <nav aria-label="Financeiro" className="mb-7 flex gap-1 border-b border-linha">
+      <nav
+        aria-label="Financeiro"
+        className="rolagem-fina mb-7 flex gap-1 overflow-x-auto border-b border-linha whitespace-nowrap"
+      >
         {abas.map(([k, nome]) => (
           <button
             key={k}
@@ -106,12 +116,17 @@ export function FinanceiroTela() {
         ))}
       </nav>
 
+      {aba === 'visao' ? <VisaoGeral mes={mes} setMes={setMes} versao={versao} /> : null}
       {aba === 'caixa' ? <Caixa versao={versao} aoMudar={mudou} /> : null}
       {aba === 'receber' ? <AReceber mes={mes} versao={versao} aoMudar={mudou} /> : null}
       {aba === 'pagar' ? <APagar mes={mes} versao={versao} aoMudar={mudou} /> : null}
 
-      {vinculo.role === 'owner' ? <PixConfig /> : null}
-      {vinculo.role === 'owner' ? <NotaConfig /> : null}
+      {aba === 'config' ? (
+        <div className="-mt-9">
+          <PixConfig />
+          <NotaConfig />
+        </div>
+      ) : null}
     </>
   );
 }
