@@ -15,7 +15,7 @@ export function Moldura({ children }: { children: ReactNode }) {
       <aside className="relative hidden overflow-hidden bg-petroleo text-white lg:flex lg:flex-col lg:justify-between lg:p-14">
         <p className="flex items-center gap-3 text-lg font-semibold tracking-tight">
           <img src="/icone.svg" alt="" className="h-9 w-9 rounded-xl ring-1 ring-white/20" />
-          TagTech Clínicas
+          TagClin
         </p>
         <div className="relative z-10 max-w-md">
           <h1 className="text-[3.1rem] leading-[1.02] font-bold">

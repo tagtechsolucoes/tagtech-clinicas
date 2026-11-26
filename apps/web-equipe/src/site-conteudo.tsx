@@ -95,7 +95,7 @@ export function ConteudoDoSite({
 
       <Secao
         titulo="Depoimentos"
-        descricao="Só depoimentos reais, com o nome que o paciente autorizou mostrar."
+        descricao="Só depoimentos reais, com autorização por escrito do paciente para mostrar o nome e o texto. Sem promessa de resultado."
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo
@@ -197,8 +197,40 @@ export function ConteudoDoSite({
       </Secao>
 
       <Secao
+        titulo="Valores no site"
+        descricao="Cada conselho tem regra própria para anunciar preço. Na dúvida, esconda: o paciente vê o valor na consulta ou pelo WhatsApp."
+      >
+        <div role="radiogroup" className="grid gap-2 sm:grid-cols-3">
+          {(
+            [
+              ['hide', 'Esconder valores', 'Mostra só o serviço e a duração'],
+              ['from', 'A partir de', '“a partir de R$ 120,00”'],
+              ['show', 'Mostrar valores', 'O valor particular de cada serviço'],
+            ] as const
+          ).map(([k, t, d]) => (
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={v.prices === k}
+              onClick={() => muda('prices', k)}
+              className={`rounded-2xl px-4 py-3 text-left ring-1 transition ${v.prices === k ? 'bg-agua ring-2 ring-petroleo' : 'bg-folha ring-linha hover:ring-petroleo/40'}`}
+            >
+              <span className="block font-semibold">{t}</span>
+              <span className="text-sm text-nevoa">{d}</span>
+            </button>
+          ))}
+        </div>
+        <div className="rounded-2xl bg-ambar-fundo px-4 py-3 text-sm text-ambar-tinta">
+          <b>Odontologia:</b> o Código de Ética do CFO (art. 44, I) proíbe anunciar preços e formas
+          de pagamento. <b>Medicina:</b> a Resolução CFM 2.336/2023 permite divulgar o valor da
+          consulta. Outras áreas: confira com o conselho da profissão.
+        </div>
+      </Secao>
+
+      <Secao
         titulo="Pagamento"
-        descricao="Os planos aceitos entram sozinhos, a partir dos convênios marcados para aparecer no site."
+        descricao="Os planos aceitos entram sozinhos, a partir dos convênios marcados para aparecer no site. Formas de pagamento seguem a mesma regra de conselho dos valores."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           {(

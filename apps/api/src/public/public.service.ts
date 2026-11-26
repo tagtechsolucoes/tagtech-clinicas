@@ -149,7 +149,8 @@ export class PublicService {
           description: s.description,
           category: s.category,
           durationMinutes: s.durationMinutes,
-          priceCents: s.priceCents,
+          // Valor escondido pela clínica não sai nem no código da página.
+          priceCents: view.site.prices === 'hide' ? null : s.priceCents,
           telehealth: s.telehealth,
           // Sem ninguém ligado ao serviço, qualquer profissional online atende.
           professionalIds: s.professionalIds.length

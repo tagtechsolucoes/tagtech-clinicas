@@ -62,7 +62,7 @@ export class AuthService {
     const link = `${teamAppUrl()}/redefinir/${token}`;
     await this.mailer.send({
       to: found.email,
-      subject: 'Troque sua senha do TagTech Clínicas',
+      subject: 'Troque sua senha do TagClin',
       text: [
         `Oi, ${found.name.split(' ')[0]}.`,
         '',

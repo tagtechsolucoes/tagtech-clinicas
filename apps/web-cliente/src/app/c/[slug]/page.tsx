@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
-import { addDays, formatBRL, formatPhoneBR, localClock, whatsappLink } from '@tagtech/domain';
+import { addDays, formatPhoneBR, localClock, precoNoSite, whatsappLink } from '@tagtech/domain';
 import { Agendar } from '@/components/agendar';
 import { Galeria } from '@/components/galeria';
 import { EscolherServico, Proximos, type DiaLivre } from '@/components/proximos';
@@ -404,7 +404,11 @@ export default async function Page({ params, searchParams }: Props) {
             <Titulo
               rotulo="Serviços"
               centro
-              texto="Toque em um serviço para ver os horários livres. Ao lado de cada um, a duração média e o valor particular."
+              texto={
+                site.prices === 'hide'
+                  ? 'Toque em um serviço para ver os horários livres. Ao lado de cada um, a duração média da sessão.'
+                  : 'Toque em um serviço para ver os horários livres. Ao lado de cada um, a duração média e o valor particular.'
+              }
             >
               O que cuidamos por aqui
             </Titulo>
@@ -438,9 +442,11 @@ export default async function Page({ params, searchParams }: Props) {
                               ) : null}
                             </span>
                             <span className="shrink-0 text-right">
-                              <span className="block text-[0.95rem] font-semibold text-tinta tabular-nums">
-                                {s.priceCents === null ? 'Sob avaliação' : formatBRL(s.priceCents)}
-                              </span>
+                              {precoNoSite(s.priceCents, site.prices) ? (
+                                <span className="block text-[0.95rem] font-semibold text-tinta tabular-nums">
+                                  {precoNoSite(s.priceCents, site.prices)}
+                                </span>
+                              ) : null}
                               <span className="mt-0.5 inline-block rounded-full bg-white px-2 py-0.5 text-[0.75rem] text-nevoa ring-1 ring-[var(--marca-borda)]">
                                 {duracaoTexto(s.durationMinutes)}
                                 {s.telehealth ? ' · online' : ''}
@@ -880,7 +886,7 @@ export default async function Page({ params, searchParams }: Props) {
           <a href={`/c/${c.slug}/termos`} className="hover:text-marca">
             Termos do agendamento
           </a>
-          <span className="text-bruma sm:ml-auto">Site e agendamento por TagTech Clínicas</span>
+          <span className="text-bruma sm:ml-auto">Site e agendamento por TagClin</span>
         </div>
       </footer>
 

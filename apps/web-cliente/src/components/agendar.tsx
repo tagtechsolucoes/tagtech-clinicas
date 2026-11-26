@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   addDays,
-  formatBRL,
   localClock,
+  precoNoSite,
   toMinutes,
   WEEKDAYS_SHORT,
   weekdayOf,
@@ -18,7 +18,6 @@ type Slots = Array<{ professionalId: string; unitId: string; timezone: string; t
 
 const duracao = (m: number) =>
   m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}`;
-const preco = (c: number | null) => (c === null ? 'Valor na avaliação' : formatBRL(c));
 const mes = (ymd: string) =>
   new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'UTC' }).format(
     new Date(`${ymd}T12:00:00Z`),
@@ -184,9 +183,11 @@ export function Agendar({
               >
                 <span className="flex items-baseline justify-between gap-3">
                   <span className="font-semibold">{s.name}</span>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums">
-                    {preco(s.priceCents)}
-                  </span>
+                  {precoNoSite(s.priceCents, clinic.site.prices) ? (
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {precoNoSite(s.priceCents, clinic.site.prices)}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="mt-1 block text-sm text-nevoa">
                   {duracao(s.durationMinutes)}
@@ -298,7 +299,7 @@ export function Agendar({
                   type="button"
                   disabled={sem || carregando}
                   aria-pressed={ativo}
-                  aria-label={`${diaLongo(d.date)}${sem ? ', sem horários' : d.count > 0 ? `, ${d.count} horários` : ''}`}
+                  aria-label={`${diaLongo(d.date)}${sem ? ', sem horários' : d.count > 0 ? ', com horários livres' : ''}`}
                   onClick={() => setDia(d.date)}
                   className={`relative flex w-[4.4rem] shrink-0 snap-start flex-col items-center rounded-2xl pt-2.5 pb-2 transition-[transform,box-shadow,background-color] ${
                     ativo
@@ -332,11 +333,7 @@ export function Agendar({
                       ativo ? 'text-sobre-marca/85' : sem ? '' : 'text-ok'
                     }`}
                   >
-                    {carregando
-                      ? '·'
-                      : sem
-                        ? 'lotado'
-                        : `${d.count} ${d.count === 1 ? 'vaga' : 'vagas'}`}
+                    {carregando ? '·' : sem ? 'lotado' : d.count <= 2 ? 'últimas' : 'livre'}
                   </span>
                 </button>
               );

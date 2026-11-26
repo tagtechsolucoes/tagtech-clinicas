@@ -3,7 +3,16 @@
  * a API confere o formato ao gravar e `siteContent` lê com tolerância (campo
  * faltando ou estranho vira vazio), então o site nunca quebra por um dado antigo.
  */
+/**
+ * Como o site mostra os valores. Odontologia: o Código de Ética do CFO (art. 44, I) proíbe
+ * anunciar preços e modalidades de pagamento; medicina (CFM 2.336/2023) permite divulgar o
+ * valor da consulta. Por isso o padrão é esconder e a clínica escolhe.
+ */
+export type SitePrices = 'hide' | 'from' | 'show';
+export const SITE_PRICES: readonly SitePrices[] = ['hide', 'from', 'show'];
+
 export interface SiteContent {
+  prices: SitePrices;
   /** Até 3 números de destaque: "12 anos" / "de consultório". */
   stats: Array<{ value: string; label: string }>;
   /** Até 4 diferenciais curtos: título e uma frase. */
@@ -36,6 +45,7 @@ export const SITE_LIMITS = {
 } as const;
 
 export const EMPTY_SITE: SiteContent = {
+  prices: 'hide',
   stats: [],
   highlights: [],
   faq: [],
@@ -74,6 +84,7 @@ export function siteContent(raw: unknown): SiteContent {
   >;
   const nota = r.rating as Record<string, unknown> | null | undefined;
   return {
+    prices: SITE_PRICES.includes(r.prices as SitePrices) ? (r.prices as SitePrices) : 'hide',
     stats: lista(r.stats, SITE_LIMITS.stats, (x) => {
       const value = texto(x.value, 12);
       return value ? { value, label: texto(x.label, 40) } : null;
@@ -119,4 +130,12 @@ export function siteContent(raw: unknown): SiteContent {
           .slice(0, SITE_LIMITS.arrival)
       : [],
   };
+}
+
+/** Texto do valor de um serviço no site, ou null quando a clínica esconde valores. */
+export function precoNoSite(cents: number | null, modo: SitePrices): string | null {
+  if (modo === 'hide') return null;
+  if (cents === null) return 'Valor na avaliação';
+  const v = (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return modo === 'from' ? `a partir de ${v}` : v;
 }

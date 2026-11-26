@@ -22,6 +22,7 @@ const uuid = z.string().uuid('Identificador inválido');
 const linha = (max: number) => z.string().trim().max(max);
 const siteSchema = z
   .object({
+    prices: z.enum(['hide', 'from', 'show']),
     stats: z
       .array(z.object({ value: linha(12).min(1), label: linha(40) }).strict())
       .max(SITE_LIMITS.stats),
