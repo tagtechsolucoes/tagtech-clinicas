@@ -16,6 +16,7 @@ PRODUTO="TagClin"
 VM="tagtech-clinicas"
 ZONA="southamerica-east1-b"
 SLUG="tagclin"
+DEMO_PADRAO="clinicaaurora@example.com"
 HOSTS_VARS="EQUIPE_HOST SITE_HOST"
 # ------------------------------------------------------------------
 
@@ -63,7 +64,8 @@ if [ "${1:-}" = "servidor" ]; then
   DEMO=$(sg docker -c "docker compose exec -T postgres psql -U tagtech -d tagtech -tAc \"select count(*) from users where email = 'dono@demo.tagtech'\"" 2> /dev/null | tr -d '[:space:]' || true)
   if [ "$PRODUTO_SLUG" = "tagclin" ] && [ -n "${P_DONO:-}" ] && [ "${DEMO:-0}" != "0" ]; then
     titulo "Conta de demonstração"
-    if sg docker -c "docker compose run --rm -e SEED_DONO=$(printf %q "$P_DONO") migrate pnpm db:seed" > /tmp/preparar-seed.log 2>&1; then
+    if sg docker -c "docker compose run --rm -e SEED_DONO=$(printf %q "$P_DONO") -e SEED_ADMIN=$(printf %q "${P_ADMIN:-}") migrate pnpm db:seed" > /tmp/preparar-seed.log 2>&1; then
+      grep -A3 "Contas criadas" /tmp/preparar-seed.log || true
       ok "conta dono@demo.tagtech removida; a Clínica Aurora agora é de $P_DONO"
     else
       aviso "não consegui refazer a demonstração; veja /tmp/preparar-seed.log"
@@ -99,7 +101,9 @@ PROJETO=$(gcloud config get-value project 2> /dev/null)
 vm() { gcloud compute ssh "$VM" --zone "$ZONA" --quiet --command "$1"; }
 
 titulo "$PRODUTO · projeto $PROJETO · máquina $VM"
-read -rp "Seu e-mail (alertas e acesso à tela TagTech): " EMAIL
+read -rp "E-mail de administrador da TagTech (alertas e tela TagTech): " EMAIL
+read -rp "E-mail da conta da clínica de demonstração [$DEMO_PADRAO]: " DEMO
+DEMO="${DEMO:-$DEMO_PADRAO}"
 read -rp "E-mails de mais sócios com acesso à tela TagTech (vírgula, ou Enter): " SOCIOS
 read -rp "Como o cliente paga a mensalidade (ex.: Pix CNPJ 00.000.000/0001-00 · TagTech), ou Enter: " PAGAMENTO
 read -rp "WhatsApp da TagTech com DDI e DDD (ex.: 5581999990000), ou Enter: " WHATS
@@ -152,7 +156,7 @@ titulo "3. Servidor"
 q() { printf %q "$1"; }
 vm "P_ADMINS=$(q "$ADMINS") P_PAGAMENTO=$(q "$PAGAMENTO") P_WHATSAPP=$(q "$WHATS") \
   P_SENTRY=$(q "$SENTRY") P_AGE=$(q "$PUBLICA") P_REMOTE=$(q ":gcs:$BUCKET/$SLUG") \
-  P_DONO=$(q "$EMAIL") PRODUTO_SLUG=$SLUG bash /opt/tagtech/deploy/preparar-venda.sh servidor"
+  P_DONO=$(q "$DEMO") P_ADMIN=$(q "$EMAIL") PRODUTO_SLUG=$SLUG bash /opt/tagtech/deploy/preparar-venda.sh servidor"
 
 # -------------------------------------------------- aviso de queda
 titulo "4. Aviso por e-mail quando cair"

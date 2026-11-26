@@ -1,3 +1,4 @@
+import { hash } from '@node-rs/argon2';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir } from 'node:fs/promises';
@@ -161,6 +162,28 @@ const ESPACO: Array<[string, string, string]> = [
   ['espaco-6.webp', 'Cuidado em casa', 'Orientação de higiene para levar para casa'],
 ];
 
+// SEED_ADMIN="email": conta da TagTech, que entra como gerente da clínica de demonstração.
+const ADMIN = process.env.SEED_ADMIN?.trim().toLowerCase() || '';
+const senhas: string[] = [];
+
+/** Conta pelo e-mail; se não existir, cria com uma senha aleatória (mostrada uma vez). */
+async function conta(
+  db: ReturnType<typeof createDb>['db'],
+  email: string,
+  nome: string,
+): Promise<{ id: string; email: string; senha: string | null }> {
+  const [existe] = await db.execute<{ id: string }>(
+    sql`select id from users where lower(email) = ${email}`,
+  );
+  if (existe) return { id: existe.id, email, senha: null };
+  const senha = randomBytes(12).toString('base64url');
+  const senhaHash = await hash(senha, { memoryCost: 19_456, timeCost: 2, parallelism: 1 });
+  const [novo] = await db.execute<{ id: string }>(
+    sql`insert into users (email, name, password_hash) values (${email}, ${nome}, ${senhaHash}) returning id`,
+  );
+  return { id: novo!.id, email, senha };
+}
+
 const INTO = process.env.SEED_INTO?.trim() || '';
 // SEED_DONO="email": a clínica de demonstração fica com uma conta que já existe (a sua), sem
 // criar a conta dono@demo.tagtech, cuja senha está neste arquivo. Em servidor é obrigatório.
@@ -226,18 +249,14 @@ async function main() {
           'Fora do computador local, informe SEED_DONO=<seu e-mail já cadastrado>: a conta dono@demo.tagtech tem senha pública.',
         );
       // Confere a conta antes de apagar qualquer coisa: e-mail errado não pode sumir com a Aurora.
-      if (DONO) {
-        const [existe] = await db.execute<{ id: string }>(
-          sql`select id from users where lower(email) = ${DONO}`,
-        );
-        if (!existe)
-          throw new Error(`Nenhuma conta com o e-mail ${DONO}. Crie a conta no painel antes.`);
-      }
+      // Contas antes de apagar qualquer coisa. Conta que não existe é criada com senha nova.
+      const dono = DONO ? await conta(db, DONO, 'Clínica Aurora') : null;
+      const admin = ADMIN ? await conta(db, ADMIN, 'TagTech') : null;
       await db.delete(tenants).where(eq(tenants.slug, SLUG));
       await db.execute(sql`delete from users where email = ${DEMO_EMAIL}`);
 
-      const [user] = DONO
-        ? await db.execute<{ id: string }>(sql`select id from users where lower(email) = ${DONO}`)
+      const [user] = dono
+        ? [dono]
         : await db.execute<{ id: string }>(
             sql`insert into users (email, name, password_hash) values (${DEMO_EMAIL}, 'Marina Duarte', ${DEMO_PASSWORD_HASH}) returning id`,
           );
@@ -291,6 +310,12 @@ async function main() {
         })
         .returning();
       await db.insert(memberships).values({ tenantId, userId: user!.id, role: 'owner' });
+      // A TagTech entra como gerente: vê a Aurora e, pelo PLATFORM_ADMINS, a tela TagTech.
+      if (admin && admin.id !== user!.id)
+        await db.insert(memberships).values({ tenantId, userId: admin.id, role: 'manager' });
+      senhas.push(
+        ...[dono, admin].filter((c) => c?.senha).map((c) => `${c!.email}  senha: ${c!.senha}`),
+      );
       u = unidade;
       autorId = user!.id;
     }
@@ -1083,6 +1108,10 @@ async function main() {
           ? `Clínica de demonstração pronta na conta ${DONO} · site /c/${SLUG}`
           : `Clínica de demonstração pronta. Entre com ${DEMO_EMAIL} / demo-tagtech-123 · site /c/${SLUG}`,
     );
+    if (senhas.length) {
+      console.log('\nContas criadas agora (guarde as senhas; elas não aparecem de novo):');
+      for (const l of senhas) console.log(`  ${l}`);
+    }
   } finally {
     await close();
   }
