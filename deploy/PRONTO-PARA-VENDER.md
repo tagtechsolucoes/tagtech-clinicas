@@ -4,6 +4,27 @@ Tudo aqui roda no **Cloud Shell**, no mesmo projeto do Google Cloud da máquina
 `tagtech-clinicas` (zona `southamerica-east1-b`). Troque `SEU_EMAIL` pelo e-mail da sua conta no
 painel do TagClin.
 
+## Atalho: tudo de uma vez
+
+No Cloud Shell, no projeto da máquina, cole:
+
+```bash
+gcloud compute ssh tagtech-clinicas --zone southamerica-east1-b \
+  --command 'cat /opt/tagtech/deploy/preparar-venda.sh' > preparar-venda.sh && bash preparar-venda.sh
+```
+
+Ele pergunta seu e-mail, a forma de pagamento da mensalidade, o WhatsApp da TagTech e o DSN do
+Sentry (opcional), e faz sozinho:
+
+- chave do backup, bucket e conta de serviço, primeiro backup criptografado e o agendamento diário;
+- `PLATFORM_ADMINS`, `PLATFORM_PAYMENT_INFO`, `PLATFORM_WHATSAPP` e `SENTRY_DSN` no `.env`;
+- verificação a cada 5 minutos dos endereços, com alerta no seu e-mail se cair;
+- troca a conta de demonstração pela sua (a Clínica Aurora passa a ser sua);
+
+No fim, mostra a **chave privada do backup**: guarde em dois lugares seguros e apague do Cloud
+Shell. Pode rodar de novo quando quiser; o que já existe fica como está. As seções abaixo são o
+passo a passo manual do mesmo processo.
+
 ## 1. Tirar a conta de demonstração com senha pública
 
 A conta `dono@demo.tagtech` tem a senha escrita no repositório. Recrie a Clínica Aurora na sua
@@ -78,7 +99,7 @@ No `.env` do servidor:
 
 ```bash
 PLATFORM_ADMINS=seu@email.com,socio@email.com   # quem vê a tela "TagTech" (todas as clínicas)
-PLATFORM_PAYMENT_INFO=Pix (CNPJ): 00.000.000/0001-00 · TagTech Soluções. Mande o comprovante pelo WhatsApp.
+PLATFORM_PAYMENT_INFO='Pix (CNPJ): 00.000.000/0001-00 · TagTech Soluções. Mande o comprovante pelo WhatsApp.'
 PLATFORM_WHATSAPP=5581999990000                 # WhatsApp da TagTech, com DDI e DDD
 ```
 

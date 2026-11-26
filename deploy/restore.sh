@@ -5,7 +5,7 @@
 # ATENÇÃO: apaga o banco atual e põe o do arquivo no lugar.
 set -euo pipefail
 cd "$(dirname "$0")"
-set -a; . ./.env; set +a
+. ./env.sh && carregar_env .env
 
 if [ "${1:-}" = "--baixar" ]; then
   [ -n "${2:-}" ] || { echo "Uso: $0 --baixar AAAA-MM-DD_HHMM"; exit 1; }

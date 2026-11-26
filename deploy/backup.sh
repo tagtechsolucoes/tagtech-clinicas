@@ -11,7 +11,7 @@
 # Agende com: crontab -e  →  15 4 * * * /opt/tagtech/deploy/backup.sh >> /var/log/tagtech-backup.log 2>&1
 set -euo pipefail
 cd "$(dirname "$0")"
-set -a; . ./.env; set +a
+. ./env.sh && carregar_env .env
 
 DIA=$(date +%Y-%m-%d_%H%M)
 DESTINO=./backups
