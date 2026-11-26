@@ -364,8 +364,8 @@ export function ClinicaTela() {
       </Secao>
 
       <Secao
-        titulo="WhatsApp automático"
-        descricao="Aviso ao agendar, remarcar e cancelar, e lembrete antes da consulta com o link para confirmar."
+        titulo="WhatsApp da clínica"
+        descricao="Aviso ao agendar, remarcar e cancelar, lembrete antes da consulta e, pelo QR code, as conversas dos pacientes no painel."
       >
         <WhatsAppConfig />
       </Secao>

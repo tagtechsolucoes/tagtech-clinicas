@@ -278,12 +278,62 @@ export interface Invite {
 
 export interface WhatsAppSettings {
   configured: boolean;
+  /** evolution: número conectado por QR code; meta: API oficial. */
+  provider: 'evolution' | 'meta' | null;
+  connection: 'open' | 'connecting' | 'close';
+  /** O servidor tem o serviço do QR code ligado. */
+  qrAvailable: boolean;
   enabled: boolean;
   phoneNumberId: string;
   displayPhone: string;
   templateName: string;
   templateLang: string;
   reminderHours: number;
+}
+
+export interface WhatsAppQr extends WhatsAppSettings {
+  qr: { image: string | null; code: string | null; pairingCode: string | null } | null;
+}
+
+export interface Conversation {
+  id: string;
+  phone: string;
+  name: string;
+  lastMessageAt: string;
+  lastPreview: string;
+  lastDirection: 'in' | 'out';
+  unread: number;
+}
+
+export interface ConversationList {
+  canReply: boolean;
+  connection: 'open' | 'connecting' | 'close' | null;
+  provider: 'evolution' | 'meta' | null;
+  conversations: Conversation[];
+}
+
+export interface ChatMessage {
+  id: string;
+  direction: 'in' | 'out';
+  kind: 'text' | 'auto' | 'media';
+  body: string;
+  status: 'sending' | 'sent' | 'failed' | 'received';
+  error: string | null;
+  createdAt: string;
+}
+
+export interface ConversationThread {
+  conversation: Conversation;
+  messages: ChatMessage[];
+  patients: Array<{ id: string; name: string; phone: string }>;
+  appointments: Array<{
+    id: string;
+    patientId: string;
+    startsAt: string;
+    status: string;
+    service: string;
+    professional: string;
+  }>;
 }
 
 export interface SentMessage {
@@ -1149,6 +1199,17 @@ export const api = {
   }) => send<WhatsAppSettings>('PUT', '/whatsapp', data),
   toggleWhatsapp: (enabled: boolean) => send<WhatsAppSettings>('PATCH', '/whatsapp', { enabled }),
   removeWhatsapp: () => send<WhatsAppSettings>('DELETE', '/whatsapp'),
+  startWhatsappQr: () => send<WhatsAppQr>('POST', '/whatsapp/qr'),
+  whatsappQr: () => request<WhatsAppQr>('/whatsapp/qr'),
+  conversations: (q = '') =>
+    request<ConversationList>(`/conversations${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  conversationsUnread: () => request<{ conversations: number }>('/conversations/unread'),
+  conversation: (id: string) => request<ConversationThread>(`/conversations/${id}`),
+  readConversation: (id: string) => send<{ ok: true }>('POST', `/conversations/${id}/read`),
+  startConversation: (phone: string, name = '') =>
+    send<Conversation>('POST', '/conversations', { phone, name }),
+  sendMessage: (id: string, text: string) =>
+    send<{ id: string; status: string }>('POST', `/conversations/${id}/messages`, { text }),
   testWhatsapp: (phone: string) => send<{ sent: true }>('POST', '/whatsapp/test', { phone }),
   messages: (appointmentId: string) =>
     request<SentMessage[]>(`/appointments/${appointmentId}/messages`),

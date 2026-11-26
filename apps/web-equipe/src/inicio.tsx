@@ -89,7 +89,7 @@ export function InicioTela() {
             {diaLongo(dia)} · resumo de {nomeMes(mes)}
           </p>
         </div>
-        <Botao variante="principal" onClick={pedirNovoAgendamento}>
+        <Botao variante="principal" onClick={() => pedirNovoAgendamento()}>
           <Icone nome="mais" className="h-4 w-4" /> Novo agendamento
         </Botao>
       </div>
@@ -445,7 +445,7 @@ function AgendaDeHoje({ itens }: { itens: Appointment[] }) {
             O dia está livre.
             <button
               type="button"
-              onClick={pedirNovoAgendamento}
+              onClick={() => pedirNovoAgendamento()}
               className="mt-2 block w-full font-semibold text-petroleo hover:underline"
             >
               Marcar uma consulta

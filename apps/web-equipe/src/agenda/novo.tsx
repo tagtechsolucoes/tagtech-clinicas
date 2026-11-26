@@ -16,6 +16,8 @@ export interface Sugestao {
   professionalId?: string;
   hora?: string;
   patient?: PatientSummary;
+  /** Alguém que ainda não é paciente (veio de uma conversa do WhatsApp). */
+  novoPaciente?: { name: string; phone: string };
   serviceId?: string;
 }
 
@@ -53,7 +55,9 @@ function Formulario({
   const { services, professionals, rooms, avisar } = usePainel();
   const ativosSvc = services.filter((s) => s.active);
   const [paciente, setPaciente] = useState<PatientSummary | null>(sugestao.patient ?? null);
-  const [novoPaciente, setNovoPaciente] = useState<{ name: string; phone: string } | null>(null);
+  const [novoPaciente, setNovoPaciente] = useState<{ name: string; phone: string } | null>(
+    sugestao.novoPaciente ?? null,
+  );
   const [serviceId, setServiceId] = useState(sugestao.serviceId ?? ativosSvc[0]?.id ?? '');
   const servico = services.find((s) => s.id === serviceId);
   const possiveis = useMemo(

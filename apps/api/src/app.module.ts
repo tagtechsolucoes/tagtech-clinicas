@@ -20,6 +20,11 @@ import { PublicController } from './public/public.controller';
 import { PublicService } from './public/public.service';
 import { RecordsController } from './records/records.controller';
 import { RecordsService } from './records/records.service';
+import {
+  ConversationsController,
+  WhatsAppHookController,
+} from './whatsapp/conversations.controller';
+import { ConversationsService } from './whatsapp/conversations.service';
 import { WhatsAppController } from './whatsapp/whatsapp.controller';
 import { WHATSAPP_HTTP, WhatsAppService } from './whatsapp/whatsapp.service';
 import { TeamService } from './team/team.service';
@@ -65,6 +70,8 @@ import { SubscriptionService } from './subscription/subscription.service';
     AgendaController,
     PublicController,
     WhatsAppController,
+    ConversationsController,
+    WhatsAppHookController,
     RecordsController,
     FinanceController,
     PublicFinanceController,
@@ -94,6 +101,7 @@ import { SubscriptionService } from './subscription/subscription.service';
     AgendaService,
     PublicService,
     WhatsAppService,
+    ConversationsService,
     RelationshipService,
     PackagesService,
     DocumentsService,

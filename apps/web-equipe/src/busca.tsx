@@ -81,7 +81,7 @@ export function Busca({
             tipo: 'acao' as const,
             nome: 'Novo agendamento',
             icone: 'mais',
-            ir: pedirNovoAgendamento,
+            ir: () => pedirNovoAgendamento(),
           },
         ]
       : []),
