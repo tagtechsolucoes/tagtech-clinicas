@@ -225,6 +225,14 @@ async function main() {
         throw new Error(
           'Fora do computador local, informe SEED_DONO=<seu e-mail já cadastrado>: a conta dono@demo.tagtech tem senha pública.',
         );
+      // Confere a conta antes de apagar qualquer coisa: e-mail errado não pode sumir com a Aurora.
+      if (DONO) {
+        const [existe] = await db.execute<{ id: string }>(
+          sql`select id from users where lower(email) = ${DONO}`,
+        );
+        if (!existe)
+          throw new Error(`Nenhuma conta com o e-mail ${DONO}. Crie a conta no painel antes.`);
+      }
       await db.delete(tenants).where(eq(tenants.slug, SLUG));
       await db.execute(sql`delete from users where email = ${DEMO_EMAIL}`);
 
