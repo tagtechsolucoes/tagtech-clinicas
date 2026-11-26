@@ -170,7 +170,7 @@ describe('WhatsApp da clínica pelo QR code', () => {
 
   it('o lembrete pede 1 ou 2; "1" confirma na agenda e responde sozinho', async () => {
     const wa = app.get(WhatsAppService);
-    await wa.sweepReminders(new Date(Date.now() + 30 * 3600_000));
+    await wa.sweepReminders(new Date(Date.now() + 30 * 3600_000), a.tenantId);
     expect(enviados).toHaveLength(1);
     expect(enviados[0]!.text).toMatch(/Podemos contar com você\?/);
     expect(enviados[0]!.text).toMatch(/Responda \*1\* para confirmar ou \*2\*/);

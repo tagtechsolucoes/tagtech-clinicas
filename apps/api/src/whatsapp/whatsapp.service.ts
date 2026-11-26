@@ -209,11 +209,15 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     this.track(this.send(tenantId, appointmentId, event, token));
   }
 
-  /** Manda os lembretes que já estão na hora (véspera e do dia), de todas as clínicas. */
-  async sweepReminders(now: Date): Promise<number> {
-    const due = await dueReminders(this.dbService.db, now);
+  /**
+   * Manda os lembretes que já estão na hora (véspera e do dia), de todas as clínicas.
+   * `soClinica` limita a uma clínica (os testes rodam em paralelo no mesmo banco).
+   */
+  async sweepReminders(now: Date, soClinica?: string): Promise<number> {
+    const daClinica = (d: { tenantId: string }) => !soClinica || d.tenantId === soClinica;
+    const due = (await dueReminders(this.dbService.db, now)).filter(daClinica);
     for (const d of due) await this.send(d.tenantId, d.appointmentId, 'reminder', undefined, now);
-    const soon = await dueSoonReminders(this.dbService.db, now);
+    const soon = (await dueSoonReminders(this.dbService.db, now)).filter(daClinica);
     for (const d of soon) await this.send(d.tenantId, d.appointmentId, 'soon', undefined, now);
     return due.length + soon.length;
   }

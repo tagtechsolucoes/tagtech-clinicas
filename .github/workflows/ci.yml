@@ -37,6 +37,8 @@ jobs:
       - name: Criar o usuário do banco da aplicação
         run: psql "$DATABASE_OWNER_URL" -v ON_ERROR_STOP=1 -f docker/postgres/init.sql
       - run: pnpm db:migrate
+      - name: Conferir a versão (package.json e CHANGELOG.md)
+        run: node scripts/versao.mjs conferir
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm test
