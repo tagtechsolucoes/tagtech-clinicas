@@ -308,6 +308,8 @@ export const clinicWhatsapp = pgTable('clinic_whatsapp', {
   templateLang: text('template_lang').notNull().default('pt_BR'),
   displayPhone: text('display_phone').notNull().default(''),
   reminderHours: integer('reminder_hours').notNull().default(24),
+  /** Lembrete do dia, minutos antes (null = desligado). */
+  soonMinutes: integer('soon_minutes').default(60),
   enabled: boolean('enabled').notNull().default(true),
   provider: text('provider').$type<'meta' | 'evolution'>().notNull().default('meta'),
   instance: text('instance'),
@@ -352,7 +354,9 @@ export const appointmentMessages = pgTable('appointment_messages', {
   id: id(),
   tenantId: uuid('tenant_id').notNull(),
   appointmentId: uuid('appointment_id').notNull(),
-  event: text('event', { enum: ['booked', 'reminder', 'rescheduled', 'cancelled'] }).notNull(),
+  event: text('event', {
+    enum: ['booked', 'reminder', 'soon', 'rescheduled', 'cancelled'],
+  }).notNull(),
   forStartsAt: ts('for_starts_at').notNull(),
   status: text('status', { enum: ['sending', 'sent', 'failed'] })
     .notNull()

@@ -13,7 +13,7 @@ import type { TenantContext } from '../auth/auth.guard';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
 import { parseInbound } from './inbound';
-import { registrar, WhatsAppService } from './whatsapp.service';
+import { mesmoNumero, registrar, WhatsAppService } from './whatsapp.service';
 
 const {
   appointments,
@@ -34,10 +34,6 @@ const conversaView = (c: typeof waConversations.$inferSelect) => ({
   lastDirection: c.lastDirection,
   unread: c.unread,
 });
-
-/** O telefone pode estar gravado com ou sem 55 e nono dígito: compara os 8 últimos. */
-const mesmoNumero = (coluna: typeof patients.phone, phone: string) =>
-  sql`right(regexp_replace(${coluna}, '\\D', '', 'g'), 8) = ${phone.slice(-8)}`;
 
 /**
  * Central de conversas: o que os pacientes mandam para o número da clínica (conectado por
@@ -246,12 +242,12 @@ export class ConversationsService {
 
     const phone = canonicalPhone(ev.phone);
     if (!phone) return;
-    await withTenant(this.dbService.db, tenantId, async (tx) => {
+    const nova = await withTenant(this.dbService.db, tenantId, async (tx) => {
       const [repetida] = await tx
         .select({ id: waMessages.id })
         .from(waMessages)
         .where(eq(waMessages.externalId, ev.externalId));
-      if (repetida) return;
+      if (repetida) return false;
       if (ev.fromMe) {
         // Nossa própria resposta voltando antes de gravarmos o id: só liga as duas.
         const [nossa] = await tx
@@ -273,7 +269,7 @@ export class ConversationsService {
             .update(waMessages)
             .set({ externalId: ev.externalId })
             .where(eq(waMessages.id, nossa.id));
-          return;
+          return false;
         }
       }
       // Nome do paciente cadastrado, quando houver; senão, o nome do WhatsApp.
@@ -296,6 +292,12 @@ export class ConversationsService {
         // Hora em que chegou aqui: o relógio do celular do paciente pode estar errado.
         at: new Date(),
       });
-    }).catch((e: unknown) => this.log.warn(`Mensagem recebida não gravada: ${String(e)}`));
+      return !ev.fromMe && !ev.media;
+    }).catch((e: unknown) => {
+      this.log.warn(`Mensagem recebida não gravada: ${String(e)}`);
+      return false;
+    });
+    // Respondeu 1 ou 2 ao lembrete: confirma ou pede para remarcar.
+    if (nova) await this.whatsapp.patientReply(tenantId, phone, ev.body);
   }
 }

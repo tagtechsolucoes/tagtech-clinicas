@@ -189,6 +189,40 @@ describe('mensagens da agenda', () => {
     expect(log.map((m: { event: string }) => m.event)).toEqual(['booked', 'reminder']);
   });
 
+  it('lembrete do dia: sai perto da hora, com o endereço, uma vez só', async () => {
+    await call(a, 'PATCH', `/units/${a.unitId}`, { address: 'Rua das Flores, 120.' });
+    const quando = slot(hours(34));
+    const c = await marcar(a, quando);
+    enviadas = [];
+    // Três horas antes da consulta ainda é cedo; 50 minutos antes, sai.
+    const quase = new Date(new Date(quando).getTime() - 50 * 60_000);
+    await wa.sweepReminders(new Date(quase.getTime() - 3 * 3600_000));
+    const so = (e: typeof enviadas) => e.filter((m) => /Até já!$/.test(m.params[3]!));
+    expect(so(enviadas)).toEqual([]);
+    await wa.sweepReminders(quase);
+    expect(so(enviadas)).toHaveLength(1);
+    expect(so(enviadas)[0]!.params[3]).toMatch(
+      /^é (hoje|amanhã), às \d\d:\d\d, Rua das Flores, 120\. Até já!$/,
+    );
+    await wa.sweepReminders(new Date(quase.getTime() + 60_000));
+    expect(so(enviadas)).toHaveLength(1);
+    const log = (await call(a, 'GET', `/appointments/${c.id}/messages`)).json();
+    expect(log.map((m: { event: string }) => m.event)).toContain('soon');
+  });
+
+  it('lembrete do dia desligado: não sai', async () => {
+    expect((await call(a, 'PATCH', '/whatsapp', { soonMinutes: null })).json()).toMatchObject({
+      soonMinutes: null,
+    });
+    const quando = slot(hours(38));
+    await marcar(a, quando);
+    enviadas = [];
+    await wa.sweepReminders(new Date(new Date(quando).getTime() - 20 * 60_000));
+    expect(enviadas.filter((m) => /Até já!$/.test(m.params[3]!))).toEqual([]);
+    expect((await call(a, 'PATCH', '/whatsapp', { soonMinutes: 45 })).statusCode).toBe(400);
+    await call(a, 'PATCH', '/whatsapp', { soonMinutes: 60 });
+  });
+
   it('marcada para daqui a poucas horas: só o aviso de agendamento, sem lembrete', async () => {
     await marcar(a, slot(hours(5)));
     enviadas = [];

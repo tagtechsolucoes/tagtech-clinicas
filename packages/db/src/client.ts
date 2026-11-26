@@ -73,6 +73,17 @@ export async function dueReminders(
   return rows.map((r) => ({ tenantId: r.tenant_id, appointmentId: r.appointment_id }));
 }
 
+/** Consultas (de todas as clínicas) na hora do lembrete do dia e ainda sem ele. */
+export async function dueSoonReminders(
+  db: Db,
+  now: Date,
+): Promise<Array<{ tenantId: string; appointmentId: string }>> {
+  const rows = await db.execute<{ tenant_id: string; appointment_id: string }>(
+    sql`select tenant_id, appointment_id from due_soon_reminders(${now.toISOString()}::timestamptz)`,
+  );
+  return rows.map((r) => ({ tenantId: r.tenant_id, appointmentId: r.appointment_id }));
+}
+
 /** Link de aprovação do orçamento (hash do token) -> clínica e orçamento. */
 export async function resolvePlanToken(
   db: Db,

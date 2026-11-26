@@ -289,6 +289,8 @@ export interface WhatsAppSettings {
   templateName: string;
   templateLang: string;
   reminderHours: number;
+  /** Lembrete do dia, minutos antes (null = desligado). */
+  soonMinutes: number | null;
 }
 
 export interface WhatsAppQr extends WhatsAppSettings {
@@ -1198,6 +1200,8 @@ export const api = {
     enabled: boolean;
   }) => send<WhatsAppSettings>('PUT', '/whatsapp', data),
   toggleWhatsapp: (enabled: boolean) => send<WhatsAppSettings>('PATCH', '/whatsapp', { enabled }),
+  whatsappPrefs: (prefs: { reminderHours?: number; soonMinutes?: number | null }) =>
+    send<WhatsAppSettings>('PATCH', '/whatsapp', prefs),
   removeWhatsapp: () => send<WhatsAppSettings>('DELETE', '/whatsapp'),
   startWhatsappQr: () => send<WhatsAppQr>('POST', '/whatsapp/qr'),
   whatsappQr: () => request<WhatsAppQr>('/whatsapp/qr'),
