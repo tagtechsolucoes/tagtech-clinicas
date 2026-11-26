@@ -24,6 +24,10 @@ services:
     build: { context: .., dockerfile: deploy/Dockerfile, target: migrate }
     environment:
       DATABASE_OWNER_URL: postgres://tagtech:${OWNER_DB_PASSWORD}@postgres:5432/tagtech
+      # O seed de demonstração grava as fotos na mesma pasta que a API serve.
+      MEDIA_DIR: /data/media
+    volumes:
+      - media:/data/media
     depends_on:
       postgres: { condition: service_healthy }
     restart: 'no'

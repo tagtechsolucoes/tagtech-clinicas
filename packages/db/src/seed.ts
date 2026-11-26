@@ -1,3 +1,8 @@
+import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { eq, sql } from 'drizzle-orm';
 import { createDb } from './client';
 import { requireEnv } from './env';
@@ -21,6 +26,7 @@ import {
   professionals,
   serviceProfessionals,
   services,
+  sitePhotos,
   tenants,
   timeOff,
   toothChart,
@@ -133,6 +139,28 @@ const SITE_DEMO = {
   ],
 };
 
+// Fotos da demonstração (opcionais): o que existir em seed-media/aurora entra no site.
+const here = dirname(fileURLToPath(import.meta.url));
+const fotosDemo = join(here, '..', 'seed-media', 'aurora');
+// Mesma pasta que a API serve (ver apps/api/src/media/media.service.ts).
+const mediaDir = process.env.MEDIA_DIR ?? resolve(here, '../../..', '.data', 'media');
+async function foto(arquivo: string): Promise<string | null> {
+  if (!existsSync(join(fotosDemo, arquivo))) return null;
+  const nome = `${randomBytes(16).toString('hex')}.webp`;
+  await mkdir(mediaDir, { recursive: true });
+  await copyFile(join(fotosDemo, arquivo), join(mediaDir, nome));
+  return `/media/${nome}`;
+}
+// Fotos do espaço, na ordem do site: arquivo, título e legenda.
+const ESPACO: Array<[string, string, string]> = [
+  ['espaco-1.webp', 'Recepção', 'Café, água e Wi-Fi enquanto espera'],
+  ['espaco-2.webp', 'Consultório', 'Equipamento novo e esterilização à vista'],
+  ['espaco-3.webp', 'Atendimento', 'O mesmo profissional do começo ao fim'],
+  ['espaco-4.webp', 'Sorriso', 'Clareamento e estética com planejamento'],
+  ['espaco-5.webp', 'Instrumentos', 'Material esterilizado a cada atendimento'],
+  ['espaco-6.webp', 'Cuidado em casa', 'Orientação de higiene para levar para casa'],
+];
+
 const INTO = process.env.SEED_INTO?.trim() || '';
 // SEED_DONO="email": a clínica de demonstração fica com uma conta que já existe (a sua), sem
 // criar a conta dono@demo.tagtech, cuja senha está neste arquivo. Em servidor é obrigatório.
@@ -197,6 +225,14 @@ async function main() {
         throw new Error(
           'Fora do computador local, informe SEED_DONO=<seu e-mail já cadastrado>: a conta dono@demo.tagtech tem senha pública.',
         );
+      // Confere a conta antes de apagar qualquer coisa: e-mail errado não pode sumir com a Aurora.
+      if (DONO) {
+        const [existe] = await db.execute<{ id: string }>(
+          sql`select id from users where lower(email) = ${DONO}`,
+        );
+        if (!existe)
+          throw new Error(`Nenhuma conta com o e-mail ${DONO}. Crie a conta no painel antes.`);
+      }
       await db.delete(tenants).where(eq(tenants.slug, SLUG));
       await db.execute(sql`delete from users where email = ${DEMO_EMAIL}`);
 
@@ -226,6 +262,25 @@ async function main() {
         })
         .returning();
       tenantId = novo!.id;
+      // Demonstração sem fim: não entra em teste grátis nem vence.
+      await db.execute(sql`
+        update subscriptions set plan = 'clinica', status = 'active', trial_ends_at = null,
+          paid_until = '2099-12-31', notes = 'Demonstração da TagTech'
+        where tenant_id = ${tenantId}`);
+      const [capa, logo] = [await foto('capa.webp'), await foto('logo.webp')];
+      if (capa || logo)
+        await db
+          .update(tenants)
+          .set({ ...(capa ? { coverUrl: capa } : {}), ...(logo ? { logoUrl: logo } : {}) })
+          .where(eq(tenants.id, tenantId));
+      let posicao = 0;
+      for (const [arquivo, title, caption] of ESPACO) {
+        const url = await foto(arquivo);
+        if (url)
+          await db
+            .insert(sitePhotos)
+            .values({ tenantId, url, title, caption, position: posicao++ });
+      }
       const [unidade] = await db
         .insert(units)
         .values({
@@ -276,6 +331,17 @@ async function main() {
       ])
       .returning();
     const [helena, rafael, camila] = pros as [(typeof pros)[0], (typeof pros)[0], (typeof pros)[0]];
+    // Foto de cada profissional, se estiver em seed-media/aurora (helena.webp, rafael.webp, camila.webp).
+    if (!INTO)
+      for (const [p, arquivo] of [
+        [helena, 'helena.webp'],
+        [rafael, 'rafael.webp'],
+        [camila, 'camila.webp'],
+      ] as const) {
+        const url = await foto(arquivo);
+        if (url)
+          await db.update(professionals).set({ photoUrl: url }).where(eq(professionals.id, p.id));
+      }
 
     const semana = (pid: string, dias: number[], turnos: Array<[string, string]>) =>
       dias.flatMap((d) =>
