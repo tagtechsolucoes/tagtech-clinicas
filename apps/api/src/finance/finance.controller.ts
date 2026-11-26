@@ -17,6 +17,7 @@ import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/a
 import { validate } from '../common/validate';
 import { FinanceService } from './finance.service';
 import { PlansService } from './plans.service';
+import { RequiresFeature } from '../subscription/feature.decorator';
 
 const uuid = z.string().uuid('Identificador inválido');
 const ymd = z.string().refine(isYMD, 'Data inválida');
@@ -199,6 +200,7 @@ export class FinanceController {
     return this.finance.reopenCharge(ctx, validate(uuid, id));
   }
 
+  @RequiresFeature('pix')
   @Post('finance/charges/:id/pix')
   @HttpCode(200)
   @Roles('owner', 'manager', 'reception')
@@ -254,12 +256,14 @@ export class FinanceController {
 
   // ------------------------------------------------------------ Pix da clínica
 
+  @RequiresFeature('pix')
   @Get('finance/pix')
   @Roles('owner', 'manager')
   pixSettings(@CurrentTenant() ctx: TenantContext) {
     return this.finance.pixSettings(ctx);
   }
 
+  @RequiresFeature('pix')
   @Put('finance/pix')
   @Roles('owner')
   savePix(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {

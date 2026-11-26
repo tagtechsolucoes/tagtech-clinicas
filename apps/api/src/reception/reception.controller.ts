@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/auth.guard';
 import { validate } from '../common/validate';
 import { ReceptionService } from './reception.service';
+import { RequiresFeature } from '../subscription/feature.decorator';
 
 const uuid = z.string().uuid('Identificador inválido');
 const token = z.string().regex(/^[A-Za-z0-9_-]{22}$/, 'Link inválido');
@@ -31,6 +32,7 @@ export class ReceptionController {
     return this.service.call(ctx, validate(uuid, id), b.destination);
   }
 
+  @RequiresFeature('tv')
   @Post('tv-link')
   @HttpCode(200)
   @Roles('owner', 'manager')

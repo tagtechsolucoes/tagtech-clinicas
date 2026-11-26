@@ -29,6 +29,7 @@ import { inClinic } from '../common/clinic-scope';
 import { hashToken } from '../common/token';
 import { DbService } from '../db/db.module';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 const {
   appointmentEvents,
@@ -80,6 +81,7 @@ export class RelationshipService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(WhatsAppService) private readonly whatsapp: WhatsAppService,
+    @Inject(SubscriptionService) private readonly subs: SubscriptionService,
   ) {}
 
   onModuleInit() {
@@ -201,6 +203,7 @@ export class RelationshipService implements OnModuleInit, OnModuleDestroy {
 
   /** Oferece a vaga da consulta cancelada para a próxima pessoa da fila que ainda não recebeu. */
   async offerNext(tenantId: string, sourceId: string, now: Date): Promise<string | null> {
+    if (!(await this.subs.has(tenantId, 'relationship'))) return null;
     const oferta = await withTenant(this.db, tenantId, async (tx) => {
       const [t] = await tx.select().from(tenants);
       const [cfg] = await tx.select().from(clinicWhatsapp);
@@ -517,12 +520,13 @@ export class RelationshipService implements OnModuleInit, OnModuleDestroy {
 
   async sweepMessages(now: Date) {
     let enviadas = 0;
+    const pode = (t: string) => this.subs.has(t, 'relationship');
     for (const d of await dueRecalls(this.db, now))
-      if (await this.recall(d.tenantId, d.id, now)) enviadas++;
+      if ((await pode(d.tenantId)) && (await this.recall(d.tenantId, d.id, now))) enviadas++;
     for (const d of await dueReactivations(this.db, now))
-      if (await this.reactivate(d.tenantId, d.id, now)) enviadas++;
+      if ((await pode(d.tenantId)) && (await this.reactivate(d.tenantId, d.id, now))) enviadas++;
     for (const d of await dueReviews(this.db, now))
-      if (await this.askReview(d.tenantId, d.id, now)) enviadas++;
+      if ((await pode(d.tenantId)) && (await this.askReview(d.tenantId, d.id, now))) enviadas++;
     return enviadas;
   }
 

@@ -47,11 +47,15 @@ import { LgpdController } from './lgpd/lgpd.controller';
 import { LgpdService } from './lgpd/lgpd.service';
 import { InsuranceService } from './insurance/insurance.service';
 import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
+import { PlatformController, SubscriptionController } from './subscription/subscription.controller';
+import { SubscriptionService } from './subscription/subscription.service';
 
 @Module({
   imports: [DbModule],
   controllers: [
     HealthController,
+    SubscriptionController,
+    PlatformController,
     AuthController,
     TeamController,
     InvitesController,
@@ -78,6 +82,7 @@ import { FOCUS_HTTP, NfseService } from './nfse/nfse.service';
   ],
   providers: [
     AuthService,
+    SubscriptionService,
     Mailer,
     LoginLimiter,
     SignupLimiter,

@@ -11,11 +11,15 @@ import {
   type Professional,
   type Room,
   type Service,
+  type Subscription,
+  type Feature,
 } from './api';
 import { Agenda } from './agenda/agenda';
 import { Busca } from './busca';
 import { ClinicaTela } from './clinica';
 import { InicioTela } from './inicio';
+import { AvisoAssinatura, ForaDoPlano, PlanoTela } from './plano';
+import { TagTechTela } from './tagtech';
 import { ResumoDoDia } from './resumo-dia';
 import { PainelContexto, type Painel } from './contexto';
 import { Convite } from './convite';
@@ -56,7 +60,9 @@ export type Secao =
   | 'profissionais'
   | 'servicos'
   | 'clinica'
-  | 'equipe';
+  | 'equipe'
+  | 'plano'
+  | 'tagtech';
 
 const SECOES: Array<{
   id: Secao;
@@ -67,6 +73,10 @@ const SECOES: Array<{
   /** Só com 2 profissionais ou mais (modo consultório esconde). */
   equipe?: boolean;
   convenio?: boolean;
+  /** Recurso do plano: sem ele, a tela mostra o convite para mudar de plano. */
+  recurso?: Feature;
+  /** Só a equipe da TagTech. */
+  plataforma?: boolean;
   grupo: 'Atendimento' | 'Gestão' | 'Clínica';
 }> = [
   { id: 'inicio', nome: 'Painel', icone: 'painel', gerencia: true, grupo: 'Atendimento' },
@@ -82,6 +92,7 @@ const SECOES: Array<{
     icone: 'recibo',
     balcao: true,
     convenio: true,
+    recurso: 'insurance',
     grupo: 'Gestão',
   },
   { id: 'resultado', nome: 'Resultado', icone: 'grafico', gerencia: true, grupo: 'Gestão' },
@@ -91,6 +102,7 @@ const SECOES: Array<{
     icone: 'relatorio',
     gerencia: true,
     equipe: true,
+    recurso: 'reports',
     grupo: 'Gestão',
   },
   {
@@ -103,6 +115,8 @@ const SECOES: Array<{
   { id: 'servicos', nome: 'Serviços', icone: 'lista', gerencia: true, grupo: 'Clínica' },
   { id: 'clinica', nome: 'Clínica e site', icone: 'clinica', gerencia: true, grupo: 'Clínica' },
   { id: 'equipe', nome: 'Equipe', icone: 'equipe', gerencia: true, grupo: 'Clínica' },
+  { id: 'plano', nome: 'Plano', icone: 'recibo', gerencia: true, grupo: 'Clínica' },
+  { id: 'tagtech', nome: 'TagTech', icone: 'grafico', plataforma: true, grupo: 'Clínica' },
 ];
 
 const ESCOLHA = 'tt:clinica';
@@ -223,6 +237,8 @@ function Casca({
     professionals: Professional[];
     services: Service[];
     rooms: Room[];
+    assinatura: Subscription;
+    admin: boolean;
   } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [recado, setRecado] = useState<{ texto: string; tipo: 'ok' | 'erro' } | null>(null);
@@ -232,14 +248,19 @@ function Casca({
 
   const recarregar = useCallback(async () => {
     try {
-      const [clinic, professionals, services, rooms] = await Promise.all([
+      const [clinic, professionals, services, rooms, assinatura, admin] = await Promise.all([
         api.clinic(),
         api.professionals(),
         api.services(),
         api.rooms(),
+        api.subscription(),
+        api.platformMe().then(
+          (r) => r.admin,
+          () => false,
+        ),
       ]);
       setFuso(clinic.units.find((u) => u.active)?.timezone ?? 'America/Recife');
-      setDados({ clinic, professionals, services, rooms });
+      setDados({ clinic, professionals, services, rooms, assinatura, admin });
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar.');
     }
@@ -269,6 +290,7 @@ function Casca({
             vinculo,
             ...dados,
             recarregar,
+            tem: (f) => !dados.assinatura.blocked && dados.assinatura.features.includes(f),
             setClinic: (clinic) => setDados((d) => (d ? { ...d, clinic } : d)),
             avisar,
             gerencia,
@@ -286,7 +308,8 @@ function Casca({
       (!s.gerencia || gerencia) &&
       (!s.balcao || vinculo.role !== 'professional') &&
       (!s.convenio || painel.clinic.insuranceEnabled) &&
-      (!s.equipe || painel.professionals.filter((p) => p.active).length > 1),
+      (!s.equipe || painel.professionals.filter((p) => p.active).length > 1) &&
+      (!s.plataforma || painel.admin),
   );
   const atual = visiveis.some((s) => s.id === secao)
     ? secao
@@ -389,25 +412,40 @@ function Casca({
         </aside>
 
         <main className="min-w-0 pb-24 lg:pb-0">
-          {atual === 'agenda' ? <Agenda /> : null}
+          {atual === 'agenda' ? (
+            <>
+              <Agenda />
+              <AvisoAssinatura flutuante />
+            </>
+          ) : null}
           {atual !== 'agenda' ? (
             <div className="mx-auto w-full max-w-6xl px-5 py-8 lg:px-10 lg:py-10">
-              {atual === 'inicio' ? <InicioTela /> : null}
-              {atual === 'pacientes' && pacienteId ? (
-                <PacienteTela key={pacienteId} id={pacienteId} />
-              ) : null}
-              {atual === 'pacientes' && !pacienteId ? <PacientesTela /> : null}
-              {atual === 'espera' ? <EsperaTela /> : null}
-              {atual === 'financeiro' ? <FinanceiroTela /> : null}
-              {atual === 'estoque' ? <EstoqueTela /> : null}
-              {atual === 'convenios' ? <ConveniosTela /> : null}
-              {atual === 'resultado' ? <ResultadoTela /> : null}
-              {atual === 'relatorios' ? <RelatoriosTela /> : null}
-              {atual === 'recepcao' ? <RecepcaoTela /> : null}
-              {atual === 'profissionais' ? <ProfissionaisTela /> : null}
-              {atual === 'servicos' ? <ServicosTela /> : null}
-              {atual === 'clinica' ? <ClinicaTela /> : null}
-              {atual === 'equipe' ? <EquipeTela /> : null}
+              <AvisoAssinatura />
+              {SECOES.find((s) => s.id === atual)?.recurso &&
+              !painel.tem(SECOES.find((s) => s.id === atual)!.recurso!) ? (
+                <ForaDoPlano recurso={SECOES.find((s) => s.id === atual)!.recurso!} />
+              ) : (
+                <>
+                  {atual === 'inicio' ? <InicioTela /> : null}
+                  {atual === 'pacientes' && pacienteId ? (
+                    <PacienteTela key={pacienteId} id={pacienteId} />
+                  ) : null}
+                  {atual === 'pacientes' && !pacienteId ? <PacientesTela /> : null}
+                  {atual === 'espera' ? <EsperaTela /> : null}
+                  {atual === 'financeiro' ? <FinanceiroTela /> : null}
+                  {atual === 'estoque' ? <EstoqueTela /> : null}
+                  {atual === 'convenios' ? <ConveniosTela /> : null}
+                  {atual === 'resultado' ? <ResultadoTela /> : null}
+                  {atual === 'relatorios' ? <RelatoriosTela /> : null}
+                  {atual === 'recepcao' ? <RecepcaoTela /> : null}
+                  {atual === 'profissionais' ? <ProfissionaisTela /> : null}
+                  {atual === 'servicos' ? <ServicosTela /> : null}
+                  {atual === 'clinica' ? <ClinicaTela /> : null}
+                  {atual === 'equipe' ? <EquipeTela /> : null}
+                  {atual === 'plano' ? <PlanoTela /> : null}
+                  {atual === 'tagtech' ? <TagTechTela /> : null}
+                </>
+              )}
             </div>
           ) : null}
         </main>

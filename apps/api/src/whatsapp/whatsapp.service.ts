@@ -14,6 +14,7 @@ import type { TenantContext } from '../auth/auth.guard';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
 import { hashToken } from '../common/token';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 const { appointmentMessages, appointments, clinicWhatsapp, patients, services, tenants, units } =
   schema;
@@ -50,6 +51,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(WHATSAPP_HTTP) private readonly http: typeof fetch,
+    @Inject(SubscriptionService) private readonly subs: SubscriptionService,
   ) {}
 
   onModuleInit() {
@@ -101,6 +103,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     token?: string,
     now = new Date(),
   ) {
+    if (!(await this.subs.active(tenantId))) return;
     const db = this.dbService.db;
     const job = await withTenant(db, tenantId, async (tx) => {
       const [cfg] = await tx.select().from(clinicWhatsapp);

@@ -25,7 +25,7 @@ type Aba =
 
 /** Página do paciente: dados, prontuário, odontograma, fotos e consultas. */
 export function PacienteTela({ id }: { id: string }) {
-  const { vinculo, professionals, avisar, clinic, gerencia } = usePainel();
+  const { vinculo, professionals, avisar, clinic, gerencia, tem } = usePainel();
   const clinico = vinculo.role !== 'reception';
   const temOdonto = professionals.some((p) => p.recordKind === 'odonto');
   const abas: Array<[Aba, string]> = [
@@ -34,8 +34,10 @@ export function PacienteTela({ id }: { id: string }) {
     ...(clinico ? ([['fotos', 'Fotos']] as Array<[Aba, string]>) : []),
     ...(clinico ? ([['documentos', 'Documentos']] as Array<[Aba, string]>) : []),
     ['orcamentos', 'Orçamentos'],
-    ['pacotes', 'Pacotes'],
-    ...(clinic.insuranceEnabled ? ([['convenio', 'Convênio']] as Array<[Aba, string]>) : []),
+    ...(tem('packages') ? ([['pacotes', 'Pacotes']] as Array<[Aba, string]>) : []),
+    ...(clinic.insuranceEnabled && tem('insurance')
+      ? ([['convenio', 'Convênio']] as Array<[Aba, string]>)
+      : []),
     ['consultas', 'Consultas'],
   ];
   const [aba, setAba] = useState<Aba>(abas[0]![0]);

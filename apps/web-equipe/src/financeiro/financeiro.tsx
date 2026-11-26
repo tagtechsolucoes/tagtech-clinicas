@@ -43,7 +43,7 @@ const nomeMes = (mes: string) =>
 
 /** Financeiro: caixa do dia, contas a receber e a pagar, resultado do mês. */
 export function FinanceiroTela() {
-  const { gerencia, vinculo } = usePainel();
+  const { gerencia, vinculo, tem } = usePainel();
   const [aba, setAba] = useState<Aba>(gerencia ? 'visao' : 'caixa');
   const [mes, setMes] = useState(hoje().slice(0, 7));
   const [versao, setVersao] = useState(0);
@@ -54,7 +54,7 @@ export function FinanceiroTela() {
     ['caixa', 'Caixa do dia'],
     ['receber', 'A receber'],
     ...(gerencia ? ([['pagar', 'A pagar']] as Array<[Aba, string]>) : []),
-    ...(vinculo.role === 'owner'
+    ...(vinculo.role === 'owner' && (tem('pix') || tem('nfse'))
       ? ([['config', 'Pix e nota fiscal']] as Array<[Aba, string]>)
       : []),
   ];
@@ -123,8 +123,8 @@ export function FinanceiroTela() {
 
       {aba === 'config' ? (
         <div className="-mt-9">
-          <PixConfig />
-          <NotaConfig />
+          {tem('pix') ? <PixConfig /> : null}
+          {tem('nfse') ? <NotaConfig /> : null}
         </div>
       ) : null}
     </>

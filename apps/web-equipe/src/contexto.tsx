@@ -1,9 +1,24 @@
 import { createContext, useContext } from 'react';
-import type { Clinic, Me, Membership, Professional, Room, Service } from './api';
+import type {
+  Clinic,
+  Feature,
+  Me,
+  Membership,
+  Professional,
+  Room,
+  Service,
+  Subscription,
+} from './api';
 
 /** O que toda tela do painel precisa: quem está logado, a clínica e os cadastros básicos. */
 export interface Painel {
   me: Me;
+  /** Plano e situação da assinatura com a TagTech. */
+  assinatura: Subscription;
+  /** Recurso liberado no plano (e assinatura não bloqueada). */
+  tem: (f: Feature) => boolean;
+  /** Pessoa da equipe TagTech (vê todas as clínicas). */
+  admin: boolean;
   vinculo: Membership;
   clinic: Clinic;
   professionals: Professional[];

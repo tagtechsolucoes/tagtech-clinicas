@@ -51,9 +51,7 @@ const bookSchema = z
       .strict()
       .optional(),
     // Aceite do uso dos dados para o agendamento (LGPD). Sem ele, não agenda.
-    consent: z.literal(true, {
-      errorMap: () => ({ message: 'Aceite o uso dos dados para agendar' }),
-    }),
+    consent: z.literal(true, { error: 'Aceite o uso dos dados para agendar' }),
   })
   .strict();
 const cancelSchema = z.object({ reason: z.string().trim().max(200).optional() }).strict();

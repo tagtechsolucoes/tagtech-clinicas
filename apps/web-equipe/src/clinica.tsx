@@ -42,7 +42,7 @@ function Secao({
 }
 
 export function ClinicaTela() {
-  const { clinic, setClinic, avisar, rooms, recarregar, vinculo, professionals } = usePainel();
+  const { clinic, setClinic, avisar, rooms, recarregar, vinculo, professionals, tem } = usePainel();
   const unidade = clinic.units[0];
   const [d, setD] = useState({
     name: clinic.name,
@@ -374,7 +374,21 @@ export function ClinicaTela() {
         titulo="Mensagens que trazem paciente"
         descricao="Lista de espera, retorno, reativação e avaliação no Google. Tudo pelo WhatsApp da clínica."
       >
-        <Relacionamento />
+        {tem('relationship') ? (
+          <Relacionamento />
+        ) : (
+          <a
+            href="#plano"
+            className="flex items-center gap-3 rounded-2xl bg-agua/60 px-4 py-4 text-sm ring-1 ring-petroleo/20 hover:ring-petroleo/40"
+          >
+            <Icone nome="bloqueio" className="h-5 w-5 shrink-0 text-petroleo" />
+            <span className="flex-1">
+              <b>Disponível no plano Profissional.</b> A vaga que abre vai sozinha para a lista de
+              espera, e o paciente recebe o aviso de retorno e o pedido de avaliação.
+            </span>
+            <span className="font-semibold text-petroleo">Ver planos</span>
+          </a>
+        )}
       </Secao>
 
       {professionals.filter((p) => p.active).length > 1 || rooms.length ? (

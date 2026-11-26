@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/auth.guard';
 import { validate } from '../common/validate';
 import { ReportsService } from './reports.service';
+import { RequiresFeature } from '../subscription/feature.decorator';
 
 const uuid = z.string().uuid('Identificador inválido');
 const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Mês inválido');
@@ -41,16 +42,19 @@ export class ReportsController {
     return this.service.overview(ctx, validate(month, m));
   }
 
+  @RequiresFeature('reports')
   @Get('payouts')
   payouts(@CurrentTenant() ctx: TenantContext, @Query('month') m: string) {
     return this.service.payouts(ctx, validate(month, m));
   }
 
+  @RequiresFeature('reports')
   @Get('commissions')
   commissions(@CurrentTenant() ctx: TenantContext) {
     return this.service.commissions(ctx);
   }
 
+  @RequiresFeature('reports')
   @Put('commissions/:professionalId')
   @Roles('owner')
   save(
