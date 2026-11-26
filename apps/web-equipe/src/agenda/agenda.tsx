@@ -3,15 +3,17 @@ import { addDays, STATUS_LABELS, weekdayOf } from '@tagtech/domain';
 import { api, type Appointment, type Professional, type TimeOff } from '../api';
 import { aoPedirNovoAgendamento, consumirNovoAgendamento } from '../atalhos';
 import { mensagem, usePainel } from '../contexto';
-import { diaCurto, diaLongo, hoje, hora, inicioDoDia, minutoDoDia } from '../formato';
+import { diaCurto, diaLocal, diaLongo, hoje, hora, inicioDoDia, minutoDoDia } from '../formato';
 import { Avatar, Botao, Icone, Vazio } from '../ui';
 import { Bloqueio } from './bloqueio';
 import { Detalhe } from './detalhe';
 import { Novo, type Sugestao } from './novo';
+import { Filtros, gradeDoMes, Mes, mesSeguinte, MiniCalendario } from './lateral';
 
 const ALTURA_HORA = 72; // px por hora
 
-type Visao = 'dia' | 'semana';
+type Visao = 'dia' | 'semana' | 'mes';
+const NOME_VISAO: Record<Visao, string> = { dia: 'Dia', semana: 'Semana', mes: 'Mês' };
 
 interface Coluna {
   chave: string;
@@ -38,7 +40,7 @@ const guardar = (k: string, v: unknown) => {
 };
 
 export function Agenda() {
-  const { professionals, avisar } = usePainel();
+  const { professionals, services, avisar } = usePainel();
   const [dia, setDia] = useState(hoje);
   const [visao, setVisao] = useState<Visao>(() => ler('tt:visao', 'dia'));
   const ativos = useMemo(() => professionals.filter((p) => p.active), [professionals]);
@@ -50,6 +52,15 @@ export function Agenda() {
   const [novo, setNovo] = useState<Sugestao | null>(null);
   const [bloquear, setBloquear] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
+  const [ocultas, setOcultasEstado] = useState<string[]>(() => ler('tt:ocultas', []));
+  const [verCanceladas, setVerCanceladas] = useState(false);
+  const [mesMini, setMesMini] = useState(dia);
+  const [contagem, setContagem] = useState<Map<string, number>>(new Map());
+  const setOcultas = (v: string[]) => {
+    setOcultasEstado(v);
+    guardar('tt:ocultas', v);
+  };
+  useEffect(() => setMesMini(dia), [dia]);
 
   // "Novo agendamento" pedido de outra tela (painel inicial, busca).
   useEffect(() => {
@@ -59,8 +70,18 @@ export function Agenda() {
   }, []);
 
   // Semana começa na segunda.
-  const inicio = visao === 'dia' ? dia : addDays(dia, -((weekdayOf(dia) + 6) % 7));
-  const dias = visao === 'dia' ? [dia] : Array.from({ length: 7 }, (_, i) => addDays(inicio, i));
+  const inicio =
+    visao === 'dia'
+      ? dia
+      : visao === 'mes'
+        ? gradeDoMes(dia)[0]!
+        : addDays(dia, -((weekdayOf(dia) + 6) % 7));
+  const dias =
+    visao === 'dia'
+      ? [dia]
+      : visao === 'mes'
+        ? gradeDoMes(dia)
+        : Array.from({ length: 7 }, (_, i) => addDays(inicio, i));
   const proDaSemana = ativos.find((p) => p.id === proSemana) ?? ativos[0];
 
   const carregar = useCallback(async () => {
@@ -81,9 +102,50 @@ export function Agenda() {
     return () => clearInterval(t);
   }, [carregar]);
 
+  // Pontos do calendário pequeno: quantas consultas em cada dia do mês mostrado.
+  const mesMiniChave = mesMini.slice(0, 7);
+  useEffect(() => {
+    let vivo = true;
+    const g = gradeDoMes(`${mesMiniChave}-01`);
+    api.agenda(inicioDoDia(g[0]!), inicioDoDia(addDays(g.at(-1)!, 1))).then(
+      (r) => {
+        if (!vivo) return;
+        const m = new Map<string, number>();
+        for (const a of r.appointments)
+          if (a.status !== 'cancelled')
+            m.set(diaLocal(a.startsAt), (m.get(diaLocal(a.startsAt)) ?? 0) + 1);
+        setContagem(m);
+      },
+      () => {},
+    );
+    return () => {
+      vivo = false;
+    };
+  }, [mesMiniChave, dados]);
+
+  const categoriaDe = useMemo(() => {
+    const m = new Map(services.map((s) => [s.id, s.category || 'Outros']));
+    return (a: Appointment) => m.get(a.service.id) ?? 'Outros';
+  }, [services]);
+  const categorias = useMemo(() => {
+    const m = new Map<string, { nome: string; cor: string; total: number }>();
+    for (const s of services.filter((x) => x.active)) {
+      const nome = s.category || 'Outros';
+      if (!m.has(nome)) m.set(nome, { nome, cor: s.color, total: 0 });
+    }
+    for (const a of dados?.appointments ?? []) {
+      const c = m.get(categoriaDe(a));
+      if (c && a.status !== 'cancelled') c.total++;
+    }
+    return [...m.values()];
+  }, [services, dados, categoriaDe]);
+
   const consultas = useMemo(
-    () => (dados?.appointments ?? []).filter((a) => a.status !== 'cancelled'),
-    [dados],
+    () =>
+      (dados?.appointments ?? []).filter(
+        (a) => (verCanceladas || a.status !== 'cancelled') && !ocultas.includes(categoriaDe(a)),
+      ),
+    [dados, verCanceladas, ocultas, categoriaDe],
   );
 
   const colunas: Coluna[] = useMemo(() => {
@@ -131,8 +193,8 @@ export function Agenda() {
   }, [colunas, consultas, dias]);
 
   // O resumo conta o que está na tela: na semana, só o profissional escolhido.
-  const naTela = (a: Appointment) => visao === 'dia' || a.professional.id === proDaSemana?.id;
-  const doDia = consultas.filter(naTela);
+  const naTela = (a: Appointment) => visao !== 'semana' || a.professional.id === proDaSemana?.id;
+  const doDia = consultas.filter((a) => a.status !== 'cancelled' && naTela(a));
   const resumo = {
     total: doDia.length,
     confirmadas: doDia.filter((a) => a.status === 'confirmed').length,
@@ -142,155 +204,201 @@ export function Agenda() {
       .length,
   };
 
-  const mover = (n: number) => setDia(addDays(dia, visao === 'dia' ? n : 7 * n));
+  const mover = (n: number) =>
+    setDia(visao === 'mes' ? mesSeguinte(dia, n) : addDays(dia, visao === 'dia' ? n : 7 * n));
   const trocarVisao = (v: Visao) => {
     setVisao(v);
     guardar('tt:visao', v);
   };
 
-  const titulo = visao === 'dia' ? diaLongo(dia) : `${diaCurto(dias[0]!)} a ${diaCurto(dias[6]!)}`;
+  const titulo =
+    visao === 'dia'
+      ? diaLongo(dia)
+      : visao === 'mes'
+        ? new Intl.DateTimeFormat('pt-BR', {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          }).format(new Date(`${dia.slice(0, 7)}-15T12:00:00Z`))
+        : `${diaCurto(dias[0]!)} a ${diaCurto(dias[6]!)}`;
+  const semanaNaTela = new Set(visao === 'semana' ? dias : []);
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] min-h-0 flex-col lg:h-dvh">
-      <header className="border-b border-linha bg-folha/90 px-4 pt-3 pb-3 backdrop-blur sm:px-5 sm:pt-6 sm:pb-4 lg:px-8">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Anterior"
-              onClick={() => mover(-1)}
-              className="grid h-10 w-10 place-items-center rounded-xl hover:bg-trilho"
-            >
-              <Icone nome="esquerda" />
-            </button>
-            <button
-              type="button"
-              aria-label="Próximo"
-              onClick={() => mover(1)}
-              className="grid h-10 w-10 place-items-center rounded-xl hover:bg-trilho"
-            >
-              <Icone nome="direita" />
-            </button>
-          </div>
-          <h1 className="min-w-0 text-[1.45rem] leading-none font-bold first-letter:uppercase sm:text-[1.9rem]">
-            {titulo}
-          </h1>
-          {dia !== hoje() ? (
-            <Botao tamanho="pequeno" onClick={() => setDia(hoje())}>
-              Hoje
-            </Botao>
-          ) : null}
-          <label className="relative hidden sm:block">
-            <span className="sr-only">Escolher data</span>
-            <input
-              type="date"
-              value={dia}
-              onChange={(e) => e.target.value && setDia(e.target.value)}
-              className="h-9 rounded-lg bg-porcelana px-2.5 text-sm text-nevoa ring-1 ring-linha"
-            />
-          </label>
-          <div className="flex w-full items-center gap-2.5 sm:ml-auto sm:w-auto">
-            <div role="group" aria-label="Visão" className="flex rounded-xl bg-trilho p-1">
-              {(['dia', 'semana'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={visao === v}
-                  onClick={() => trocarVisao(v)}
-                  className={`h-8 rounded-lg px-3.5 text-sm font-semibold capitalize ${visao === v ? 'bg-folha text-tinta shadow-sm' : 'text-nevoa'}`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-            {visao === 'semana' && ativos.length > 1 ? (
-              <select
-                aria-label="Profissional"
-                value={proDaSemana?.id ?? ''}
-                onChange={(e) => {
-                  setProSemana(e.target.value);
-                  guardar('tt:pro-semana', e.target.value);
-                }}
-                className="h-10 rounded-xl bg-folha px-3 text-sm font-medium ring-1 ring-linha"
-              >
-                {ativos.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            <Botao onClick={() => setBloquear(true)} aria-label="Bloquear horário">
-              <Icone nome="bloqueio" className="h-4 w-4" />
-              <span className="hidden sm:inline">Bloquear</span>
-            </Botao>
-            <Botao
-              variante="principal"
-              className="ml-auto sm:ml-0"
-              onClick={() => setNovo({ dia })}
-            >
-              <Icone nome="mais" className="h-4 w-4" />
-              Agendar
-            </Botao>
-          </div>
-        </div>
-        <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm sm:mt-4 sm:gap-x-6">
-          <Numero rotulo={resumo.total === 1 ? 'consulta' : 'consultas'} valor={resumo.total} />
-          <Numero rotulo="confirmadas" valor={resumo.confirmadas} cor="text-ok" />
-          <Numero
-            rotulo="sem confirmar"
-            valor={resumo.aguardando}
-            cor={resumo.aguardando ? 'text-ambar-tinta' : undefined}
-          />
-          {resumo.faltas ? (
-            <Numero
-              rotulo={resumo.faltas === 1 ? 'falta' : 'faltas'}
-              valor={resumo.faltas}
-              cor="text-alerta"
-            />
-          ) : null}
-          {resumo.canceladas ? (
-            <Numero
-              rotulo={resumo.canceladas === 1 ? 'cancelada' : 'canceladas'}
-              valor={resumo.canceladas}
-              cor="text-bruma"
-            />
-          ) : null}
-        </dl>
-      </header>
-
-      {!ativos.length ? (
-        <div className="p-8">
-          <Vazio
-            titulo="Ninguém atendendo ainda"
-            texto="Cadastre os profissionais e a semana de trabalho de cada um para a agenda aparecer aqui."
-            acao={
-              <a href="#profissionais" className="font-semibold text-petroleo hover:underline">
-                Cadastrar profissionais
-              </a>
-            }
-          />
-        </div>
-      ) : !colunas.length ? (
-        <div className="p-8">
-          <Vazio
-            titulo="Ninguém atende neste dia"
-            texto="Nenhum profissional tem turno neste dia da semana. Use os botões acima para ir a outro dia."
-          />
-        </div>
-      ) : (
-        <Grade
-          colunas={colunas}
-          deH={deH}
-          ateH={ateH}
-          consultas={consultas}
-          bloqueios={dados?.timeOff ?? []}
-          agora={agora}
-          aoAbrir={setAberta}
-          aoVazio={(s) => setNovo(s)}
+    <div className="flex h-[calc(100dvh-4rem)] min-h-0 lg:h-dvh">
+      <aside className="rolagem-fina hidden w-[17rem] shrink-0 space-y-5 overflow-y-auto border-r border-linha bg-porcelana p-4 xl:block">
+        <MiniCalendario
+          dia={dia}
+          mes={mesMini}
+          setMes={setMesMini}
+          aoEscolher={(d) => {
+            setDia(d);
+            if (visao === 'mes') trocarVisao('dia');
+          }}
+          contagem={contagem}
+          destaque={semanaNaTela}
         />
-      )}
+        <Filtros
+          categorias={categorias}
+          ocultas={ocultas}
+          setOcultas={setOcultas}
+          verCanceladas={verCanceladas}
+          setVerCanceladas={setVerCanceladas}
+        />
+        <div className="space-y-1.5 border-t border-linha px-1 pt-4 text-xs text-nevoa">
+          <p>Clique num horário vazio para agendar.</p>
+          <p>Clique numa consulta para ver, confirmar ou remarcar.</p>
+        </div>
+      </aside>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="border-b border-linha bg-folha/90 px-4 pt-3 pb-3 backdrop-blur sm:px-5 sm:pt-6 sm:pb-4 lg:px-8">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                aria-label="Anterior"
+                onClick={() => mover(-1)}
+                className="grid h-10 w-10 place-items-center rounded-xl hover:bg-trilho"
+              >
+                <Icone nome="esquerda" />
+              </button>
+              <button
+                type="button"
+                aria-label="Próximo"
+                onClick={() => mover(1)}
+                className="grid h-10 w-10 place-items-center rounded-xl hover:bg-trilho"
+              >
+                <Icone nome="direita" />
+              </button>
+            </div>
+            <h1 className="min-w-0 text-[1.45rem] leading-none font-bold first-letter:uppercase sm:text-[1.9rem]">
+              {titulo}
+            </h1>
+            {dia !== hoje() ? (
+              <Botao tamanho="pequeno" onClick={() => setDia(hoje())}>
+                Hoje
+              </Botao>
+            ) : null}
+            <label className="relative hidden sm:block">
+              <span className="sr-only">Escolher data</span>
+              <input
+                type="date"
+                value={dia}
+                onChange={(e) => e.target.value && setDia(e.target.value)}
+                className="h-9 rounded-lg bg-porcelana px-2.5 text-sm text-nevoa ring-1 ring-linha"
+              />
+            </label>
+            <div className="flex w-full items-center gap-2.5 sm:ml-auto sm:w-auto">
+              <div role="group" aria-label="Visão" className="flex rounded-xl bg-trilho p-1">
+                {(['dia', 'semana', 'mes'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={visao === v}
+                    onClick={() => trocarVisao(v)}
+                    className={`h-8 rounded-lg px-3.5 text-sm font-semibold ${visao === v ? 'bg-folha text-tinta shadow-sm' : 'text-nevoa'}`}
+                  >
+                    {NOME_VISAO[v]}
+                  </button>
+                ))}
+              </div>
+              {visao === 'semana' && ativos.length > 1 ? (
+                <select
+                  aria-label="Profissional"
+                  value={proDaSemana?.id ?? ''}
+                  onChange={(e) => {
+                    setProSemana(e.target.value);
+                    guardar('tt:pro-semana', e.target.value);
+                  }}
+                  className="h-10 rounded-xl bg-folha px-3 text-sm font-medium ring-1 ring-linha"
+                >
+                  {ativos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <Botao onClick={() => setBloquear(true)} aria-label="Bloquear horário">
+                <Icone nome="bloqueio" className="h-4 w-4" />
+                <span className="hidden sm:inline">Bloquear</span>
+              </Botao>
+              <Botao
+                variante="principal"
+                className="ml-auto sm:ml-0"
+                onClick={() => setNovo({ dia })}
+              >
+                <Icone nome="mais" className="h-4 w-4" />
+                Agendar
+              </Botao>
+            </div>
+          </div>
+          <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm sm:mt-4 sm:gap-x-6">
+            <Numero rotulo={resumo.total === 1 ? 'consulta' : 'consultas'} valor={resumo.total} />
+            <Numero rotulo="confirmadas" valor={resumo.confirmadas} cor="text-ok" />
+            <Numero
+              rotulo="sem confirmar"
+              valor={resumo.aguardando}
+              cor={resumo.aguardando ? 'text-ambar-tinta' : undefined}
+            />
+            {resumo.faltas ? (
+              <Numero
+                rotulo={resumo.faltas === 1 ? 'falta' : 'faltas'}
+                valor={resumo.faltas}
+                cor="text-alerta"
+              />
+            ) : null}
+            {resumo.canceladas ? (
+              <Numero
+                rotulo={resumo.canceladas === 1 ? 'cancelada' : 'canceladas'}
+                valor={resumo.canceladas}
+                cor="text-bruma"
+              />
+            ) : null}
+          </dl>
+        </header>
 
+        {!ativos.length ? (
+          <div className="p-8">
+            <Vazio
+              titulo="Ninguém atendendo ainda"
+              texto="Cadastre os profissionais e a semana de trabalho de cada um para a agenda aparecer aqui."
+              acao={
+                <a href="#profissionais" className="font-semibold text-petroleo hover:underline">
+                  Cadastrar profissionais
+                </a>
+              }
+            />
+          </div>
+        ) : visao === 'mes' ? (
+          <Mes
+            mes={dia}
+            consultas={consultas}
+            aoAbrirDia={(d) => {
+              setDia(d);
+              trocarVisao('dia');
+            }}
+            aoAbrir={setAberta}
+          />
+        ) : !colunas.length ? (
+          <div className="p-8">
+            <Vazio
+              titulo="Ninguém atende neste dia"
+              texto="Nenhum profissional tem turno neste dia da semana. Use os botões acima para ir a outro dia."
+            />
+          </div>
+        ) : (
+          <Grade
+            colunas={colunas}
+            deH={deH}
+            ateH={ateH}
+            consultas={consultas}
+            bloqueios={dados?.timeOff ?? []}
+            agora={agora}
+            aoAbrir={setAberta}
+            aoVazio={(s) => setNovo(s)}
+          />
+        )}
+      </div>
       <Detalhe
         consulta={aberta}
         aoFechar={() => setAberta(null)}
