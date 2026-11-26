@@ -1,8 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<defs><radialGradient id="g" cx="30%" cy="22%" r="85%"><stop offset="0" stop-color="#2a7085"/><stop offset="1" stop-color="#163f4d"/></radialGradient></defs>
-<rect width="512" height="512" rx="116" fill="url(#g)"/>
-<g transform="translate(256 256) rotate(-18) scale(1.0) translate(-256 -256)">
-<path d="M256 84 L384 200 Q396 211 396 228 V388 Q396 428 356 428 H156 Q116 428 116 388 V228 Q116 211 128 200 Z" fill="#f2f5f6"/>
-<circle cx="256" cy="176" r="24" fill="#163f4d"/>
-<path d="M236 262 h40 v40 h40 v40 h-40 v40 h-40 v-40 h-40 v-40 h40 z" fill="#e9a23b" stroke="#e9a23b" stroke-width="14" stroke-linejoin="round"/>
-</g></svg>
+<defs><clipPath id="c"><rect width="512" height="512" rx="116"/></clipPath>
+<radialGradient id="bg" cx="28%" cy="18%" r="95%"><stop offset="0" stop-color="#3a8aa1"/><stop offset=".55" stop-color="#1d5464"/><stop offset="1" stop-color="#0d2c36"/></radialGradient>
+<radialGradient id="luz" cx="50%" cy="0%" r="70%"><stop offset="0" stop-color="#5fb2c7" stop-opacity=".55"/><stop offset="1" stop-color="#5fb2c7" stop-opacity="0"/></radialGradient>
+<linearGradient id="aro" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity=".04"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient>
+<linearGradient id="tag" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#eef3f4"/><stop offset="1" stop-color="#cdd9dd"/></linearGradient>
+<linearGradient id="borda" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".95"/><stop offset=".6" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<linearGradient id="emb" x1="0" y1="0" x2=".2" y2="1"><stop offset="0.00" stop-color="#f6bf5f"/><stop offset="0.50" stop-color="#e39a2c"/><stop offset="1.00" stop-color="#c97d14"/></linearGradient>
+<linearGradient id="anel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9fb4bb"/></linearGradient>
+<radialGradient id="furo" cx="45%" cy="35%" r="65%"><stop offset="0" stop-color="#163f4d" stop-opacity=".75"/><stop offset="1" stop-color="#163f4d"/></radialGradient>
+<filter id="sombra" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="18"/><feOffset dy="22"/><feComponentTransfer><feFuncA type="linear" slope=".55"/></feComponentTransfer><feFlood flood-color="#031218"/><feComposite operator="in" in2="SourceAlpha"/><feMerge><feMergeNode/></feMerge></filter>
+<filter id="perto" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="4"/><feOffset dy="5"/><feComponentTransfer><feFuncA type="linear" slope=".35"/></feComponentTransfer></filter>
+</defs>
+<g clip-path="url(#c)">
+<rect width="512" height="512" fill="url(#bg)"/>
+<rect width="512" height="300" fill="url(#luz)"/>
+<g transform="translate(256 256) scale(1.0) rotate(-18) translate(-256 -256)">
+<path d="M256 84 L384 200 Q396 211 396 228 V388 Q396 428 356 428 H156 Q116 428 116 388 V228 Q116 211 128 200 Z" fill="#000" filter="url(#sombra)" opacity=".9"/>
+<path d="M256 84 L384 200 Q396 211 396 228 V388 Q396 428 356 428 H156 Q116 428 116 388 V228 Q116 211 128 200 Z" fill="#000" filter="url(#perto)"/>
+<path d="M256 84 L384 200 Q396 211 396 228 V388 Q396 428 356 428 H156 Q116 428 116 388 V228 Q116 211 128 200 Z" fill="url(#tag)"/>
+<path d="M256 84 L384 200 Q396 211 396 228 V388 Q396 428 356 428 H156 Q116 428 116 388 V228 Q116 211 128 200 Z" fill="none" stroke="url(#borda)" stroke-width="5" stroke-linejoin="round"/>
+<circle cx="256" cy="176" r="31" fill="url(#anel)"/>
+<circle cx="256" cy="176" r="23" fill="url(#furo)"/>
+<path d="M238 186 a23 23 0 0 0 36 0" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="3" stroke-linecap="round"/>
+<path d="M236 262 h40 v40 h40 v40 h-40 v40 h-40 v-40 h-40 v-40 h40 z" fill="url(#emb)" stroke="url(#emb)" stroke-width="14" stroke-linejoin="round"/>
+</g>
+</g><rect x="2" y="2" width="508" height="508" rx="114" fill="none" stroke="url(#aro)" stroke-width="4"/>
+</svg>
