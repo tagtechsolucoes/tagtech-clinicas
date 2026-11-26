@@ -11,7 +11,7 @@ const minutosDesde = (iso: string | null, agora: number) =>
 
 /** Recepção: quem chegou e há quanto tempo espera, quem está atrasado e o que vem. */
 export function RecepcaoTela() {
-  const { avisar, gerencia } = usePainel();
+  const { avisar, gerencia, tem } = usePainel();
   const [fila, setFila] = useState<Fila | null>(null);
   const [agora, setAgora] = useState(Date.now());
 
@@ -67,7 +67,7 @@ export function RecepcaoTela() {
         titulo="Recepção"
         descricao="A fila de hoje. Chamar o paciente mostra o nome na TV da sala de espera."
         acoes={
-          gerencia ? (
+          gerencia && tem('tv') ? (
             <Botao onClick={abrirTv}>
               <Icone nome="tv" className="h-4 w-4" /> Conectar TV
             </Botao>

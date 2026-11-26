@@ -10,3 +10,4 @@ export * from './prontuario';
 export * from './financeiro';
 export * from './estoque';
 export * from './site';
+export * from './planos';

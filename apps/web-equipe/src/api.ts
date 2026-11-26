@@ -6,6 +6,10 @@ import type {
   RecordKind,
   ToothState,
   SiteContent,
+  Feature,
+  Plan as SubscriptionPlan,
+  PlanInfo,
+  SubscriptionState,
 } from '@tagtech/domain';
 
 export interface Membership {
@@ -53,6 +57,41 @@ export interface Clinic {
   legalName: string;
   document: string;
   insuranceEnabled: boolean;
+}
+
+export interface Subscription extends SubscriptionState {
+  status: 'trial' | 'active' | 'suspended' | 'cancelled' | null;
+  priceCents: number;
+  plans: Array<PlanInfo & { id: SubscriptionPlan }>;
+  payment: { instructions: string; whatsapp: string };
+}
+export type { Feature };
+
+export interface PlatformTenant {
+  tenantId: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  plan: SubscriptionPlan;
+  status: 'trial' | 'active' | 'suspended' | 'cancelled';
+  priceCents: number;
+  trialEndsAt: string | null;
+  paidUntil: string | null;
+  notes: string;
+  ownerEmail: string | null;
+  professionals: number;
+  patients: number;
+  appointments30d: number;
+  lastPayment: string | null;
+}
+export interface PlatformPayment {
+  id: string;
+  amountCents: number;
+  paidOn: string;
+  months: number;
+  method: string;
+  note: string;
+  recordedBy: string;
 }
 
 export interface SitePhoto {
@@ -940,6 +979,22 @@ export const api = {
   setCover: (file: File) => imagem<Clinic>('/clinic/cover', file),
   removeCover: () => send<Clinic>('DELETE', '/clinic/cover'),
   setSite: (site: SiteContent) => send<SiteContent>('PUT', '/clinic/site', site),
+  subscription: () => send<Subscription>('GET', '/subscription'),
+  platformMe: () => send<{ admin: boolean }>('GET', '/platform/me'),
+  platformTenants: () => send<PlatformTenant[]>('GET', '/platform/tenants'),
+  platformSet: (
+    id: string,
+    a: Pick<
+      PlatformTenant,
+      'plan' | 'status' | 'priceCents' | 'trialEndsAt' | 'paidUntil' | 'notes'
+    >,
+  ) => send<{ ok: true }>('PATCH', `/platform/tenants/${id}`, a),
+  platformPayments: (id: string) =>
+    send<PlatformPayment[]>('GET', `/platform/tenants/${id}/payments`),
+  platformPay: (
+    id: string,
+    p: { amountCents: number; paidOn: string; months: number; method: string; note: string },
+  ) => send<{ paidUntil: string }>('POST', `/platform/tenants/${id}/payments`, p),
   sitePhotos: () => send<SitePhoto[]>('GET', '/clinic/site-photos'),
   addSitePhoto: async (file: File) => {
     const corpo = await prepararImagem(file);

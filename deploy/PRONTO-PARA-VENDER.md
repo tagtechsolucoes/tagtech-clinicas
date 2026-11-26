@@ -72,7 +72,26 @@ com o texto **exatamente** igual. Os exemplos de variável vão no campo "Amostr
 Depois de aprovados, a clínica liga o WhatsApp em **Clínica e site → WhatsApp** com o ID do número
 e o token permanente.
 
-## 5. Antes de cada cliente novo
+## 5. Planos e mensalidade
+
+No `.env` do servidor:
+
+```bash
+PLATFORM_ADMINS=seu@email.com,socio@email.com   # quem vê a tela "TagTech" (todas as clínicas)
+PLATFORM_PAYMENT_INFO=Pix (CNPJ): 00.000.000/0001-00 · TagTech Soluções. Mande o comprovante pelo WhatsApp.
+PLATFORM_WHATSAPP=5581999990000                 # WhatsApp da TagTech, com DDI e DDD
+```
+
+Depois, `sg docker -c ./deploy.sh`. Com isso:
+
+- Clínica nova entra em **teste de 14 dias** com tudo liberado; as que já existiam ficaram
+  **em dia por 30 dias** no plano Clínica.
+- Na tela **TagTech** do painel vocês definem plano (Essencial, Profissional ou Clínica),
+  mensalidade e vencimento, e registram cada pagamento, que estende o "pago até".
+- Venceu: o painel avisa. **7 dias depois** fica só para consulta e o site para de agendar,
+  até registrar o pagamento. Nenhum dado é apagado.
+
+## 6. Antes de cada cliente novo
 
 - Contrato de assinatura e DPA assinados (modelo revisado pelo advogado).
 - **Valores no site** escolhidos conforme o conselho da profissão (odontologia: esconder).

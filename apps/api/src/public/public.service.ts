@@ -14,7 +14,14 @@ import {
   withTenant,
   type TenantTx,
 } from '@tagtech/db';
-import { addDays, canTransition, localClock, toMinutes, zonedToUtc } from '@tagtech/domain';
+import {
+  addDays,
+  canTransition,
+  localClock,
+  toMinutes,
+  zonedToUtc,
+  type Feature,
+} from '@tagtech/domain';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { AttemptLimiter } from '../common/attempt-limiter';
 import { DbService } from '../db/db.module';
@@ -28,6 +35,7 @@ import { findOrCreatePatient } from '../patients/patients.service';
 import { FinanceService } from '../finance/finance.service';
 import { RelationshipService } from '../relationship/relationship.service';
 import { applyInsurance } from '../insurance/insurance.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 const {
   appointments,
@@ -72,6 +80,7 @@ export class PublicService {
     @Inject(WhatsAppService) private readonly whatsapp: WhatsAppService,
     @Inject(FinanceService) private readonly finance: FinanceService,
     @Inject(RelationshipService) private readonly relationship: RelationshipService,
+    @Inject(SubscriptionService) private readonly subs: SubscriptionService,
   ) {}
 
   private async clinic<T>(
@@ -98,26 +107,30 @@ export class PublicService {
       const svc = (await loadServices(tx)).filter((s) => s.active && s.onlineBooking);
       const proIds = new Set(pros.map((p) => p.id));
       const { booking, ...view } = clinicView(tenant);
+      const plano = await this.subs.state(tenant.id);
+      const tem = (f: Feature) => !plano.blocked && plano.features.includes(f);
       // Só pares publicados com autorização de imagem ativa (revogar apaga o item).
       const gallery = await tx
         .select()
         .from(galleryItems)
         .orderBy(asc(galleryItems.position), desc(galleryItems.createdAt));
-      const planos = tenant.insuranceEnabled
-        ? await tx
-            .select({ id: insurers.id, name: insurers.name })
-            .from(insurers)
-            .where(and(eq(insurers.active, true), eq(insurers.showOnSite, true)))
-            .orderBy(asc(insurers.name))
-        : [];
+      const planos =
+        tenant.insuranceEnabled && tem('insurance')
+          ? await tx
+              .select({ id: insurers.id, name: insurers.name })
+              .from(insurers)
+              .where(and(eq(insurers.active, true), eq(insurers.showOnSite, true)))
+              .orderBy(asc(insurers.name))
+          : [];
       return {
         ...view,
         photos: await loadSitePhotos(tx),
         insurers: planos,
         booking: {
-          enabled: booking.enabled,
+          // Assinatura bloqueada: o site continua no ar, mas sem agendar.
+          enabled: booking.enabled && !plano.blocked,
           horizonDays: booking.horizonDays,
-          depositCents: tenant.bookingDepositCents,
+          depositCents: tem('pix') ? tenant.bookingDepositCents : 0,
         },
         gallery: gallery.map((g) => ({
           id: g.id,
@@ -243,6 +256,12 @@ export class PublicService {
     this.bookingLimiter.assertAllowed(ip, slug);
     const result = await this.clinic(slug, async (tx, tenant) => {
       this.assertBookable(tenant, input.date);
+      const plano = await this.subs.state(tenant.id);
+      if (plano.blocked)
+        throw new ConflictException(
+          'O agendamento online desta clínica está pausado. Fale com a clínica.',
+        );
+      const tem = (f: Feature) => plano.features.includes(f);
       const free: ProfessionalSlots[] = await availability(
         tx,
         this.query(tenant, {
@@ -300,7 +319,7 @@ export class PublicService {
       });
       // Pelo convênio: guarda a carteirinha e troca o preço pelo do plano.
       if (input.insurance) {
-        if (!tenant.insuranceEnabled)
+        if (!tenant.insuranceEnabled || !tem('insurance'))
           throw new BadRequestException('A clínica não atende convênio pelo site');
         const [plano] = await tx
           .select()
@@ -325,7 +344,7 @@ export class PublicService {
       }
       // Sinal: só quando a clínica pede e tem como cobrar no Pix.
       let depositId: string | null = null;
-      if (tenant.bookingDepositCents > 0 && (await this.finance.provider(tx))) {
+      if (tenant.bookingDepositCents > 0 && tem('pix') && (await this.finance.provider(tx))) {
         const [c] = await tx
           .insert(charges)
           .values({

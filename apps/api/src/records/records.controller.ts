@@ -27,7 +27,7 @@ const ymd = z.string().refine(isYMD, 'Data inválida');
 const noteCreate = z
   .object({
     kind: z.enum(RECORD_KINDS),
-    data: z.record(z.unknown()).default({}),
+    data: z.record(z.string(), z.unknown()).default({}),
     text: z.string().max(10000).default(''),
     appointmentId: uuid.optional(),
     private: z.boolean().optional(),
@@ -35,7 +35,11 @@ const noteCreate = z
   })
   .strict();
 const notePatch = z
-  .object({ data: z.record(z.unknown()), text: z.string().max(10000), private: z.boolean() })
+  .object({
+    data: z.record(z.string(), z.unknown()),
+    text: z.string().max(10000),
+    private: z.boolean(),
+  })
   .partial()
   .strict();
 const toothSchema = z

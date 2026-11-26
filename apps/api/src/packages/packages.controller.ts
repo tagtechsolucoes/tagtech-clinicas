@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/auth.guard';
 import { validate } from '../common/validate';
 import { PackagesService } from './packages.service';
+import { RequiresFeature } from '../subscription/feature.decorator';
 
 const uuid = z.string().uuid('Identificador inválido');
 const ymd = z.string().refine(isYMD, 'Data inválida');
@@ -27,6 +28,7 @@ const createSchema = z
 @Controller()
 @UseGuards(TenantGuard)
 @Roles('owner', 'manager', 'reception', 'professional')
+@RequiresFeature('packages')
 export class PackagesController {
   constructor(@Inject(PackagesService) private readonly service: PackagesService) {}
 

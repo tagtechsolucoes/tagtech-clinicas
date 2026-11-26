@@ -2,6 +2,7 @@ import {
   BadRequestException,
   createParamDecorator,
   ForbiddenException,
+  HttpException,
   Inject,
   Injectable,
   SetMetadata,
@@ -12,6 +13,9 @@ import {
 import { Reflector } from '@nestjs/core';
 import type { MemberRole, Membership, SessionUser } from '@tagtech/db';
 import type { FastifyRequest } from 'fastify';
+import { PLAN_INFO, planFor, type Feature } from '@tagtech/domain';
+import { ALWAYS_KEY, FEATURE_KEY } from '../subscription/feature.decorator';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { AuthService } from './auth.service';
 import { readSessionCookie } from './session-token';
 
@@ -60,6 +64,7 @@ export class TenantGuard extends SessionGuard {
   constructor(
     @Inject(AuthService) auth: AuthService,
     @Inject(Reflector) private readonly reflector: Reflector,
+    @Inject(SubscriptionService) private readonly subscriptions: SubscriptionService,
   ) {
     super(auth);
   }
@@ -90,6 +95,23 @@ export class TenantGuard extends SessionGuard {
     ]);
     if (allowed && !allowed.includes(membership!.role)) {
       throw new ForbiddenException('Seu papel não permite esta ação');
+    }
+
+    // Assinatura: bloqueada só lê; recurso fora do plano não abre.
+    const alvo = [context.getHandler(), context.getClass()];
+    const sub = await this.subscriptions.state(membership!.tenantId);
+    const sempre = this.reflector.getAllAndOverride<boolean | undefined>(ALWAYS_KEY, alvo);
+    if (sub.blocked && !sempre && !['GET', 'HEAD'].includes(request.method)) {
+      throw new HttpException(
+        'A assinatura desta clínica está suspensa. Os dados continuam aqui para consulta; fale com a TagTech para reativar.',
+        402,
+      );
+    }
+    const recurso = this.reflector.getAllAndOverride<Feature | undefined>(FEATURE_KEY, alvo);
+    if (recurso && !sub.features.includes(recurso)) {
+      throw new ForbiddenException(
+        `Este recurso faz parte do plano ${PLAN_INFO[planFor(recurso)].name}. Fale com a TagTech para mudar de plano.`,
+      );
     }
 
     request.tenant = { ...auth, tenantId: membership!.tenantId, membership: membership! };

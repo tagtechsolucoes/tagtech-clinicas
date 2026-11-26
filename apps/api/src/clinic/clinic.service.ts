@@ -1,12 +1,19 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { pgError, schema, type TenantTx } from '@tagtech/db';
-import { siteContent, type DisplayFont, type RecordKind, type SiteContent } from '@tagtech/domain';
+import {
+  PLAN_INFO,
+  siteContent,
+  type DisplayFont,
+  type RecordKind,
+  type SiteContent,
+} from '@tagtech/domain';
 import { and, asc, eq, gt, inArray, lt } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { recordAudit } from '../audit/audit';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
 import { MediaService } from '../media/media.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 const {
   memberships,
@@ -125,7 +132,24 @@ export class ClinicService {
   constructor(
     @Inject(DbService) private readonly dbService: DbService,
     @Inject(MediaService) private readonly media: MediaService,
+    @Inject(SubscriptionService) private readonly subs: SubscriptionService,
   ) {}
+
+  /** O plano limita quantos profissionais ficam ativos ao mesmo tempo. */
+  private async assertProfessionalSlot(ctx: TenantContext, tx: TenantTx, exceptId?: string) {
+    const { maxProfessionals, plan } = await this.subs.state(ctx.tenantId);
+    if (maxProfessionals === null) return;
+    // Trava a clínica: dois cadastros ao mesmo tempo não passam do limite juntos.
+    await tx.select({ id: tenants.id }).from(tenants).for('update');
+    const ativos = await tx
+      .select({ id: professionals.id })
+      .from(professionals)
+      .where(eq(professionals.active, true));
+    if (ativos.filter((p) => p.id !== exceptId).length >= maxProfessionals)
+      throw new ConflictException(
+        `O plano ${PLAN_INFO[plan].name} permite ${maxProfessionals} ${maxProfessionals === 1 ? 'profissional ativo' : 'profissionais ativos'}. Fale com a TagTech para mudar de plano.`,
+      );
+  }
 
   private run<T>(ctx: TenantContext, fn: (tx: TenantTx) => Promise<T>) {
     return inClinic(this.dbService.db, ctx, fn);
@@ -342,6 +366,7 @@ export class ClinicService {
   createProfessional(ctx: TenantContext, input: ProfessionalInput) {
     return this.run(ctx, async (tx) => {
       await this.assertMembership(tx, input.membershipId);
+      if (input.active !== false) await this.assertProfessionalSlot(ctx, tx);
       const [{ n } = { n: 0 }] = await tx
         .select({ n: professionals.position })
         .from(professionals)
@@ -369,6 +394,7 @@ export class ClinicService {
   updateProfessional(ctx: TenantContext, id: string, input: Patch<ProfessionalInput>) {
     return this.run(ctx, async (tx) => {
       await this.assertMembership(tx, input.membershipId);
+      if (input.active === true) await this.assertProfessionalSlot(ctx, tx, id);
       const [row] = await tx
         .update(professionals)
         .set(defined({ ...input }))

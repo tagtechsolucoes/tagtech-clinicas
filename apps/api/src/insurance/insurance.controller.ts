@@ -20,6 +20,7 @@ import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/a
 import { validate } from '../common/validate';
 import { NfseService } from '../nfse/nfse.service';
 import { InsuranceService } from './insurance.service';
+import { RequiresFeature } from '../subscription/feature.decorator';
 
 const uuid = z.string().uuid('Identificador inválido');
 const ymd = z.string().refine(isYMD, 'Data inválida');
@@ -110,6 +111,7 @@ const fiscalSchema = z
 /** Convênios e nota fiscal de serviço. */
 @Controller()
 @UseGuards(TenantGuard)
+@RequiresFeature('insurance')
 export class InsuranceController {
   constructor(
     @Inject(InsuranceService) private readonly insurance: InsuranceService,
@@ -292,24 +294,28 @@ export class InsuranceController {
 
   // ------------------------------------------------------------ NFS-e
 
+  @RequiresFeature('nfse')
   @Get('nfse/settings')
   @Roles('owner', 'manager', 'reception')
   fiscal(@CurrentTenant() ctx: TenantContext) {
     return this.nfse.settings(ctx);
   }
 
+  @RequiresFeature('nfse')
   @Put('nfse/settings')
   @Roles('owner')
   saveFiscal(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
     return this.nfse.save(ctx, validate(fiscalSchema, body));
   }
 
+  @RequiresFeature('nfse')
   @Delete('nfse/settings')
   @Roles('owner')
   removeFiscal(@CurrentTenant() ctx: TenantContext) {
     return this.nfse.remove(ctx);
   }
 
+  @RequiresFeature('nfse')
   @Get('nfse')
   @Roles('owner', 'manager', 'reception')
   invoices(@CurrentTenant() ctx: TenantContext, @Query('charges') ids?: string) {
@@ -317,12 +323,14 @@ export class InsuranceController {
     return this.nfse.list(ctx, lista);
   }
 
+  @RequiresFeature('nfse')
   @Post('nfse')
   @Roles('owner', 'manager', 'reception')
   emit(@CurrentTenant() ctx: TenantContext, @Body() body: unknown) {
     return this.nfse.emit(ctx, validate(z.object({ chargeId: uuid }).strict(), body).chargeId);
   }
 
+  @RequiresFeature('nfse')
   @Post('nfse/:id/refresh')
   @HttpCode(200)
   @Roles('owner', 'manager', 'reception')
@@ -330,6 +338,7 @@ export class InsuranceController {
     return this.nfse.refresh(ctx, validate(uuid, id));
   }
 
+  @RequiresFeature('nfse')
   @Post('nfse/:id/cancel')
   @HttpCode(200)
   @Roles('owner', 'manager')

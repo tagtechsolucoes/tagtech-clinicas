@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { CurrentTenant, Roles, TenantGuard, type TenantContext } from '../auth/auth.guard';
 import { validate } from '../common/validate';
 import { RelationshipService } from './relationship.service';
+import { RequiresFeature } from '../subscription/feature.decorator';
 
 const token = z.string().regex(/^[A-Za-z0-9_-]{22}$/, 'Link inválido');
 const settingsSchema = z
@@ -39,6 +40,7 @@ const answerSchema = z
   .strict();
 
 @Controller('relationship')
+@RequiresFeature('relationship')
 @UseGuards(TenantGuard)
 @Roles('owner', 'manager')
 export class RelationshipController {

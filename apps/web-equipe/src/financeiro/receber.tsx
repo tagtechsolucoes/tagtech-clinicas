@@ -18,7 +18,7 @@ export function Receber({
   aoFechar: () => void;
   aoReceber: () => void;
 }) {
-  const { avisar } = usePainel();
+  const { avisar, tem } = usePainel();
   const [metodo, setMetodo] = useState<PayMethod>('cash');
   const [pix, setPix] = useState<Pix | null>(null);
   const [gerando, setGerando] = useState(false);
@@ -100,17 +100,19 @@ export function Receber({
         <QrPix pix={pix} aoVoltar={() => setPix(null)} />
       ) : (
         <div className="space-y-7">
-          <section className="rounded-3xl bg-petroleo p-5 text-white">
-            <p className="font-display text-xl">Cobrar no Pix agora</p>
-            <p className="mt-1 text-sm text-white/75">
-              Mostre o QR ao paciente ou mande o código. A baixa é automática quando o banco
-              confirma.
-            </p>
-            <Botao variante="destaque" className="mt-4" disabled={gerando} onClick={gerarPix}>
-              <Icone nome="qr" className="h-4 w-4" />
-              {gerando ? 'Gerando…' : 'Gerar QR do Pix'}
-            </Botao>
-          </section>
+          {tem('pix') ? (
+            <section className="rounded-3xl bg-petroleo p-5 text-white">
+              <p className="font-display text-xl">Cobrar no Pix agora</p>
+              <p className="mt-1 text-sm text-white/75">
+                Mostre o QR ao paciente ou mande o código. A baixa é automática quando o banco
+                confirma.
+              </p>
+              <Botao variante="destaque" className="mt-4" disabled={gerando} onClick={gerarPix}>
+                <Icone nome="qr" className="h-4 w-4" />
+                {gerando ? 'Gerando…' : 'Gerar QR do Pix'}
+              </Botao>
+            </section>
+          ) : null}
 
           <fieldset>
             <legend className="mb-3 text-[0.82rem] font-semibold text-nevoa">

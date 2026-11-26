@@ -86,7 +86,7 @@ export function Detalhe({
 }
 
 function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) => void }) {
-  const { clinic, professionals, avisar, vinculo } = usePainel();
+  const { clinic, professionals, avisar, vinculo, tem } = usePainel();
   const [ficha, setFicha] = useState<Patient | null>(null);
   const [historico, setHistorico] = useState<HistoryEvent[]>([]);
   const [mensagens, setMensagens] = useState<SentMessage[]>([]);
@@ -193,7 +193,10 @@ function Conteudo({ a, aoMudar }: { a: Appointment; aoMudar: (a: Appointment) =>
         ) : null}
       </section>
 
-      {clinic.insuranceEnabled && vinculo.role !== 'professional' && a.status !== 'cancelled' ? (
+      {clinic.insuranceEnabled &&
+      tem('insurance') &&
+      vinculo.role !== 'professional' &&
+      a.status !== 'cancelled' ? (
         <Pagamento a={a} aoMudar={aoMudar} />
       ) : null}
 
