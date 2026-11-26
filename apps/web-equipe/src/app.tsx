@@ -37,6 +37,7 @@ import { PacientesTela } from './pacientes';
 import { PacienteTela } from './paciente/paciente';
 import { ProfissionaisTela } from './profissionais';
 import { ServicosTela } from './servicos';
+import { InstalarApp } from './instalar';
 import { Avatar, Gaveta, Icone, Recado } from './ui';
 
 type Estado =
@@ -396,6 +397,10 @@ function Casca({
               <Icone nome="globo" className="h-4 w-4" />
               Ver site de agendamento
             </a>
+            <InstalarApp
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-white/70 hover:bg-white/[0.07] hover:text-white"
+              dicaClassName="mx-3 mt-1 rounded-lg bg-white/[0.07] px-3 py-2 text-xs leading-snug text-white/75"
+            />
             <div className="flex items-center gap-3">
               <Avatar nome={me.name} tamanho="h-8 w-8 text-xs" />
               <p className="min-w-0 flex-1 truncate text-sm text-white/85">{me.name}</p>

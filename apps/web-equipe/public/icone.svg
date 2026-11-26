@@ -1,1 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1d4e5f"/><rect x="15" y="18" width="34" height="30" rx="6" fill="none" stroke="#f2f5f6" stroke-width="4"/><path d="M15 27h34" stroke="#f2f5f6" stroke-width="4"/><path d="M23 13v8M41 13v8" stroke="#f2f5f6" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="38" r="4" fill="#e9a23b"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><radialGradient id="g" cx="30%" cy="22%" r="85%"><stop offset="0" stop-color="#2a7085"/><stop offset="1" stop-color="#163f4d"/></radialGradient></defs>
+<rect width="512" height="512" rx="116" fill="url(#g)"/>
+<g transform="translate(256 256) rotate(-18) scale(1.0) translate(-256 -256)">
+<path d="M256 84 L384 200 Q396 211 396 228 V388 Q396 428 356 428 H156 Q116 428 116 388 V228 Q116 211 128 200 Z" fill="#f2f5f6"/>
+<circle cx="256" cy="176" r="24" fill="#163f4d"/>
+<path d="M236 262 h40 v40 h40 v40 h-40 v40 h-40 v-40 h-40 v-40 h40 z" fill="#e9a23b" stroke="#e9a23b" stroke-width="14" stroke-linejoin="round"/>
+</g></svg>

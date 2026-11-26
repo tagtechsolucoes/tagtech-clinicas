@@ -6,7 +6,10 @@ export const metadata: Metadata = {
   title: 'Agendamento online',
   description: 'Marque sua consulta direto pelo celular.',
   // Ícone padrão; cada clínica troca pelo próprio logo (iconesDaCasa).
-  icons: { icon: [{ url: '/icone.svg', type: 'image/svg+xml' }] },
+  icons: {
+    icon: [{ url: '/icone.svg', type: 'image/svg+xml' }],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export const viewport: Viewport = {
