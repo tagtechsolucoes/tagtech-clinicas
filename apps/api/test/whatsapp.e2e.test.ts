@@ -176,14 +176,14 @@ describe('mensagens da agenda', () => {
     await wa.idle();
     enviadas = [];
     // Ainda faltam 30 h: cedo demais.
-    await wa.sweepReminders(new Date());
+    await wa.sweepReminders(new Date(), a.tenantId);
     expect(enviadas).toEqual([]);
     // Oito horas depois, a consulta está a menos de 24 h.
     const depois = hours(8);
-    await wa.sweepReminders(depois);
+    await wa.sweepReminders(depois, a.tenantId);
     expect(enviadas).toHaveLength(1);
     expect(enviadas[0]!.params[3]).toMatch(/Podemos contar com você\?$/);
-    await wa.sweepReminders(hours(9));
+    await wa.sweepReminders(hours(9), a.tenantId);
     expect(enviadas).toHaveLength(1);
     const log = (await call(a, 'GET', `/appointments/${c.id}/messages`)).json();
     expect(log.map((m: { event: string }) => m.event)).toEqual(['booked', 'reminder']);
@@ -196,15 +196,15 @@ describe('mensagens da agenda', () => {
     enviadas = [];
     // Três horas antes da consulta ainda é cedo; 50 minutos antes, sai.
     const quase = new Date(new Date(quando).getTime() - 50 * 60_000);
-    await wa.sweepReminders(new Date(quase.getTime() - 3 * 3600_000));
+    await wa.sweepReminders(new Date(quase.getTime() - 3 * 3600_000), a.tenantId);
     const so = (e: typeof enviadas) => e.filter((m) => /Até já!$/.test(m.params[3]!));
     expect(so(enviadas)).toEqual([]);
-    await wa.sweepReminders(quase);
+    await wa.sweepReminders(quase, a.tenantId);
     expect(so(enviadas)).toHaveLength(1);
     expect(so(enviadas)[0]!.params[3]).toMatch(
       /^é (hoje|amanhã), às \d\d:\d\d, Rua das Flores, 120\. Até já!$/,
     );
-    await wa.sweepReminders(new Date(quase.getTime() + 60_000));
+    await wa.sweepReminders(new Date(quase.getTime() + 60_000), a.tenantId);
     expect(so(enviadas)).toHaveLength(1);
     const log = (await call(a, 'GET', `/appointments/${c.id}/messages`)).json();
     expect(log.map((m: { event: string }) => m.event)).toContain('soon');
@@ -217,7 +217,7 @@ describe('mensagens da agenda', () => {
     const quando = slot(hours(38));
     await marcar(a, quando);
     enviadas = [];
-    await wa.sweepReminders(new Date(new Date(quando).getTime() - 20 * 60_000));
+    await wa.sweepReminders(new Date(new Date(quando).getTime() - 20 * 60_000), a.tenantId);
     expect(enviadas.filter((m) => /Até já!$/.test(m.params[3]!))).toEqual([]);
     expect((await call(a, 'PATCH', '/whatsapp', { soonMinutes: 45 })).statusCode).toBe(400);
     await call(a, 'PATCH', '/whatsapp', { soonMinutes: 60 });
@@ -226,7 +226,7 @@ describe('mensagens da agenda', () => {
   it('marcada para daqui a poucas horas: só o aviso de agendamento, sem lembrete', async () => {
     await marcar(a, slot(hours(5)));
     enviadas = [];
-    await wa.sweepReminders(hours(1));
+    await wa.sweepReminders(hours(1), a.tenantId);
     expect(enviadas).toEqual([]);
   });
 

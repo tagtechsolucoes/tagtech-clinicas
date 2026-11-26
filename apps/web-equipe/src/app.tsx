@@ -472,6 +472,7 @@ function Casca({
                 <Icone nome="sair" className="h-[1.1rem] w-[1.1rem]" />
               </button>
             </div>
+            <p className="px-3 text-xs text-white/40 tabular-nums">TagClin v{__VERSAO__}</p>
           </div>
         </aside>
 

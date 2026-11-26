@@ -99,6 +99,9 @@ Fica 7 dias no servidor e 30 no bucket (`BACKUP_DIAS_REMOTO`).
 backup mais recente num banco descartável e mostra a contagem de clínicas, pacientes e
 consultas, sem tocar em produção. Rode com a chave e apague-a do servidor em seguida.
 
+**Trocar de servidor:** passo a passo em [MIGRAR.md](MIGRAR.md). O backup leva também o WhatsApp
+conectado e o `.env`, e o `migrar.sh` sobe tudo igual na máquina nova.
+
 ## 8. Atualizar
 
 Depois de juntar mudanças na `main`: `cd /opt/tagtech/deploy && ./deploy.sh`.

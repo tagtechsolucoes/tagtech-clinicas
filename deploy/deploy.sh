@@ -5,7 +5,9 @@ cd "$(dirname "$0")/.."
 if [ -d .git ]; then
   # Repositório privado: sem credencial salva o pull falha; aí segue com o código daqui.
   git pull --ff-only || echo "Aviso: não consegui baixar a versão nova; usando o código atual."
-  APP_VERSION=$(git rev-parse --short HEAD)
+  # "1.2.0 (a1b2c3d)": a versão do package.json e o commit exato.
+  VERSAO=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' package.json)
+  APP_VERSION="${VERSAO:-?} ($(git rev-parse --short HEAD))"
 else
   # Código enviado como pacote (scripts do Google Cloud): a versão vem no arquivo VERSION.
   APP_VERSION=$(cat VERSION 2>/dev/null || echo manual)
