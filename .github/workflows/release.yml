@@ -1,0 +1,30 @@
+name: Release
+
+# Quando a versão do package.json muda na main, cria a tag vX.Y.Z e a release no GitHub,
+# com as notas do CHANGELOG.md. Sem versão nova, não faz nada.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Criar a tag e a release da versão nova
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node scripts/versao.mjs)
+          if git rev-parse -q --verify "refs/tags/v$V" > /dev/null; then
+            echo "v$V já existe"
+            exit 0
+          fi
+          node scripts/versao.mjs notas > notas.md
+          gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --notes-file notas.md

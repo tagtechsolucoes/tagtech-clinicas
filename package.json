@@ -1,6 +1,7 @@
 {
   "name": "tagtech-clinicas",
   "private": true,
+  "version": "1.0.0",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22"
@@ -13,7 +14,8 @@
     "format:check": "prettier --check .",
     "db:up": "docker compose up -d",
     "db:migrate": "pnpm --filter @tagtech/db migrate",
-    "db:seed": "pnpm --filter @tagtech/db seed"
+    "db:seed": "pnpm --filter @tagtech/db seed",
+    "versao": "node scripts/versao.mjs"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
