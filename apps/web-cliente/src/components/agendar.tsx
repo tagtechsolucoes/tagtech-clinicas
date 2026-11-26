@@ -283,37 +283,61 @@ export function Agendar({
               />
             </div>
           </div>
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+          <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pt-1 pb-3 [scrollbar-width:none]">
             {(
               dias ??
               Array.from({ length: 14 }, (_, i) => ({ date: addDays(inicio, i), count: -1 }))
             ).map((d) => {
               const ativo = d.date === dia;
               const sem = d.count === 0;
+              const carregando = d.count < 0;
+              const virouMes = d.date.endsWith('-01') && d.date !== inicio;
               return (
                 <button
                   key={d.date}
                   type="button"
-                  disabled={sem || d.count < 0}
+                  disabled={sem || carregando}
                   aria-pressed={ativo}
+                  aria-label={`${diaLongo(d.date)}${sem ? ', sem horários' : d.count > 0 ? `, ${d.count} horários` : ''}`}
                   onClick={() => setDia(d.date)}
-                  className={`flex w-14 shrink-0 flex-col items-center rounded-2xl py-2.5 transition ${
+                  className={`relative flex w-[4.4rem] shrink-0 snap-start flex-col items-center rounded-2xl pt-2.5 pb-2 transition-[transform,box-shadow,background-color] ${
                     ativo
-                      ? 'bg-marca text-sobre-marca'
+                      ? 'bg-marca text-sobre-marca shadow-[0_14px_28px_-14px_var(--color-marca)]'
                       : sem
-                        ? 'text-bruma'
-                        : 'bg-folha ring-1 ring-linha hover:ring-marca'
-                  } ${d.count < 0 ? 'animate-pulse' : ''}`}
+                        ? 'bg-porcelana/60 text-bruma'
+                        : carregando
+                          ? 'animate-pulse bg-porcelana text-transparent'
+                          : 'bg-folha ring-1 ring-linha hover:-translate-y-0.5 hover:ring-marca/50 hover:shadow-[0_10px_20px_-14px_rgb(15_32_40/0.5)]'
+                  }`}
                 >
-                  <span className="text-[0.7rem] font-semibold uppercase opacity-75">
-                    {WEEKDAYS_SHORT[weekdayOf(d.date)]}
+                  {virouMes ? (
+                    <span
+                      className={`absolute -top-2 rounded-full px-1.5 text-[0.62rem] font-bold ${ativo ? 'bg-destaque text-sobre-destaque' : 'bg-marca text-sobre-marca'}`}
+                    >
+                      {mes(d.date).slice(0, 3)}
+                    </span>
+                  ) : null}
+                  <span
+                    className={`text-[0.72rem] font-semibold ${ativo ? 'text-sobre-marca/80' : sem ? '' : 'text-nevoa'}`}
+                  >
+                    {d.date === hoje ? 'hoje' : WEEKDAYS_SHORT[weekdayOf(d.date)]!.toLowerCase()}
                   </span>
-                  <span className="text-lg font-semibold tabular-nums">
+                  <span
+                    className={`font-display text-[1.45rem] leading-tight tabular-nums ${sem ? 'line-through decoration-1' : ''}`}
+                  >
                     {Number(d.date.slice(8))}
                   </span>
                   <span
-                    className={`mt-0.5 h-1.5 w-1.5 rounded-full ${d.count > 0 ? (ativo ? 'bg-destaque-na-marca' : 'bg-ok') : 'bg-transparent'}`}
-                  />
+                    className={`mt-0.5 text-[0.66rem] font-semibold whitespace-nowrap ${
+                      ativo ? 'text-sobre-marca/85' : sem ? '' : 'text-ok'
+                    }`}
+                  >
+                    {carregando
+                      ? '·'
+                      : sem
+                        ? 'lotado'
+                        : `${d.count} ${d.count === 1 ? 'vaga' : 'vagas'}`}
+                  </span>
                 </button>
               );
             })}
@@ -603,32 +627,68 @@ function Dados({
           <legend className="mb-1.5 text-sm font-semibold text-nevoa">
             Como vai ser o atendimento?
           </legend>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <select
-              aria-label="Particular ou convênio"
-              value={plano.insurerId}
-              onChange={(e) => setPlano({ ...plano, insurerId: e.target.value })}
-              className="h-12 w-full rounded-xl bg-folha px-4 ring-1 ring-linha focus:ring-2 focus:ring-marca focus:outline-none"
-            >
-              <option value="">Particular</option>
-              {clinic.insurers.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name}
-                </option>
-              ))}
-            </select>
-            {plano.insurerId ? (
+          <div role="radiogroup" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {[{ id: '', name: 'Particular' }, ...clinic.insurers].map((i) => {
+              const marcado = plano.insurerId === i.id;
+              return (
+                <button
+                  key={i.id || 'particular'}
+                  type="button"
+                  role="radio"
+                  aria-checked={marcado}
+                  onClick={() => setPlano({ ...plano, insurerId: i.id })}
+                  className={`flex min-h-12 items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-left text-[0.95rem] font-semibold transition ${
+                    marcado
+                      ? 'bg-marca/[0.07] text-tinta ring-2 ring-marca'
+                      : 'bg-folha ring-1 ring-linha hover:ring-marca/50'
+                  }`}
+                >
+                  <span
+                    className={`grid h-5 w-5 shrink-0 place-items-center rounded-full transition ${
+                      marcado ? 'bg-marca text-sobre-marca' : 'ring-[1.5px] ring-bruma'
+                    }`}
+                    aria-hidden
+                  >
+                    {marcado ? (
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M5 12.5l4.5 4.5L19 7.5" />
+                      </svg>
+                    ) : null}
+                  </span>
+                  <span className="min-w-0 leading-tight">
+                    {i.name}
+                    {!i.id ? (
+                      <span className="block text-xs font-normal text-nevoa">sem convênio</span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {plano.insurerId ? (
+            <label className="mt-3 block">
+              <span className="mb-1.5 block text-sm font-semibold text-nevoa">
+                Número da carteirinha
+              </span>
               <input
                 required
-                aria-label="Número da carteirinha"
-                placeholder="Número da carteirinha"
+                inputMode="numeric"
+                placeholder="Como está na carteirinha do plano"
                 maxLength={30}
                 value={plano.cardNumber}
                 onChange={(e) => setPlano({ ...plano, cardNumber: e.target.value })}
                 className="h-12 w-full rounded-xl bg-folha px-4 ring-1 ring-linha focus:ring-2 focus:ring-marca focus:outline-none"
               />
-            ) : null}
-          </div>
+            </label>
+          ) : null}
         </fieldset>
       ) : null}
       <label className="block">
@@ -648,7 +708,7 @@ function Dados({
           type="checkbox"
           checked={aceite}
           onChange={(e) => setAceite(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[var(--color-marca)]"
+          className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-marca)]"
         />
         <span className="text-nevoa">
           Autorizo a {clinic.name} a usar meus dados para este agendamento e para me lembrar da
