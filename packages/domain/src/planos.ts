@@ -40,14 +40,14 @@ export interface PlanInfo {
 export const PLAN_INFO: Record<Plan, PlanInfo> = {
   essencial: {
     name: 'Essencial',
-    priceCents: 8900,
+    priceCents: 11500,
     pitch: 'Para quem atende sozinho: agenda, site, confirmação no WhatsApp e prontuário.',
     maxProfessionals: 1,
     features: [],
   },
   profissional: {
     name: 'Profissional',
-    priceCents: 19900,
+    priceCents: 24000,
     pitch: 'Para encher a agenda: lista de espera automática, retorno, Pix e nota fiscal.',
     maxProfessionals: 5,
     features: ['relationship', 'pix', 'nfse', 'packages', 'tv'],
