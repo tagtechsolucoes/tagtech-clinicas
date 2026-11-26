@@ -36,7 +36,7 @@ const settingsSchema = z
   })
   .strict();
 
-/** Mensagens automáticas no WhatsApp. Só o dono mexe: envolve o token da Meta. */
+/** WhatsApp da clínica (QR code ou Meta) e mensagens automáticas. Só o dono conecta. */
 @Controller()
 @UseGuards(TenantGuard)
 export class WhatsAppController {
@@ -67,6 +67,21 @@ export class WhatsAppController {
   @Roles('owner')
   remove(@CurrentTenant() ctx: TenantContext) {
     return this.service.remove(ctx);
+  }
+
+  /** Conectar por QR code: cria a instância e devolve o QR. */
+  @Post('whatsapp/qr')
+  @HttpCode(200)
+  @Roles('owner')
+  startQr(@CurrentTenant() ctx: TenantContext) {
+    return this.service.startQr(ctx);
+  }
+
+  /** Conferido a cada poucos segundos enquanto o QR está na tela. */
+  @Get('whatsapp/qr')
+  @Roles('owner')
+  qrStatus(@CurrentTenant() ctx: TenantContext) {
+    return this.service.qrStatus(ctx);
   }
 
   @Post('whatsapp/test')

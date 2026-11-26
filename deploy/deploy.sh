@@ -12,6 +12,11 @@ else
 fi
 export APP_VERSION
 cd deploy
+# Chave interna da Evolution (WhatsApp por QR code), criada uma vez e guardada no .env.
+if [ -f .env ] && ! grep -q '^EVOLUTION_API_KEY=' .env; then
+  echo "EVOLUTION_API_KEY=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> .env
+  echo "Chave da Evolution criada no .env"
+fi
 docker compose build
 # Migrações primeiro; se falharem, nada é reiniciado.
 docker compose run --rm migrate

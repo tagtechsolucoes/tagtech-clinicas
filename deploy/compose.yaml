@@ -50,6 +50,9 @@ services:
       PLATFORM_ADMINS: ${PLATFORM_ADMINS:-}
       PLATFORM_PAYMENT_INFO: ${PLATFORM_PAYMENT_INFO:-}
       PLATFORM_WHATSAPP: ${PLATFORM_WHATSAPP:-}
+      # WhatsApp por QR code (Evolution, contêiner abaixo). A chave o deploy.sh cria sozinho.
+      EVOLUTION_URL: http://evolution:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
     volumes:
       - media:/data/media
     depends_on:
@@ -65,6 +68,56 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # Banco próprio da Evolution, no mesmo Postgres. Cria uma vez e sai.
+  evolution-db:
+    image: postgres:16
+    restart: 'no'
+    environment:
+      PGPASSWORD: ${OWNER_DB_PASSWORD}
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        psql -h postgres -U tagtech -d tagtech -tAc "select 1 from pg_database where datname = 'evolution'" | grep -q 1
+        || psql -h postgres -U tagtech -d tagtech -c 'create database evolution'
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # WhatsApp pelo QR code: cada clínica conecta o próprio número. Sem porta publicada:
+  # só a API fala com ela, e ela chama a API de volta pela rede interna.
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: unless-stopped
+    mem_limit: 700m
+    environment:
+      SERVER_URL: http://evolution:8080
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-}
+      DATABASE_ENABLED: 'true'
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgres://tagtech:${OWNER_DB_PASSWORD}@postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: tagclin
+      DATABASE_SAVE_DATA_INSTANCE: 'true'
+      DATABASE_SAVE_DATA_NEW_MESSAGE: 'false'
+      DATABASE_SAVE_MESSAGE_UPDATE: 'false'
+      DATABASE_SAVE_DATA_CONTACTS: 'false'
+      DATABASE_SAVE_DATA_CHATS: 'false'
+      DATABASE_SAVE_DATA_LABELS: 'false'
+      DATABASE_SAVE_DATA_HISTORIC: 'false'
+      CACHE_REDIS_ENABLED: 'false'
+      CACHE_LOCAL_ENABLED: 'true'
+      CONFIG_SESSION_PHONE_CLIENT: TagClin
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: '30'
+      DEL_INSTANCE: 'false'
+      WEBHOOK_GLOBAL_ENABLED: 'false'
+      LOG_LEVEL: ERROR,WARN
+      LOG_BAILEYS: error
+      LANGUAGE: pt-BR
+    volumes:
+      - evolution:/evolution/instances
+    depends_on:
+      evolution-db: { condition: service_completed_successfully }
 
   web-cliente:
     build: { context: .., dockerfile: deploy/Dockerfile, target: web-cliente }
@@ -100,5 +153,6 @@ services:
 volumes:
   pgdata:
   media:
+  evolution:
   caddy_data:
   caddy_config:

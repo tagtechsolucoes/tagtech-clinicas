@@ -143,3 +143,15 @@ export async function resolveTvToken(db: Db, tokenHash: string): Promise<string 
   );
   return rows[0]?.tenant_id ?? null;
 }
+
+/** Segredo do webhook da Evolution -> clínica. */
+export async function resolveWhatsAppHook(
+  db: Db,
+  secret: string,
+): Promise<{ tenantId: string; instance: string } | null> {
+  const rows = await db.execute<{ tenant_id: string; instance: string }>(
+    sql`select tenant_id, instance from resolve_whatsapp_hook(${secret})`,
+  );
+  const row = rows[0];
+  return row ? { tenantId: row.tenant_id, instance: row.instance } : null;
+}

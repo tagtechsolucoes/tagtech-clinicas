@@ -176,10 +176,17 @@ export class RelationshipService implements OnModuleInit, OnModuleDestroy {
       if (!claim) return null;
       const params = await build(tx);
       if (!params) return null;
-      return { cfg, to: p.phone, params, claimId: claim.id };
+      return { cfg, to: p.phone, nome: p.name, params, claimId: claim.id };
     });
     if (!job) return false;
-    const r = await this.whatsapp.sendTemplate(job.cfg, job.to, job.params, TEMPLATE[kind]);
+    const r = await this.whatsapp.deliver(
+      tenantId,
+      job.cfg,
+      job.to,
+      job.params,
+      TEMPLATE[kind],
+      job.nome,
+    );
     await withTenant(this.db, tenantId, (tx) =>
       tx
         .update(patientMessages)

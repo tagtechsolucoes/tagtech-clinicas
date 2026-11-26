@@ -11,3 +11,4 @@ export * from './financeiro';
 export * from './estoque';
 export * from './site';
 export * from './planos';
+export * from './whatsapp';

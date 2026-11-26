@@ -4,20 +4,46 @@ import {
   Logger,
   NotFoundException,
   UnprocessableEntityException,
+  ServiceUnavailableException,
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
 import { dueReminders, generateToken, schema, withTenant, type TenantTx } from '@tagtech/db';
-import { messageSentence, normalizePhoneBR, whenText, type MessageEvent } from '@tagtech/domain';
-import { asc, eq } from 'drizzle-orm';
+import {
+  canonicalPhone,
+  fillTemplate,
+  messagePreview,
+  messageSentence,
+  normalizePhoneBR,
+  RELATIONSHIP_TEMPLATES,
+  whenText,
+  WHATSAPP_TEMPLATE_BODY,
+  type MessageEvent,
+  type RelationshipTemplate,
+} from '@tagtech/domain';
+import { randomBytes } from 'node:crypto';
+import { asc, eq, sql } from 'drizzle-orm';
 import type { TenantContext } from '../auth/auth.guard';
 import { inClinic } from '../common/clinic-scope';
 import { DbService } from '../db/db.module';
 import { hashToken } from '../common/token';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { Evolution, EvolutionError, evolutionConfig, type QrCode } from './evolution';
 
-const { appointmentMessages, appointments, clinicWhatsapp, patients, services, tenants, units } =
-  schema;
+const {
+  appointmentMessages,
+  appointments,
+  clinicWhatsapp,
+  patients,
+  services,
+  tenants,
+  units,
+  waConversations,
+  waMessages,
+} = schema;
+
+type Cfg = typeof clinicWhatsapp.$inferSelect;
+export type SendResult = { ok: true; id: string } | { ok: false; error: string };
 
 /** fetch usado para falar com a Meta. Os testes trocam por um falso. */
 export const WHATSAPP_HTTP = Symbol('WHATSAPP_HTTP');
@@ -34,13 +60,86 @@ export interface WhatsAppSettingsInput {
   enabled: boolean;
 }
 
+/** Uma mensagem para gravar na conversa do paciente. */
+export interface Registro {
+  tenantId: string;
+  phone: string;
+  name?: string;
+  direction: 'in' | 'out';
+  kind: 'text' | 'auto' | 'media';
+  body: string;
+  status: 'sending' | 'sent' | 'failed' | 'received';
+  externalId?: string | null;
+  error?: string | null;
+  sentBy?: string | null;
+  at?: Date;
+}
+
+/** Grava a mensagem e atualiza a conversa (cria se for a primeira). */
+export async function registrar(tx: TenantTx, r: Registro) {
+  const at = r.at ?? new Date();
+  const preview = messagePreview(r.body);
+  const [conv] = await tx
+    .insert(waConversations)
+    .values({
+      tenantId: r.tenantId,
+      phone: r.phone,
+      name: r.name ?? '',
+      lastMessageAt: at,
+      lastPreview: preview,
+      lastDirection: r.direction,
+      unread: r.direction === 'in' ? 1 : 0,
+    })
+    .onConflictDoUpdate({
+      target: [waConversations.tenantId, waConversations.phone],
+      set: {
+        ...(r.name ? { name: r.name } : {}),
+        lastMessageAt: sql`greatest(${waConversations.lastMessageAt}, ${at.toISOString()}::timestamptz)`,
+        lastPreview: preview,
+        lastDirection: r.direction,
+        // Chegou: mais uma para ler. Respondeu à mão: a conversa foi vista.
+        unread:
+          r.direction === 'in'
+            ? sql`${waConversations.unread} + 1`
+            : r.kind === 'text'
+              ? 0
+              : sql`${waConversations.unread}`,
+      },
+    })
+    .returning();
+  const [msg] = await tx
+    .insert(waMessages)
+    .values({
+      tenantId: r.tenantId,
+      conversationId: conv!.id,
+      direction: r.direction,
+      kind: r.kind,
+      body: r.body,
+      status: r.status,
+      externalId: r.externalId || null,
+      error: r.error ? r.error.slice(0, 500) : null,
+      sentBy: r.sentBy ?? null,
+      createdAt: at,
+    })
+    // Id repetido do provedor: a mensagem já está gravada.
+    .onConflictDoNothing({ target: [waMessages.tenantId, waMessages.externalId] })
+    .returning();
+  return { conversation: conv!, message: msg };
+}
+
+/** Texto de cada modelo, para mandar como mensagem comum pelo QR code. */
+function corpoDoModelo(cfg: Cfg, name: string): string | null {
+  if (name === cfg.templateName) return WHATSAPP_TEMPLATE_BODY;
+  return RELATIONSHIP_TEMPLATES[name as RelationshipTemplate]?.body ?? null;
+}
+
 const siteBase = () => (process.env.SITE_URL ?? 'http://localhost:3001').replace(/\/+$/, '');
 
 /**
  * Mensagens automáticas ao paciente: aviso ao agendar, remarcar e cancelar, e o lembrete
- * antes da consulta com o link para confirmar ou desmarcar. Usa a API oficial da Meta com
- * o número da clínica. Nunca atrasa nem derruba a agenda: roda por fora, e falha só fica
- * registrada.
+ * antes da consulta com o link para confirmar ou desmarcar. Sai do número da clínica,
+ * conectado por QR code (Evolution) ou pela API oficial da Meta. Nunca atrasa nem derruba a
+ * agenda: roda por fora, e falha só fica registrada.
  */
 @Injectable()
 export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
@@ -144,6 +243,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       return {
         cfg,
         claimId: claim.id,
+        nome: row.patient.name,
         to: row.patient.phone,
         params: [
           row.patient.name.split(' ')[0]!,
@@ -155,7 +255,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       };
     });
     if (!job) return;
-    const result = await this.sendTemplate(job.cfg, job.to, job.params);
+    const result = await this.deliver(tenantId, job.cfg, job.to, job.params, undefined, job.nome);
     await withTenant(db, tenantId, (tx) =>
       tx
         .update(appointmentMessages)
@@ -170,13 +270,88 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       this.log.warn(`Mensagem ${event} da consulta ${appointmentId} falhou: ${result.error}`);
   }
 
-  /** Envia um modelo aprovado na Meta. `name` padrão: o aviso de consulta da clínica. */
-  async sendTemplate(
-    cfg: typeof clinicWhatsapp.$inferSelect,
+  /** Cliente da Evolution, ou null se o servidor não tem o serviço do QR code. */
+  evolution(): Evolution | null {
+    const cfg = evolutionConfig();
+    return cfg ? new Evolution(this.http, cfg) : null;
+  }
+
+  private evolutionOrFail(): Evolution {
+    const e = this.evolution();
+    if (!e)
+      throw new ServiceUnavailableException(
+        'O WhatsApp por QR code não está ligado neste servidor.',
+      );
+    return e;
+  }
+
+  /**
+   * Manda uma mensagem automática pelo provedor da clínica: o texto do modelo pelo QR code,
+   * ou o modelo aprovado pela Meta. Com `tenantId`, a mensagem entra na conversa do paciente.
+   * `name` padrão: o aviso de consulta da clínica.
+   */
+  async deliver(
+    tenantId: string | null,
+    cfg: Cfg,
     to: string,
     params: string[],
     name: string = cfg.templateName,
-  ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+    contato = '',
+  ): Promise<SendResult> {
+    const corpo = corpoDoModelo(cfg, name);
+    const texto = corpo ? fillTemplate(corpo, params) : params.join(' ');
+    let r: SendResult;
+    if (cfg.provider === 'evolution') {
+      const evo = this.evolution();
+      if (!evo || !cfg.instance) r = { ok: false, error: 'WhatsApp por QR code indisponível' };
+      else {
+        try {
+          r = { ok: true, id: await evo.sendText(cfg.instance, to, texto) };
+        } catch (e) {
+          r = { ok: false, error: e instanceof Error ? e.message : String(e) };
+        }
+      }
+    } else {
+      r = await this.sendTemplate(cfg, to, params, name);
+    }
+    const phone = canonicalPhone(to);
+    if (tenantId && phone) {
+      await withTenant(this.dbService.db, tenantId, (tx) =>
+        registrar(tx, {
+          tenantId,
+          phone,
+          name: contato,
+          direction: 'out',
+          kind: 'auto',
+          body: texto,
+          status: r.ok ? 'sent' : 'failed',
+          externalId: r.ok ? r.id : null,
+          error: r.ok ? null : r.error,
+        }),
+      ).catch((e: unknown) => this.log.warn(`Mensagem não entrou na conversa: ${String(e)}`));
+    }
+    return r;
+  }
+
+  /** Mensagem comum (resposta escrita no painel). Só pelo QR code. */
+  async sendText(cfg: Cfg, to: string, texto: string): Promise<SendResult> {
+    const evo = this.evolution();
+    if (cfg.provider !== 'evolution' || !evo || !cfg.instance)
+      return { ok: false, error: 'WhatsApp por QR code indisponível' };
+    try {
+      return { ok: true, id: await evo.sendText(cfg.instance, to, texto) };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /** Envia um modelo aprovado na Meta. */
+  private async sendTemplate(
+    cfg: Cfg,
+    to: string,
+    params: string[],
+    name: string,
+  ): Promise<SendResult> {
     try {
       const res = await this.http(`${GRAPH}/${cfg.phoneNumberId}/messages`, {
         method: 'POST',
@@ -209,9 +384,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
   // ---------------------------------------------------------------- painel
 
-  private view(cfg: typeof clinicWhatsapp.$inferSelect | undefined) {
+  private view(cfg: Cfg | undefined) {
     return {
       configured: Boolean(cfg),
+      provider: cfg?.provider ?? null,
+      connection: !cfg
+        ? ('close' as const)
+        : cfg.provider === 'evolution'
+          ? cfg.connection
+          : ('open' as const),
+      qrAvailable: evolutionConfig() !== null,
       enabled: cfg?.enabled ?? false,
       phoneNumberId: cfg?.phoneNumberId ?? '',
       displayPhone: cfg?.displayPhone ?? '',
@@ -235,7 +417,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   /** Salva e confere com a Meta que o número e o token funcionam. */
   async save(ctx: TenantContext, input: WhatsAppSettingsInput) {
     const atual = await inClinic(this.dbService.db, ctx, (tx) => this.load(tx));
-    const token = input.accessToken ?? atual?.accessToken;
+    const token = input.accessToken ?? (atual?.provider === 'meta' ? atual.accessToken : null);
     if (!token) throw new UnprocessableEntityException('Cole o token de acesso da Meta');
     const res = await this.http(
       `${GRAPH}/${input.phoneNumberId}?fields=display_phone_number,verified_name`,
@@ -254,8 +436,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         `A Meta não aceitou: ${info?.error?.message ?? 'confira o ID do número e o token'}`,
       );
     }
+    // Trocando do QR code para a Meta: desliga o número da Evolution.
+    if (atual?.provider === 'evolution' && atual.instance) {
+      await this.evolution()?.remove(atual.instance);
+    }
     return inClinic(this.dbService.db, ctx, async (tx) => {
       const values = {
+        provider: 'meta' as const,
+        instance: null,
+        hookSecret: null,
+        connection: 'open' as const,
         phoneNumberId: input.phoneNumberId,
         accessToken: token,
         templateName: input.templateName,
@@ -285,11 +475,92 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  remove(ctx: TenantContext) {
+  async remove(ctx: TenantContext) {
+    const cfg = await inClinic(this.dbService.db, ctx, (tx) => this.load(tx));
+    if (cfg?.provider === 'evolution' && cfg.instance) {
+      await this.evolution()?.remove(cfg.instance);
+    }
     return inClinic(this.dbService.db, ctx, async (tx) => {
       await tx.delete(clinicWhatsapp);
       return this.view(undefined);
     });
+  }
+
+  /**
+   * Começa (ou retoma) a conexão por QR code: cria a instância da clínica na Evolution e
+   * devolve o QR para ler no celular.
+   */
+  async startQr(ctx: TenantContext) {
+    const evo = this.evolutionOrFail();
+    const atual = await inClinic(this.dbService.db, ctx, (tx) => this.load(tx));
+    let qr: QrCode;
+    let instance: string;
+    let hookSecret: string;
+    try {
+      if (atual?.provider === 'evolution' && atual.instance && atual.hookSecret) {
+        instance = atual.instance;
+        hookSecret = atual.hookSecret;
+        await evo.setWebhook(instance, hookSecret).catch(() => undefined);
+        qr = await evo.connect(instance);
+      } else {
+        // Nome único a cada conexão: uma instância velha esquecida não atrapalha.
+        instance = `tc-${ctx.tenantId.slice(0, 8)}-${randomBytes(4).toString('hex')}`;
+        hookSecret = randomBytes(32).toString('base64url');
+        qr = await evo.create(instance, hookSecret);
+        if (!qr.image && !qr.code) qr = await evo.connect(instance);
+      }
+    } catch (e) {
+      throw new UnprocessableEntityException(
+        e instanceof EvolutionError ? e.message : 'Não foi possível gerar o QR code.',
+      );
+    }
+    const view = await inClinic(this.dbService.db, ctx, async (tx) => {
+      const values = {
+        provider: 'evolution' as const,
+        instance,
+        hookSecret,
+        connection: 'connecting' as const,
+        phoneNumberId: null,
+        accessToken: null,
+        displayPhone: atual?.provider === 'evolution' ? atual.displayPhone : '',
+        enabled: atual?.enabled ?? true,
+        updatedAt: new Date(),
+      };
+      const [cfg] = await tx
+        .insert(clinicWhatsapp)
+        .values({ tenantId: ctx.tenantId, ...values })
+        .onConflictDoUpdate({ target: clinicWhatsapp.tenantId, set: values })
+        .returning();
+      return this.view(cfg);
+    });
+    return { ...view, qr };
+  }
+
+  /** Situação da conexão por QR code. Conectou: guarda o número; senão, QR novo. */
+  async qrStatus(ctx: TenantContext) {
+    const evo = this.evolutionOrFail();
+    const cfg = await inClinic(this.dbService.db, ctx, (tx) => this.load(tx));
+    if (cfg?.provider !== 'evolution' || !cfg.instance) {
+      throw new NotFoundException('Gere o QR code primeiro');
+    }
+    const state = await evo.state(cfg.instance).catch(() => 'close' as const);
+    let qr: QrCode | null = null;
+    let phone = cfg.displayPhone;
+    if (state === 'open') phone = (await evo.ownerPhone(cfg.instance)) ?? phone;
+    else qr = await evo.connect(cfg.instance).catch(() => null);
+    const view = await inClinic(this.dbService.db, ctx, async (tx) => {
+      const [c] = await tx
+        .update(clinicWhatsapp)
+        .set({ connection: state === 'open' ? 'open' : 'connecting', displayPhone: phone })
+        .returning();
+      return this.view(c);
+    });
+    return { ...view, qr };
+  }
+
+  /** Configuração da clínica para a central de conversas. */
+  loadCfg(tx: TenantTx) {
+    return this.load(tx);
   }
 
   /** Manda uma mensagem de exemplo para o número informado, com o modelo configurado. */
@@ -302,7 +573,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     }));
     if (!cfg) throw new NotFoundException('Configure o WhatsApp primeiro');
     const amanha = new Date(Date.now() + 24 * 3600_000);
-    const result = await this.sendTemplate(cfg, to, [
+    const result = await this.deliver(null, cfg, to, [
       'Teste',
       'Avaliação',
       tenant.name,
@@ -310,7 +581,11 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       `${siteBase()}/c/${tenant.slug}`,
     ]);
     if (!result.ok)
-      throw new UnprocessableEntityException(`A Meta recusou a mensagem: ${result.error}`);
+      throw new UnprocessableEntityException(
+        cfg.provider === 'evolution'
+          ? `Não foi enviada: ${result.error}`
+          : `A Meta recusou a mensagem: ${result.error}`,
+      );
     return { sent: true };
   }
 

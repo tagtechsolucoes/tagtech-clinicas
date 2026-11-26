@@ -38,6 +38,7 @@ import { PacienteTela } from './paciente/paciente';
 import { ProfissionaisTela } from './profissionais';
 import { ServicosTela } from './servicos';
 import { InstalarApp } from './instalar';
+import { ConversasTela } from './conversas';
 import { Plataforma } from './plataforma';
 import { Avatar, Gaveta, Icone, Recado } from './ui';
 
@@ -55,6 +56,7 @@ export type Secao =
   | 'recepcao'
   | 'pacientes'
   | 'espera'
+  | 'conversas'
   | 'financeiro'
   | 'estoque'
   | 'convenios'
@@ -87,6 +89,13 @@ const SECOES: Array<{
   { id: 'recepcao', nome: 'Recepção', icone: 'fila', grupo: 'Atendimento' },
   { id: 'pacientes', nome: 'Pacientes', icone: 'pessoas', grupo: 'Atendimento' },
   { id: 'espera', nome: 'Lista de espera', icone: 'espera', grupo: 'Atendimento' },
+  {
+    id: 'conversas',
+    nome: 'Conversas',
+    icone: 'whatsapp',
+    balcao: true,
+    grupo: 'Atendimento',
+  },
   { id: 'financeiro', nome: 'Financeiro', icone: 'dinheiro', balcao: true, grupo: 'Gestão' },
   { id: 'estoque', nome: 'Estoque', icone: 'caixa', balcao: true, grupo: 'Gestão' },
   {
@@ -262,6 +271,22 @@ function Casca({
 }) {
   const [secao, setSecao] = useState<Secao>(lerSecao);
   const [pacienteId, setPacienteId] = useState<string | null>(lerPaciente);
+  // Conversas do WhatsApp com mensagem nova, para o número ao lado de "Conversas".
+  const [naoLidas, setNaoLidas] = useState(0);
+  const atende = vinculo.role !== 'professional';
+  useEffect(() => {
+    if (!atende) return;
+    const contar = () =>
+      api.conversationsUnread().then(
+        (r) => setNaoLidas(r.conversations),
+        () => undefined,
+      );
+    void contar();
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') void contar();
+    }, 30_000);
+    return () => clearInterval(t);
+  }, [atende, vinculo.tenantId]);
   const [dados, setDados] = useState<{
     clinic: Clinic;
     professionals: Professional[];
@@ -408,7 +433,12 @@ function Casca({
                 <div key={g} className="mt-3 first:mt-0">
                   <p className="px-3 pb-1.5 text-[0.72rem] font-semibold text-white/40">{g}</p>
                   {itens.map((s) => (
-                    <ItemMenu key={s.id} s={s} ativo={s.id === atual} />
+                    <ItemMenu
+                      key={s.id}
+                      s={s}
+                      ativo={s.id === atual}
+                      contador={s.id === 'conversas' ? naoLidas : 0}
+                    />
                   ))}
                 </div>
               );
@@ -466,6 +496,7 @@ function Casca({
                   ) : null}
                   {atual === 'pacientes' && !pacienteId ? <PacientesTela /> : null}
                   {atual === 'espera' ? <EsperaTela /> : null}
+                  {atual === 'conversas' ? <ConversasTela aoMudarNaoLidas={setNaoLidas} /> : null}
                   {atual === 'financeiro' ? <FinanceiroTela /> : null}
                   {atual === 'estoque' ? <EstoqueTela /> : null}
                   {atual === 'convenios' ? <ConveniosTela /> : null}
@@ -499,7 +530,7 @@ function Casca({
 const GRUPOS = ['Atendimento', 'Gestão', 'Clínica'] as const;
 type ItemSecao = (typeof SECOES)[number];
 
-function ItemMenu({ s, ativo }: { s: ItemSecao; ativo: boolean }) {
+function ItemMenu({ s, ativo, contador = 0 }: { s: ItemSecao; ativo: boolean; contador?: number }) {
   return (
     <a
       href={`#${s.id}`}
@@ -512,6 +543,12 @@ function ItemMenu({ s, ativo }: { s: ItemSecao; ativo: boolean }) {
     >
       <Icone nome={s.icone} className="h-[1.1rem] w-[1.1rem]" />
       {s.nome}
+      {contador > 0 ? (
+        <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-ambar px-1.5 text-xs font-bold text-tinta tabular-nums">
+          <span className="sr-only">, não lidas: </span>
+          {contador}
+        </span>
+      ) : null}
     </a>
   );
 }

@@ -302,14 +302,50 @@ export const waitlist = pgTable('waitlist', {
 
 export const clinicWhatsapp = pgTable('clinic_whatsapp', {
   tenantId: uuid('tenant_id').primaryKey(),
-  phoneNumberId: text('phone_number_id').notNull(),
-  accessToken: text('access_token').notNull(),
+  phoneNumberId: text('phone_number_id'),
+  accessToken: text('access_token'),
   templateName: text('template_name').notNull().default('consulta_aviso'),
   templateLang: text('template_lang').notNull().default('pt_BR'),
   displayPhone: text('display_phone').notNull().default(''),
   reminderHours: integer('reminder_hours').notNull().default(24),
   enabled: boolean('enabled').notNull().default(true),
+  provider: text('provider').$type<'meta' | 'evolution'>().notNull().default('meta'),
+  instance: text('instance'),
+  hookSecret: text('hook_secret'),
+  connection: text('connection')
+    .$type<'open' | 'connecting' | 'close'>()
+    .notNull()
+    .default('close'),
   updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+export const waConversations = pgTable('wa_conversations', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  phone: text('phone').notNull(),
+  name: text('name').notNull().default(''),
+  lastMessageAt: ts('last_message_at').notNull().defaultNow(),
+  lastPreview: text('last_preview').notNull().default(''),
+  lastDirection: text('last_direction').$type<'in' | 'out'>().notNull().default('in'),
+  unread: integer('unread').notNull().default(0),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const waMessages = pgTable('wa_messages', {
+  id: id(),
+  tenantId: uuid('tenant_id').notNull(),
+  conversationId: uuid('conversation_id').notNull(),
+  direction: text('direction').$type<'in' | 'out'>().notNull(),
+  kind: text('kind').$type<'text' | 'auto' | 'media'>().notNull().default('text'),
+  body: text('body').notNull(),
+  status: text('status')
+    .$type<'sending' | 'sent' | 'failed' | 'received'>()
+    .notNull()
+    .default('sent'),
+  externalId: text('external_id'),
+  error: text('error'),
+  sentBy: uuid('sent_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
 });
 
 export const appointmentMessages = pgTable('appointment_messages', {

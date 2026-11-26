@@ -64,7 +64,10 @@ export function Agenda() {
 
   // "Novo agendamento" pedido de outra tela (painel inicial, busca).
   useEffect(() => {
-    const abrir = () => consumirNovoAgendamento() && setNovo({ dia: hoje() });
+    const abrir = () => {
+      const pedido = consumirNovoAgendamento();
+      if (pedido) setNovo({ dia: hoje(), ...pedido });
+    };
     abrir();
     return aoPedirNovoAgendamento(abrir);
   }, []);
