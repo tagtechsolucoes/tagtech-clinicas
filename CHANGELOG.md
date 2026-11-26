@@ -12,6 +12,10 @@ rodapé do painel e em `/api/health`.
 
 ## Próxima versão
 
+## 1.1.0 · 2026-11-26
+
+- Ícone novo: uma folha de agenda com a cruz da saúde em âmbar, sobre petróleo, com fundo liso.
+
 ## 1.0.0 · 2026-11-26
 
 Primeira versão numerada, com tudo que já estava no ar:
