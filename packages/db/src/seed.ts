@@ -157,8 +157,8 @@ const ESPACO: Array<[string, string, string]> = [
   ['espaco-2.webp', 'Consultório', 'Equipamento novo e esterilização à vista'],
   ['espaco-3.webp', 'Atendimento', 'O mesmo profissional do começo ao fim'],
   ['espaco-4.webp', 'Sorriso', 'Clareamento e estética com planejamento'],
-  ['espaco-5.webp', 'Tecnologia', 'Raio-X digital com menos radiação'],
-  ['espaco-6.webp', 'Detalhes', 'Tudo pensado para o seu conforto'],
+  ['espaco-5.webp', 'Instrumentos', 'Material esterilizado a cada atendimento'],
+  ['espaco-6.webp', 'Cuidado em casa', 'Orientação de higiene para levar para casa'],
 ];
 
 const INTO = process.env.SEED_INTO?.trim() || '';
