@@ -14,7 +14,7 @@ Detalhes técnicos no `README.md` e em `deploy/*.md`. Este arquivo é o contexto
 
 ## Planos e preços (tabela, por mês)
 
-Essencial (1 profissional) R$ 89 · Profissional (até 5) R$ 199 · Clínica (sem limite) R$ 349 (`packages/domain/src/planos.ts`). Mensalidade combinada sobrescreve a tabela.
+Essencial (1 profissional) R$ 115 · Profissional (até 5) R$ 240 · Clínica (sem limite) R$ 349 de referência, vendido sob consulta. No cartão, plano anual; no Pix à vista: Essencial R$ 999 e Profissional R$ 2.000 por ano (`packages/domain/src/planos.ts`). Mensalidade combinada sobrescreve a tabela.
 
 ## Produção
 
