@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { formatBRL, PLAN_INFO, PLANS, subscriptionState, type Plan } from '@tagtech/domain';
+import {
+  formatBRL,
+  monthlyPrice,
+  PLAN_INFO,
+  PLANS,
+  subscriptionState,
+  type Plan,
+} from '@tagtech/domain';
 import { api, type PlatformPayment, type PlatformTenant } from './api';
 import { mensagem, useAvisar } from './contexto';
 import { dataCurta, hoje } from './formato';
@@ -46,7 +53,7 @@ export function TagTechTela() {
     const l = lista ?? [];
     const ativas = l.filter((t) => ['ok', 'due_soon', 'overdue'].includes(estado(t).situation));
     return {
-      mrr: ativas.reduce((s, t) => s + t.priceCents, 0),
+      mrr: ativas.reduce((s, t) => s + monthlyPrice(t.plan, t.priceCents), 0),
       ativas: ativas.length,
       teste: l.filter((t) => estado(t).situation === 'trial').length,
       atencao: l.filter((t) => ['due_soon', 'overdue', 'blocked'].includes(estado(t).situation))
@@ -119,7 +126,7 @@ export function TagTechTela() {
                     </td>
                     <td className="px-5 py-3">{PLAN_INFO[t.plan].name}</td>
                     <td className="hidden px-5 py-3 tabular-nums md:table-cell">
-                      {t.priceCents ? formatBRL(t.priceCents) : '—'}
+                      {formatBRL(monthlyPrice(t.plan, t.priceCents))}
                     </td>
                     <td className="hidden px-5 py-3 tabular-nums md:table-cell">
                       {e.until ? dataCurta(e.until) : '—'}
@@ -203,7 +210,12 @@ function Editar({
   useEffect(() => {
     setF(clinica);
     if (clinica) {
-      setPg((p) => ({ ...p, valor: clinica.priceCents || null, dia: hoje(), nota: '' }));
+      setPg((p) => ({
+        ...p,
+        valor: monthlyPrice(clinica.plan, clinica.priceCents),
+        dia: hoje(),
+        nota: '',
+      }));
       api.platformPayments(clinica.tenantId).then(setPagamentos, () => setPagamentos([]));
     }
   }, [clinica]);
@@ -309,6 +321,7 @@ function Editar({
               <Campo rotulo="Mensalidade">
                 <EntradaDinheiro
                   valor={f.priceCents || null}
+                  placeholder={`Tabela: ${formatBRL(PLAN_INFO[f.plan].priceCents)}`}
                   aoMudar={(v) => setF({ ...f, priceCents: v ?? 0 })}
                 />
               </Campo>

@@ -3,6 +3,7 @@ import {
   FEATURES,
   formatBRL,
   GRACE_DAYS,
+  monthlyPrice,
   PLAN_INFO,
   planFor,
   type Feature,
@@ -149,10 +150,7 @@ export function PlanoTela() {
           </span>
         </div>
         <dl className="grid grid-cols-2 gap-px bg-linha">
-          <Dado
-            rotulo="Mensalidade"
-            valor={a.priceCents ? formatBRL(a.priceCents) : 'A combinar'}
-          />
+          <Dado rotulo="Mensalidade" valor={formatBRL(monthlyPrice(a.plan, a.priceCents))} />
           <Dado
             rotulo={a.situation === 'trial' ? 'Teste até' : 'Pago até'}
             valor={a.until ? dataCurta(a.until) : '—'}
@@ -211,6 +209,10 @@ export function PlanoTela() {
                   </span>
                 ) : null}
               </div>
+              <p className="mt-4 text-3xl font-bold tracking-tight">
+                {formatBRL(p.priceCents)}
+                <span className="text-sm font-normal text-nevoa"> /mês</span>
+              </p>
               <p className="mt-2 text-sm text-nevoa">{p.pitch}</p>
               <p className="mt-4 text-sm font-semibold">
                 {p.maxProfessionals === null

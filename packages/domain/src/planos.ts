@@ -30,6 +30,8 @@ export const FEATURE_LABELS: Record<Feature, string> = {
 export interface PlanInfo {
   name: string;
   pitch: string;
+  /** Preço de tabela por mês, em centavos. */
+  priceCents: number;
   /** null = sem limite. */
   maxProfessionals: number | null;
   features: readonly Feature[];
@@ -38,23 +40,30 @@ export interface PlanInfo {
 export const PLAN_INFO: Record<Plan, PlanInfo> = {
   essencial: {
     name: 'Essencial',
+    priceCents: 8900,
     pitch: 'Para quem atende sozinho: agenda, site, confirmação no WhatsApp e prontuário.',
     maxProfessionals: 1,
     features: [],
   },
   profissional: {
     name: 'Profissional',
+    priceCents: 19900,
     pitch: 'Para encher a agenda: lista de espera automática, retorno, Pix e nota fiscal.',
     maxProfessionals: 5,
     features: ['relationship', 'pix', 'nfse', 'packages', 'tv'],
   },
   clinica: {
     name: 'Clínica',
+    priceCents: 34900,
     pitch: 'Para equipes e convênios: tudo do Profissional, TISS, comissões e relatórios.',
     maxProfessionals: null,
     features: ['relationship', 'pix', 'nfse', 'packages', 'tv', 'insurance', 'reports'],
   },
 };
+
+/** Mensalidade de um cliente: o valor combinado com ele ou, sem acordo, o preço de tabela. */
+export const monthlyPrice = (plan: Plan, priceCents: number): number =>
+  priceCents > 0 ? priceCents : PLAN_INFO[plan].priceCents;
 
 /** O plano mais barato que tem o recurso. */
 export const planFor = (f: Feature): Plan => PLANS.find((p) => PLAN_INFO[p].features.includes(f))!;
