@@ -117,6 +117,26 @@ export interface PatientSummary {
   hasAlerts: boolean;
 }
 
+export type PatientFilter = 'all' | 'recall' | 'birthdays' | 'new' | 'site';
+export interface PatientRow extends PatientSummary {
+  lastVisit: { at: string; service: string } | null;
+  nextAppointment: string | null;
+  /** Nulo para quem não vê o caixa. */
+  totalSpentCents: number | null;
+  situation: 'scheduled' | 'new' | 'recall' | 'ok';
+}
+export interface PatientsOverview {
+  stats: {
+    total: number;
+    newLast30: number;
+    recallOverdue: number;
+    fromSite: number;
+    birthdaysThisMonth: number;
+  };
+  count: number;
+  rows: PatientRow[];
+}
+
 export interface Patient extends PatientSummary {
   cpf: string | null;
   allergies: string;
@@ -1045,6 +1065,10 @@ export const api = {
     send<unknown>('PATCH', `/waitlist/${id}`, { status }),
 
   // pacientes
+  patientsOverview: (q: { q: string; filter: PatientFilter; limit: number; offset: number }) =>
+    request<PatientsOverview>(
+      `/patients/overview?${qs({ ...q, limit: String(q.limit), offset: String(q.offset) })}`,
+    ),
   patients: (q = '', limit = 30) => request<PatientSummary[]>(`/patients?${qs({ q, limit })}`),
   patient: (id: string) => request<Patient>(`/patients/${id}`),
   createPatient: (data: Partial<Patient> & { name: string }) =>
