@@ -31,6 +31,7 @@ const FILTROS: Array<{ id: PatientFilter; nome: string }> = [
 ];
 
 const SITUACAO: Record<PatientRow['situation'], { nome: string; estilo: string }> = {
+  here: { nome: 'Na clínica', estilo: 'bg-petroleo text-white' },
   scheduled: { nome: 'Agendado', estilo: 'bg-azul-fundo text-azul' },
   ok: { nome: 'Em dia', estilo: 'bg-ok-fundo text-ok' },
   recall: { nome: 'Retorno vencido', estilo: 'bg-ambar-fundo text-ambar-tinta' },

@@ -162,7 +162,7 @@ export interface PatientRow extends PatientSummary {
   nextAppointment: string | null;
   /** Nulo para quem não vê o caixa. */
   totalSpentCents: number | null;
-  situation: 'scheduled' | 'new' | 'recall' | 'ok';
+  situation: 'here' | 'scheduled' | 'new' | 'recall' | 'ok';
 }
 export interface PatientsOverview {
   stats: {

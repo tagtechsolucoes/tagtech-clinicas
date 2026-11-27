@@ -424,14 +424,16 @@ function Casca({
 
           <nav
             aria-label="Seções"
-            className="rolagem-fina hidden flex-1 overflow-y-auto px-3 pb-3 lg:block"
+            className="rolagem-fina hidden flex-1 overflow-y-auto px-3 pb-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-1.75rem),transparent)] lg:block"
           >
             {GRUPOS.map((g) => {
               const itens = visiveis.filter((s) => s.grupo === g);
               if (!itens.length) return null;
               return (
-                <div key={g} className="mt-3 first:mt-0">
-                  <p className="px-3 pb-1.5 text-[0.72rem] font-semibold text-white/40">{g}</p>
+                <div key={g} className="mt-3 first:mt-0 [@media(max-height:940px)]:mt-1.5">
+                  <p className="px-3 pb-1.5 text-[0.72rem] font-semibold text-white/40 [@media(max-height:940px)]:pb-0.5">
+                    {g}
+                  </p>
                   {itens.map((s) => (
                     <ItemMenu
                       key={s.id}
@@ -446,7 +448,10 @@ function Casca({
           </nav>
 
           <div className="mt-auto hidden space-y-3 px-4 pb-5 lg:block">
-            <ResumoDoDia />
+            {/* Em telas baixas (notebook), o resumo some para o menu inteiro caber. */}
+            <div className="[@media(max-height:940px)]:hidden">
+              <ResumoDoDia />
+            </div>
             <a
               href={siteUrl(painel.clinic.slug)}
               target="_blank"
@@ -536,7 +541,7 @@ function ItemMenu({ s, ativo, contador = 0 }: { s: ItemSecao; ativo: boolean; co
     <a
       href={`#${s.id}`}
       aria-current={ativo ? 'page' : undefined}
-      className={`relative flex h-[2.15rem] items-center gap-3 rounded-xl px-3 text-[0.93rem] font-medium whitespace-nowrap transition-colors ${
+      className={`relative flex h-[2.15rem] items-center [@media(max-height:940px)]:h-[1.85rem] gap-3 rounded-xl px-3 text-[0.93rem] font-medium whitespace-nowrap transition-colors ${
         ativo
           ? 'bg-white/[0.12] text-white before:absolute before:top-2 before:bottom-2 before:-left-3 before:w-1 before:rounded-r-full before:bg-ambar'
           : 'text-white/60 hover:bg-white/[0.06] hover:text-white'

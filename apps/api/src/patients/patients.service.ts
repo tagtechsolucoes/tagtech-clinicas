@@ -161,18 +161,28 @@ export class PatientsService {
           where status = 'done' group by patient_id
         ), proxima as (
           select patient_id, min(starts_at) as em from appointments
-          where status in ('scheduled', 'confirmed') and starts_at > now() group by patient_id
+          where (status in ('scheduled', 'confirmed') and starts_at > now())
+             -- Quem chegou ou está sendo atendido agora também tem consulta "hoje".
+             or (status in ('arrived', 'in_progress') and starts_at > now() - interval '24 hours')
+          group by patient_id
+        ), aqui as (
+          select distinct patient_id from appointments
+          where status in ('arrived', 'in_progress') and starts_at > now() - interval '24 hours'
         ), gasto as (
           select patient_id, sum(amount_cents)::int as total from charges
           where status = 'paid' and patient_id is not null group by patient_id
         )
-        select p.id, p.name, p.phone, p.email, p.cpf, p.birth_date, p.source, p.created_at,
+        select p.id, p.name, p.phone, p.email, p.cpf, p.birth_date, p.created_at,
+          -- Veio pelo site: cadastrou-se pelo site ou já marcou alguma consulta por lá.
+          (p.source = 'online' or exists (select 1 from appointments a
+            where a.patient_id = p.id and a.source = 'online')) as from_site,
           (btrim(p.allergies) <> '' or btrim(p.medications) <> '') as has_alerts,
           u.em as last_at, x.em as next_at, coalesce(g.total, 0) as spent,
           (select s.name from appointments a join services s on s.id = a.service_id
             where a.patient_id = p.id and a.status = 'done'
             order by a.starts_at desc limit 1) as last_service,
           case
+            when q.patient_id is not null then 'here'
             when x.em is not null then 'scheduled'
             when u.em is null then 'new'
             when u.em < now() - interval '6 months' then 'recall'
@@ -181,6 +191,7 @@ export class PatientsService {
         from patients p
         left join ultima u on u.patient_id = p.id
         left join proxima x on x.patient_id = p.id
+        left join aqui q on q.patient_id = p.id
         left join gasto g on g.patient_id = p.id`;
       const term = o.q.trim();
       const digits = term.replace(/\D/g, '');
@@ -194,7 +205,7 @@ export class PatientsService {
         recall: sql`situation = 'recall'`,
         birthdays: sql`extract(month from birth_date) = ${mes}`,
         new: sql`created_at > now() - interval '30 days'`,
-        site: sql`source = 'online'`,
+        site: sql`from_site`,
       }[o.filter];
       const linhas = await tx.execute<{
         id: string;
@@ -207,7 +218,7 @@ export class PatientsService {
         next_at: Date | null;
         spent: number;
         last_service: string | null;
-        situation: 'scheduled' | 'new' | 'recall' | 'ok';
+        situation: 'here' | 'scheduled' | 'new' | 'recall' | 'ok';
       }>(sql`select * from (${base}) t where ${busca} and ${filtro}
         order by ${o.filter === 'recall' ? sql`last_at asc` : sql`last_at desc nulls last, name asc`}
         limit ${o.limit} offset ${o.offset}`);
@@ -220,7 +231,7 @@ export class PatientsService {
       }>(sql`select count(*)::int as total,
           count(*) filter (where created_at > now() - interval '30 days')::int as novos,
           count(*) filter (where situation = 'recall')::int as recall,
-          count(*) filter (where source = 'online')::int as site,
+          count(*) filter (where from_site)::int as site,
           count(*) filter (where extract(month from birth_date) = ${mes})::int as aniversarios
         from (${base}) t`);
       const [filtrados] = await tx.execute<{ c: number }>(
