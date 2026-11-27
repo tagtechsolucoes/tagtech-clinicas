@@ -11,6 +11,8 @@ Detalhes técnicos no `README.md` e em `deploy/*.md`. Este arquivo é o contexto
 - Financeiro, estoque, convênios com guias e XML TISS (só para quem atende plano), relatórios, resultado.
 - WhatsApp: número da clínica por **QR code (Evolution API, contêiner no compose)** ou API oficial da Meta. Mensagens automáticas (aviso, lembrete, lista de espera, retorno, reativação, avaliação) e **central de Conversas** (resposta pelo painel, paciente do número, próximas consultas, "Marcar consulta" já preenchido). Atualiza por consulta a cada 5 s (sem socket).
 - PWA instalável. Tela "Administração TagTech" para quem está em `PLATFORM_ADMINS`.
+- Lembrete com confirmação respondendo 1 ou 2 (pelo QR code) e lembrete do dia com o endereço.
+- Backup diário criptografado (banco, fotos, WhatsApp e `.env`) e troca de servidor com `deploy/migrar.sh` (guia em `deploy/MIGRAR.md`).
 
 ## Planos e preços (tabela, por mês)
 
@@ -49,6 +51,7 @@ Comparação com a Clínica Experts sugeriu: termos com assinatura, permissões 
 - Interface sempre bonita, moderna e sofisticada. Conferir com screenshot (Playwright) antes de entregar.
 - Fluxo: branch a partir da `main` → commit → push → PR pela API (`gh api repos/tagtechsolucoes/<repo>/pulls`). **Merge só depois do "sim" dele**, com squash (`gh api -X PUT repos/tagtechsolucoes/<repo>/pulls/N/merge -f merge_method=squash`) e com o CI verde.
 - Antes do PR: `pnpm format:check`, `pnpm typecheck`, `timeout 900 pnpm test` (Postgres local; se cair, `service postgresql start`).
+- Versão (MAJOR.MINOR.PATCH) no `package.json` e no `CHANGELOG.md`: todo PR escreve o que mudou em "Próxima versão" e roda `pnpm versao patch|minor|major` (correção, função nova, mudança grande). O CI cria a tag e a release. A versão no ar aparece no rodapé do painel e em `/api/health`.
 - Nunca gravar senha, token ou chave no repositório. Senhas de contas de demonstração são geradas no seed e só aparecem na saída do comando.
 - Ele não tem acesso direto ao servidor por aqui: roda os comandos no Google Cloud Shell. Entregar comandos prontos para colar, um bloco por servidor, dizendo o que deve aparecer.
 - A TagTech tem 4 sócios. Mensalidades são cobradas à mão (Pix/boleto) e controladas na tela "TagTech" (só para quem está em `PLATFORM_ADMINS`).
