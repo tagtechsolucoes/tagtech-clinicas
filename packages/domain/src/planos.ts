@@ -34,6 +34,8 @@ export interface PlanInfo {
   priceCents: number;
   /** null = sem limite. */
   maxProfessionals: number | null;
+  /** Vendido sob consulta: a tabela é só referência, o valor é combinado com a TagTech. */
+  onRequest?: boolean;
   features: readonly Feature[];
 }
 
@@ -57,6 +59,7 @@ export const PLAN_INFO: Record<Plan, PlanInfo> = {
     priceCents: 34900,
     pitch: 'Para equipes e convênios: tudo do Profissional, TISS, comissões e relatórios.',
     maxProfessionals: null,
+    onRequest: true,
     features: ['relationship', 'pix', 'nfse', 'packages', 'tv', 'insurance', 'reports'],
   },
 };

@@ -10,6 +10,17 @@ import {
 } from '@tagtech/domain';
 import { usePainel } from './contexto';
 import { dataCurta } from './formato';
+
+/** "31 de dez." no ano corrente; com o ano quando for outro ("31 de dez. de 2027"). */
+const dataComAno = (dia: string) =>
+  dia.slice(0, 4) === String(new Date().getFullYear())
+    ? dataCurta(dia)
+    : new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(new Date(`${dia}T12:00:00Z`));
 import { Cabecalho, Icone } from './ui';
 
 const zapTagTech = (whatsapp: string, texto: string) =>
@@ -127,6 +138,8 @@ export function PlanoTela() {
     `Olá! Sou da ${clinic.name} e quero falar sobre o meu plano.`,
   );
   const sit = SITUACAO[a.situation];
+  // Assinatura sem fim prática (ex.: demonstração até 2099): não mostra milhares de dias.
+  const semVencimento = (a.daysLeft ?? 0) > 3650;
   return (
     <>
       <Cabecalho
@@ -150,10 +163,17 @@ export function PlanoTela() {
           </span>
         </div>
         <dl className="grid grid-cols-2 gap-px bg-linha">
-          <Dado rotulo="Mensalidade" valor={formatBRL(monthlyPrice(a.plan, a.priceCents))} />
+          <Dado
+            rotulo="Mensalidade"
+            valor={
+              a.priceCents > 0 || !PLAN_INFO[a.plan].onRequest
+                ? formatBRL(monthlyPrice(a.plan, a.priceCents))
+                : 'Sob consulta'
+            }
+          />
           <Dado
             rotulo={a.situation === 'trial' ? 'Teste até' : 'Pago até'}
-            valor={a.until ? dataCurta(a.until) : '—'}
+            valor={semVencimento ? 'Sem vencimento' : a.until ? dataComAno(a.until) : '—'}
           />
           <Dado
             rotulo="Profissionais ativos"
@@ -162,7 +182,7 @@ export function PlanoTela() {
           <Dado
             rotulo="Situação"
             valor={
-              a.daysLeft === null
+              a.daysLeft === null || semVencimento
                 ? sit.nome
                 : a.daysLeft >= 0
                   ? `${a.daysLeft} ${a.daysLeft === 1 ? 'dia' : 'dias'} restantes`
@@ -210,8 +230,14 @@ export function PlanoTela() {
                 ) : null}
               </div>
               <p className="mt-4 text-3xl font-bold tracking-tight">
-                {formatBRL(p.priceCents)}
-                <span className="text-sm font-normal text-nevoa"> /mês</span>
+                {p.onRequest ? (
+                  'Sob consulta'
+                ) : (
+                  <>
+                    {formatBRL(p.priceCents)}
+                    <span className="text-sm font-normal text-nevoa"> /mês</span>
+                  </>
+                )}
               </p>
               <p className="mt-2 text-sm text-nevoa">{p.pitch}</p>
               <p className="mt-4 text-sm font-semibold">

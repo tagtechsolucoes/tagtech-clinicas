@@ -290,7 +290,7 @@ export function Agenda() {
                 className="h-9 rounded-lg bg-porcelana px-2.5 text-sm text-nevoa ring-1 ring-linha"
               />
             </label>
-            <div className="flex w-full items-center gap-2.5 sm:ml-auto sm:w-auto">
+            <div className="flex w-full min-w-0 items-center gap-2 sm:ml-auto sm:w-auto sm:gap-2.5">
               <div role="group" aria-label="Visão" className="flex rounded-xl bg-trilho p-1">
                 {(['dia', 'semana', 'mes'] as const).map((v) => (
                   <button
@@ -298,7 +298,7 @@ export function Agenda() {
                     type="button"
                     aria-pressed={visao === v}
                     onClick={() => trocarVisao(v)}
-                    className={`h-8 rounded-lg px-3.5 text-sm font-semibold ${visao === v ? 'bg-folha text-tinta shadow-sm' : 'text-nevoa'}`}
+                    className={`h-8 rounded-lg px-2.5 text-sm font-semibold sm:px-3.5 ${visao === v ? 'bg-folha text-tinta shadow-sm' : 'text-nevoa'}`}
                   >
                     {NOME_VISAO[v]}
                   </button>

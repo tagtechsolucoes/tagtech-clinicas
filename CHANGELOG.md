@@ -12,6 +12,16 @@ rodapé do painel e em `/api/health`.
 
 ## Próxima versão
 
+## 1.1.1 · 2026-11-26
+
+- Agenda no celular: a barra de cima cabe na tela (o botão Agendar não fica mais cortado).
+- Pacientes: quem está na clínica hoje aparece como "Na clínica", com a consulta do dia, em vez
+  de "Sem consulta". "Vieram pelo site" conta quem já marcou pelo site, como no Resultado.
+- Plano: o plano Clínica aparece "Sob consulta"; "Pago até" mostra o ano quando é outro, e
+  assinatura sem fim mostra "Sem vencimento" em vez de milhares de dias.
+- Menu lateral em telas baixas (notebook): itens mais compactos e o resumo do dia some, para o
+  menu caber; um esmaecido no fim mostra que dá para rolar.
+
 ## 1.1.0 · 2026-11-26
 
 - Ícone novo: uma folha de agenda com a cruz da saúde em âmbar, sobre petróleo, com fundo liso.
