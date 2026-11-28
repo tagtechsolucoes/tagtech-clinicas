@@ -571,6 +571,223 @@ async function main() {
       ])
       .returning();
 
+    // Histórico de dois meses, para o painel, o Resultado e os relatórios abrirem com uma
+    // clínica em ritmo normal: agenda cheia em boa parte, poucas faltas e recebimentos.
+    {
+      let semente = 20260415;
+      const n = () => {
+        semente = (semente * 1664525 + 1013904223) % 4294967296;
+        return semente / 4294967296;
+      };
+      const um = <T>(l: readonly T[]) => l[Math.floor(n() * l.length)]!;
+      const PRIMEIROS = [
+        'Ana',
+        'Bruno',
+        'Camila',
+        'Daniel',
+        'Eduarda',
+        'Felipe',
+        'Gabriela',
+        'Henrique',
+        'Isadora',
+        'Júlia',
+        'Lucas',
+        'Marina',
+        'Nicolas',
+        'Olívia',
+        'Pedro',
+        'Rafaela',
+        'Samuel',
+        'Talita',
+        'Vinícius',
+        'Yasmin',
+        'André',
+        'Clara',
+        'Diego',
+        'Luana',
+      ];
+      const SOBRENOMES = [
+        'Andrade',
+        'Barros',
+        'Cunha',
+        'Dantas',
+        'Falcão',
+        'Gouveia',
+        'Leão',
+        'Maciel',
+        'Nóbrega',
+        'Pimentel',
+        'Rêgo',
+        'Sampaio',
+        'Tavares',
+        'Vasconcelos',
+        'Wanderley',
+      ];
+      const usados = new Set(nomes.map((x) => x[0]));
+      const novos: Array<typeof patients.$inferInsert> = [];
+      while (novos.length < 56) {
+        const name = `${um(PRIMEIROS)} ${um(SOBRENOMES)}`;
+        if (usados.has(name)) continue;
+        usados.add(name);
+        const i = nomes.length + novos.length;
+        const ano = 1965 + Math.floor(n() * 45);
+        novos.push({
+          tenantId,
+          name,
+          phone: fone(`55819${String(80000000 + Math.floor(n() * 19999999))}`, i),
+          birthDate: `${ano}-${String(1 + Math.floor(n() * 12)).padStart(2, '0')}-${String(1 + Math.floor(n() * 28)).padStart(2, '0')}`,
+          source: n() < 0.35 ? 'online' : 'staff',
+          consentAt: new Date(),
+          // Cadastrados ao longo do último ano, poucos por mês.
+          createdAt: em(dia(-Math.floor(15 + n() * 350)), '10:00'),
+        });
+      }
+      const antigos = await db
+        .insert(patients)
+        .values(novos)
+        .returning({ id: patients.id, source: patients.source });
+      const todos = [...pac.map((x) => x.id), ...antigos.map((x) => x.id)];
+      // Quem chegou pelo site marca por lá às vezes; os outros, pela recepção.
+      const doSite = new Set(antigos.filter((x) => x.source === 'online').map((x) => x.id));
+      const agenda: Array<[typeof helena, Array<(typeof svc)[0]>]> = [
+        [helena, [aval, limpeza, limpeza, clareamento]],
+        [rafael, [manutencao, manutencao, manutencao, avalOrto]],
+        [camila, [toxina]],
+      ];
+      const turnosDe = (pid: string, wd: number): Array<[number, number]> => {
+        const t: Record<string, Record<number, Array<[number, number]>>> = {
+          [helena.id]: {
+            1: [
+              [480, 720],
+              [810, 1080],
+            ],
+            2: [
+              [480, 720],
+              [810, 1080],
+            ],
+            3: [
+              [480, 720],
+              [810, 1080],
+            ],
+            4: [
+              [480, 720],
+              [810, 1080],
+            ],
+            5: [
+              [480, 720],
+              [810, 1080],
+            ],
+            6: [[480, 720]],
+          },
+          [rafael.id]: {
+            1: [
+              [540, 750],
+              [840, 1140],
+            ],
+            3: [
+              [540, 750],
+              [840, 1140],
+            ],
+            5: [
+              [540, 750],
+              [840, 1140],
+            ],
+            2: [[840, 1140]],
+            4: [[840, 1140]],
+          },
+          [camila.id]: { 2: [[540, 1020]], 4: [[540, 1020]], 6: [[540, 780]] },
+        };
+        return t[pid]?.[wd] ?? [];
+      };
+      const hhmm = (m: number) =>
+        `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      const historico: Array<ReturnType<typeof marca>> = [];
+      for (let d = 62; d >= 2; d--) {
+        const data = dia(-d);
+        const wd = new Date(`${data}T12:00:00Z`).getUTCDay();
+        for (const [pro, servicos] of agenda) {
+          for (const [ini, fim] of turnosDe(pro.id, wd)) {
+            let t = ini;
+            while (t < fim) {
+              const s = um(servicos);
+              if (t + s.durationMinutes > fim) break;
+              // Uns 70% dos horários ocupados; o resto fica livre.
+              if (n() < 0.7) {
+                const r = n();
+                const status = r < 0.05 ? 'no_show' : r < 0.11 ? 'cancelled' : 'done';
+                const paciente = todos[Math.floor(n() * todos.length)]!;
+                const a = marca(data, hhmm(t), pro.id, s, 0, status, {
+                  source: doSite.has(paciente) && n() < 0.5 ? 'online' : 'staff',
+                  confirmedAt: status === 'done' && n() < 0.8 ? em(data, '08:00') : null,
+                });
+                historico.push({ ...a, patientId: paciente });
+              }
+              t += s.durationMinutes;
+            }
+          }
+        }
+      }
+      // Contas do dia a dia dos últimos dois meses, já pagas.
+      const CONTAS: Record<number, [string, string, number, string]> = {
+        5: ['Aluguel da sala', 'Aluguel', 450000, ''],
+        8: ['Anúncios no Instagram', 'Marketing', 120000, 'Meta'],
+        10: ['Folha da recepção e auxiliar', 'Pessoal', 680000, ''],
+        12: ['Energia e internet', 'Contas da casa', 79000, ''],
+        15: ['Próteses e moldagens', 'Laboratório', 290000, 'Lab Sorriso'],
+        20: ['Materiais de consumo', 'Material', 195000, 'Dental Nordeste'],
+        25: ['Contabilidade', 'Serviços', 65000, 'Contábil Recife'],
+      };
+      const contas: Array<typeof expenses.$inferInsert> = [];
+      for (let d = 62; d >= 1; d--) {
+        const data = dia(-d);
+        const c = CONTAS[Number(data.slice(8))];
+        if (!c) continue;
+        contas.push({
+          tenantId,
+          description: c[0],
+          category: c[1],
+          amountCents: c[2],
+          supplier: c[3],
+          dueDate: data,
+          status: 'paid',
+          method: 'pix',
+          paidAt: em(data, '11:00'),
+        });
+      }
+      if (contas.length) await db.insert(expenses).values(contas);
+
+      const feitos = await db.insert(appointments).values(historico).returning({
+        id: appointments.id,
+        patientId: appointments.patientId,
+        serviceId: appointments.serviceId,
+        endsAt: appointments.endsAt,
+        priceCents: appointments.priceCents,
+        status: appointments.status,
+      });
+      const nomeServico = new Map(svc.map((x) => [x.id, x.name]));
+      const pagos = feitos.filter((a) => a.status === 'done' && (a.priceCents ?? 0) > 0);
+      for (let i = 0; i < pagos.length; i += 200) {
+        await db.insert(charges).values(
+          pagos.slice(i, i + 200).map((a) => {
+            const pago = new Date(a.endsAt.getTime() + 5 * 60_000);
+            return {
+              tenantId,
+              patientId: a.patientId,
+              appointmentId: a.id,
+              description: nomeServico.get(a.serviceId) ?? 'Consulta',
+              amountCents: a.priceCents!,
+              dueDate: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Recife' }).format(
+                pago,
+              ),
+              status: 'paid' as const,
+              method: um(['pix', 'pix', 'credit', 'debit', 'cash'] as const),
+              paidAt: pago,
+            };
+          }),
+        );
+      }
+    }
+
     await db.insert(timeOff).values({
       tenantId,
       professionalId: camila.id,

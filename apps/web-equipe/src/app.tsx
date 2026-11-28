@@ -413,7 +413,7 @@ function Casca({
           <button
             type="button"
             onClick={() => setBusca(true)}
-            className="mx-4 mb-2 hidden h-10 items-center gap-2.5 rounded-xl bg-white/[0.07] px-3 text-sm text-white/60 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white lg:flex"
+            className="mx-4 mb-2 hidden h-10 items-center gap-2.5 [@media(max-height:820px)]:mb-1! [@media(max-height:820px)]:h-9! rounded-xl bg-white/[0.07] px-3 text-sm text-white/60 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white lg:flex"
           >
             <Icone nome="busca" className="h-4 w-4" />
             <span className="flex-1 text-left">Buscar</span>
@@ -424,14 +424,17 @@ function Casca({
 
           <nav
             aria-label="Seções"
-            className="rolagem-fina hidden flex-1 overflow-y-auto px-3 pb-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-1.75rem),transparent)] lg:block"
+            className="rolagem-fina hidden flex-1 overflow-y-auto px-3 pb-6 [mask-image:linear-gradient(to_bottom,black_calc(100%-1.25rem),transparent)] lg:block"
           >
             {GRUPOS.map((g) => {
               const itens = visiveis.filter((s) => s.grupo === g);
               if (!itens.length) return null;
               return (
-                <div key={g} className="mt-3 first:mt-0 [@media(max-height:940px)]:mt-1.5">
-                  <p className="px-3 pb-1.5 text-[0.72rem] font-semibold text-white/40 [@media(max-height:940px)]:pb-0.5">
+                <div
+                  key={g}
+                  className="mt-3 first:mt-0 [@media(max-height:940px)]:mt-1.5 [@media(max-height:820px)]:mt-1!"
+                >
+                  <p className="px-3 pb-1.5 text-[0.72rem] font-semibold text-white/40 [@media(max-height:940px)]:pb-0.5 [@media(max-height:820px)]:pb-0! [@media(max-height:820px)]:text-[0.66rem]!">
                     {g}
                   </p>
                   {itens.map((s) => (
@@ -447,7 +450,7 @@ function Casca({
             })}
           </nav>
 
-          <div className="mt-auto hidden space-y-3 px-4 pb-5 lg:block">
+          <div className="mt-auto hidden space-y-3 px-4 pb-5 lg:block [@media(max-height:820px)]:space-y-1.5! [@media(max-height:820px)]:pb-3!">
             {/* Em telas baixas (notebook), o resumo some para o menu inteiro caber. */}
             <div className="[@media(max-height:940px)]:hidden">
               <ResumoDoDia />
@@ -541,7 +544,7 @@ function ItemMenu({ s, ativo, contador = 0 }: { s: ItemSecao; ativo: boolean; co
     <a
       href={`#${s.id}`}
       aria-current={ativo ? 'page' : undefined}
-      className={`relative flex h-[2.15rem] items-center [@media(max-height:940px)]:h-[1.85rem] gap-3 rounded-xl px-3 text-[0.93rem] font-medium whitespace-nowrap transition-colors ${
+      className={`relative flex h-[2.15rem] items-center [@media(max-height:940px)]:h-[1.85rem] [@media(max-height:820px)]:h-[1.72rem]! [@media(max-height:820px)]:text-[0.88rem]! gap-3 rounded-xl px-3 text-[0.93rem] font-medium whitespace-nowrap transition-colors ${
         ativo
           ? 'bg-white/[0.12] text-white before:absolute before:top-2 before:bottom-2 before:-left-3 before:w-1 before:rounded-r-full before:bg-ambar'
           : 'text-white/60 hover:bg-white/[0.06] hover:text-white'

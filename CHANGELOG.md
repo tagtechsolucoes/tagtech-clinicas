@@ -12,6 +12,13 @@ rodapé do painel e em `/api/health`.
 
 ## Próxima versão
 
+## 1.1.2 · 2026-11-27
+
+- Menu lateral no notebook (1366×768): cabe inteiro, até "Plano", sem cortar nem rolar.
+- Ícone do WhatsApp novo (o logo de verdade) no painel e no site da clínica.
+- Clínica Aurora (demonstração) com dois meses de histórico: consultas, poucas faltas,
+  recebimentos, despesas do mês e 70 pacientes. O painel abre com ocupação e resultado reais.
+
 ## 1.1.1 · 2026-11-26
 
 - Agenda no celular: a barra de cima cabe na tela (o botão Agendar não fica mais cortado).
